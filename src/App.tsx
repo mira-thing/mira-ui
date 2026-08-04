@@ -264,13 +264,7 @@ export default function App() {
 
   // which offline screen wins
   let offlineScreen:
-    | 'checking'
-    | 'tethering'
-    | 'reconnecting'
-    | 'chooser'
-    | 'pc'
-    | 'bluetooth'
-    | null = null
+    'checking' | 'tethering' | 'reconnecting' | 'chooser' | 'pc' | 'bluetooth' | null = null
   if (offlineActive) {
     if (offlineChecking) {
       offlineScreen = 'checking'
