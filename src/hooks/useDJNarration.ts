@@ -90,11 +90,17 @@ export function useDJNarration(
     return () => window.clearTimeout(t)
   }, [current])
 
-  // memoised so the context value keeps its identity and consumers do not re-render each tick
+  // a narration item is never presentable as a track, so cover the whole time it is current,
+  // including the silent pre-roll and the stretch after the hold's clock has run out
+  const narrationIsCurrent = status != null && isNarrationItem(status)
+  const narrating = narrationIsCurrent || current !== null
+  const title = narrationIsCurrent ? status.track_name : (current?.title ?? '')
+  const artist = narrationIsCurrent ? status.track_artist : (current?.artist ?? '')
+
+  // memoised on the strings, not on status, so consumers do not re-render each position tick
   return useMemo(
-    () =>
-      current ? { narrating: true, title: current.title, artist: current.artist } : NOT_NARRATING,
-    [current],
+    () => (narrating ? { narrating: true, title, artist } : NOT_NARRATING),
+    [narrating, title, artist],
   )
 }
 

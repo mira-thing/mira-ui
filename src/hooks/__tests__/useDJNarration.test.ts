@@ -52,6 +52,28 @@ function djNarration(over: Partial<ObserverStatusActive> = {}): ObserverStatusAc
   }
 }
 
+// an outro: shapes from the Automatic -> Without Fear capture. It carries the id of the song
+// *ending*, and sits queued at position 0 for ~3.9s before the speech starts
+function djOutro(over: Partial<ObserverStatusActive> = {}): ObserverStatusActive {
+  return {
+    ...activeStatus,
+    context_uri: DJ_URI,
+    track_uri: 'spotify:media:outgoing1',
+    track_id: 'outgoing1',
+    track_name: 'Up next',
+    track_artist: 'DJ X',
+    duration: 2377,
+    position: 0,
+    raw_metadata: {
+      agentic_product_type: 'dj',
+      is_narration: 'true',
+      album_artist_name: 'DJ X',
+      title: 'Up next',
+    },
+    ...over,
+  }
+}
+
 function djSkipped(): ObserverStatusActive {
   return djSong({
     track_uri: 'spotify:track:other2',
@@ -227,6 +249,61 @@ describe('useDJNarration', () => {
     expect(result.current.narrating).toBe(false)
   })
 
+  it('narrates for the whole time the narration item is current, pre-roll included', () => {
+    // the item is silent for ~3.9s first, but it is never presentable as a track, so the card
+    // covers it rather than letting the raw item drive the screen
+    const { result } = setup([djOutro(), null])
+    expect(result.current.narrating).toBe(true)
+    expect(result.current.artist).toBe('DJ X')
+  })
+
+  it('stays narrating as the narration position moves', () => {
+    const { result, rerender } = setup([djOutro(), null])
+    expect(result.current.narrating).toBe(true)
+
+    const moving = djOutro({ position: 3 })
+    rerender([moving, seenNarrationFrom(moving)])
+    expect(result.current.narrating).toBe(true)
+    expect(result.current.artist).toBe('DJ X')
+  })
+
+  it('keeps narrating past the point the hold would have expired', () => {
+    // an outro's position advances slower than wall clock, so duration - position runs out
+    // while the DJ is still talking. The item being current is what covers the rest
+    const moving = djOutro({ position: 3 })
+    const seen = seenNarrationFrom(moving)
+    const { result, rerender } = setup([moving, seen])
+    expect(result.current.narrating).toBe(true)
+
+    vi.advanceTimersByTime(2600) // past duration 2377
+    rerender([djOutro({ position: 921 }), seen])
+
+    expect(result.current.narrating).toBe(true)
+  })
+
+  it('keeps its value identity while a narration ticks along', () => {
+    const moving = djOutro({ position: 3 })
+    const seen = seenNarrationFrom(moving)
+    const { result, rerender } = setup([moving, seen])
+    const first = result.current
+
+    rerender([djOutro({ position: 921 }), seen])
+
+    expect(result.current).toBe(first)
+  })
+
+  it('stops narrating when the outro gives way to a plain song', () => {
+    const moving = djOutro({ position: 3 })
+    const seen = seenNarrationFrom(moving)
+    const { result, rerender } = setup([moving, seen])
+    expect(result.current.narrating).toBe(true)
+
+    vi.advanceTimersByTime(2600)
+    rerender([djSong(), seen])
+
+    expect(result.current.narrating).toBe(false)
+  })
+
   it('drops the hold when playback leaves the DJ set', () => {
     const seen = seenNarrationFrom(djNarration())
     const { result, rerender } = setup([djSong(), seen])
@@ -249,6 +326,14 @@ describe('presentTrack', () => {
       art: 'https://x/song.jpg',
       djFallback: false,
     })
+  })
+
+  it('never presents a narration item using its own artwork', () => {
+    // the narration carries Spotify's DJ cover url; presenting it raw showed an unstyled screen
+    const shown = presentTrack(djNarration(), TALKING)
+    expect(shown.art).toBe('')
+    expect(shown.djFallback).toBe(true)
+    expect(shown.art).not.toContain('lexicon-assets')
   })
 
   it('substitutes the DJ and drops the artwork while talking', () => {

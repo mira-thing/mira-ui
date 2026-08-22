@@ -12,6 +12,8 @@ interface ObserverState {
   setupProgress: SetupProgress | null
   // last DJ narration seen on the wire; the reducer sees every action, renders may not
   narration: SeenNarration | null
+  // id of the last actual song, which is what tells an outro narration from an intro
+  lastSongId: string
 }
 
 type Action =
@@ -28,6 +30,7 @@ const initial: ObserverState = {
   connected: false,
   setupProgress: null,
   narration: null,
+  lastSongId: '',
 }
 
 function mergeProgress(
@@ -50,9 +53,14 @@ function reducer(state: ObserverState, action: Action): ObserverState {
         incoming.setting_up === undefined && prev !== undefined
           ? { ...incoming, setting_up: prev }
           : incoming
+      const isNarr = status.active && isNarrationItem(status)
+      // an outro carries the id of the song already playing and sits silent for seconds before
+      // speaking; an intro starts at once, so waiting on its position would only add latency
+      const isOutro = isNarr && status.track_id === state.lastSongId
       // carried forward so the song that supersedes a narration cannot erase it
       const narration =
-        status.active && isNarrationItem(status) ? seenNarrationFrom(status) : state.narration
+        isNarr && (!isOutro || status.position > 0) ? seenNarrationFrom(status) : state.narration
+      const lastSongId = status.active && !isNarr ? status.track_id : state.lastSongId
 
       return {
         ...state,
@@ -61,6 +69,7 @@ function reducer(state: ObserverState, action: Action): ObserverState {
         error: null,
         setupProgress: mergeProgress(state.setupProgress, incoming.setting_up_progress),
         narration,
+        lastSongId,
       }
     }
     case 'error':

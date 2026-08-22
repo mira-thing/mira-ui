@@ -356,6 +356,93 @@ describe('useObserver', () => {
     })
   })
 
+  // an outro carries the id of the song it follows; an intro carries the id of the song ahead
+  const outgoingSong = {
+    ...baseWire,
+    TrackUri: 'spotify:track:outgoing1',
+    TrackName: 'Automatic',
+    TrackArtist: 'half•alive',
+    ContextUri: 'spotify:playlist:37i9dQZF1EYkqdzj48dyYq',
+    Duration: 192210,
+    Position: 25978,
+    RawMetadata: { agentic_product_type: 'dj' },
+  }
+  const outroNarration = {
+    ...baseWire,
+    TrackUri: 'spotify:media:outgoing1',
+    TrackName: 'Up next',
+    TrackArtist: 'DJ X',
+    ContextUri: 'spotify:playlist:37i9dQZF1EYkqdzj48dyYq',
+    Duration: 2377,
+    Position: 0,
+    RawMetadata: { agentic_product_type: 'dj', is_narration: 'true' },
+  }
+
+  it('ignores an outro still queued at position 0, then captures it once it moves', async () => {
+    // an outro sits current but silent for ~3.9s; arming from it would spend the hold on silence
+    server.use(http.get('*/observer/status', () => new Promise(() => undefined)))
+    const { result } = renderHook(() => useObserver())
+
+    await act(async () => {
+      fireEvent({ type: 'observer_track_changed', data: outgoingSong } as ApiEvent)
+      fireEvent({ type: 'observer_track_changed', data: outroNarration } as ApiEvent)
+    })
+    expect(result.current.narration).toBeNull()
+
+    await act(async () => {
+      fireEvent({
+        type: 'observer_state_changed',
+        data: { ...outroNarration, Position: 3 },
+      } as ApiEvent)
+    })
+    expect(result.current.narration).toMatchObject({
+      uri: 'spotify:media:outgoing1',
+      trackId: 'outgoing1',
+      ms: 2374,
+    })
+  })
+
+  it('still reads an outro as an outro on its later events', async () => {
+    // the narration must not overwrite lastSongId, or the second event looks like an intro
+    server.use(http.get('*/observer/status', () => new Promise(() => undefined)))
+    const { result } = renderHook(() => useObserver())
+
+    await act(async () => {
+      fireEvent({ type: 'observer_track_changed', data: outgoingSong } as ApiEvent)
+      fireEvent({ type: 'observer_track_changed', data: outroNarration } as ApiEvent)
+    })
+    await act(async () => {
+      fireEvent({ type: 'observer_state_changed', data: outroNarration } as ApiEvent)
+    })
+
+    expect(result.current.narration).toBeNull()
+  })
+
+  it('captures an intro narration immediately, even at position 0', async () => {
+    // an intro starts speaking at once, so withholding the card only adds latency
+    server.use(http.get('*/observer/status', () => new Promise(() => undefined)))
+    const { result } = renderHook(() => useObserver())
+
+    const intro = {
+      ...outroNarration,
+      TrackUri: 'spotify:media:incoming2',
+      Duration: 0,
+      Position: 0,
+    }
+
+    await act(async () => {
+      fireEvent({ type: 'observer_track_changed', data: outgoingSong } as ApiEvent)
+      fireEvent({ type: 'observer_track_changed', data: intro } as ApiEvent)
+    })
+
+    // duration 0 falls back to the default guess
+    expect(result.current.narration).toMatchObject({
+      uri: 'spotify:media:incoming2',
+      trackId: 'incoming2',
+      ms: 5000,
+    })
+  })
+
   it('keeps the narration record while ordinary songs stream past', async () => {
     server.use(http.get('*/observer/status', () => new Promise(() => undefined)))
     const { result } = renderHook(() => useObserver())

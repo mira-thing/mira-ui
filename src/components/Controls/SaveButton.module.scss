@@ -163,3 +163,13 @@
     animation: none;
   }
 }
+
+// matches .btnDisabled in Controls.module.scss, so both disabled controls read the same
+.disabled {
+  opacity: 0.35;
+  cursor: default;
+
+  &:active {
+    transform: none;
+  }
+}

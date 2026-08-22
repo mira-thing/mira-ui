@@ -13,6 +13,7 @@ import {
   ShuffleIcon,
 } from './icons'
 import { SaveButton } from './SaveButton'
+import { useNarration } from '@/hooks/useDJNarration'
 import styles from './Controls.module.scss'
 
 import type { RepeatMode } from '@/components/Menu'
@@ -65,11 +66,15 @@ function ControlsImpl({
   const repeatActive = repeat !== 'off'
   // repeating a DJ set means nothing, so it is disabled for the whole set
   const repeatDisabled = isDJ
+  // saving is meaningless while a narration owns the screen, but fine for songs inside a DJ set
+  const { narrating } = useNarration()
 
   return (
     <div className={styles.row}>
       <div className={styles.left}>
-        {showSave ? <SaveButton saved={saved} onToggle={onToggleSaved} /> : null}
+        {showSave ? (
+          <SaveButton saved={saved} onToggle={onToggleSaved} disabled={narrating} />
+        ) : null}
       </div>
 
       <div className={styles.center}>

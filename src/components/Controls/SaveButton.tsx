@@ -6,6 +6,7 @@ import styles from './SaveButton.module.scss'
 interface Props {
   saved: boolean
   onToggle?: () => void
+  disabled?: boolean
 }
 
 const ANIM_MS = 420
@@ -23,7 +24,9 @@ const CONFETTI = [
   { x: 24, y: -46, r: 100, s: 7, c: 1 },
 ]
 
-function SaveButtonImpl({ saved, onToggle }: Props) {
+function SaveButtonImpl({ saved, onToggle, disabled = false }: Props) {
+  // nothing to save while a narration owns the screen, and its uri is not a saveable track
+  const filled = saved && !disabled
   const [animating, setAnimating] = useState(false)
   const [burst, setBurst] = useState(0)
   const timerRef = useRef(0)
@@ -41,10 +44,12 @@ function SaveButtonImpl({ saved, onToggle }: Props) {
   return (
     <button
       type="button"
-      className={`${styles.save} ${saved ? styles.saved : ''} ${animating ? styles.animating : ''}`}
-      aria-label={saved ? 'Remove from Liked Songs' : 'Add to Liked Songs'}
-      aria-pressed={saved}
-      onClick={handleClick}
+      className={`${styles.save} ${filled ? styles.saved : ''} ${animating ? styles.animating : ''} ${disabled ? styles.disabled : ''}`}
+      aria-label={filled ? 'Remove from Liked Songs' : 'Add to Liked Songs'}
+      aria-pressed={filled}
+      aria-disabled={disabled}
+      disabled={disabled}
+      onClick={disabled ? undefined : handleClick}
     >
       <span className={styles.icons}>
         <span className={styles.outline}>

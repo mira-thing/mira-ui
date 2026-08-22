@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { Controls } from '../Controls'
+import { NarrationContext } from '@/hooks/useDJNarration'
 
 // presentational only, optimistic + double-tap logic lives in usePlayerControls
 function defaultProps() {
@@ -139,5 +140,54 @@ describe('Controls', () => {
 
     rerender(<Controls {...defaultProps()} repeat="track" />)
     expect(screen.getByRole('button', { name: 'Repeat track' })).toBeInTheDocument()
+  })
+})
+
+describe('Controls save button during narration', () => {
+  const narrating = { narrating: true, title: 'Up next', artist: 'DJ X' }
+
+  // showSave defaults to false, so the save wiring has to be passed explicitly
+  function saveProps(over: Record<string, unknown> = {}) {
+    return { ...defaultProps(), showSave: true, saved: false, onToggleSaved: vi.fn(), ...over }
+  }
+
+  it('disables the save button and ignores presses while the DJ is on screen', () => {
+    const props = saveProps()
+    render(
+      <NarrationContext.Provider value={narrating}>
+        <Controls {...props} />
+      </NarrationContext.Provider>,
+    )
+
+    const save = screen.getByRole('button', { name: 'Add to Liked Songs' })
+    expect(save).toHaveAttribute('aria-disabled', 'true')
+
+    fireEvent.click(save)
+    expect(props.onToggleSaved).not.toHaveBeenCalled()
+  })
+
+  it('does not show a saved heart while the DJ is on screen', () => {
+    // the narration uri is not a saveable track, so a filled heart would be describing nothing
+    render(
+      <NarrationContext.Provider value={narrating}>
+        <Controls {...saveProps({ saved: true })} />
+      </NarrationContext.Provider>,
+    )
+
+    expect(screen.getByRole('button', { name: 'Add to Liked Songs' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+  })
+
+  it('stays usable during ordinary playback', () => {
+    const props = saveProps()
+    render(<Controls {...props} />)
+
+    const save = screen.getByRole('button', { name: 'Add to Liked Songs' })
+    expect(save).toHaveAttribute('aria-disabled', 'false')
+
+    fireEvent.click(save)
+    expect(props.onToggleSaved).toHaveBeenCalledTimes(1)
   })
 })
