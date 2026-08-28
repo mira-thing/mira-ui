@@ -4,6 +4,10 @@
   width: 100%;
 }
 
+.maskRight {
+  width: 100%;
+}
+
 .inner {
   display: inline-block;
   white-space: nowrap;
@@ -11,20 +15,27 @@
 
 .animating {
   text-align: left;
-  -webkit-mask-image: linear-gradient(
-    to right,
-    transparent,
-    #000 18px,
-    #000 calc(100% - 18px),
-    transparent
-  );
-  mask-image: linear-gradient(
-    to right,
-    transparent,
-    #000 18px,
-    #000 calc(100% - 18px),
-    transparent
-  );
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 18px, #000);
+  -webkit-mask-size: calc(100% + 18px) 100%;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: -18px 0;
+  mask-image: linear-gradient(to right, transparent, #000 18px, #000);
+  mask-size: calc(100% + 18px) 100%;
+  mask-repeat: no-repeat;
+  mask-position: -18px 0;
+  animation: marquee-fade-left var(--marquee-duration, 12s) ease-in-out infinite;
+}
+
+.animating .maskRight {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
+  -webkit-mask-size: calc(100% + 18px) 100%;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: -18px 0;
+  mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent);
+  mask-size: calc(100% + 18px) 100%;
+  mask-repeat: no-repeat;
+  mask-position: -18px 0;
+  animation: marquee-fade-right var(--marquee-duration, 12s) ease-in-out infinite;
 }
 
 .animating .inner {
@@ -44,5 +55,41 @@
   88%,
   100% {
     transform: translateX(0);
+  }
+}
+
+@keyframes marquee-fade-left {
+  0%,
+  12% {
+    -webkit-mask-position: -18px 0;
+    mask-position: -18px 0;
+  }
+  17%,
+  83% {
+    -webkit-mask-position: 0 0;
+    mask-position: 0 0;
+  }
+  88%,
+  100% {
+    -webkit-mask-position: -18px 0;
+    mask-position: -18px 0;
+  }
+}
+
+@keyframes marquee-fade-right {
+  0%,
+  39% {
+    -webkit-mask-position: -18px 0;
+    mask-position: -18px 0;
+  }
+  44%,
+  56% {
+    -webkit-mask-position: 0 0;
+    mask-position: 0 0;
+  }
+  61%,
+  100% {
+    -webkit-mask-position: -18px 0;
+    mask-position: -18px 0;
   }
 }

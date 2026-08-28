@@ -18,6 +18,7 @@ export interface Settings {
   utcOffsetMinutes: number
   timeFormat: '12h' | '24h'
   presets: Record<number, PresetConfig>
+  checkinConsent: '' | 'granted' | 'denied'
 }
 
 export const VOLUME_STEP_MIN = 1
@@ -46,6 +47,7 @@ const DEFAULTS: Settings = {
   utcOffsetMinutes: 0,
   timeFormat: '24h',
   presets: {},
+  checkinConsent: '',
 }
 
 function clamp(n: number, lo: number, hi: number): number {
@@ -82,6 +84,10 @@ function coerce(partial: Partial<Settings> | null | undefined): Settings {
     utcOffsetMinutes: coerceOffset(partial?.utcOffsetMinutes),
     timeFormat: partial?.timeFormat === '12h' ? '12h' : '24h',
     presets: partial?.presets ?? {},
+    checkinConsent:
+      partial?.checkinConsent === 'granted' || partial?.checkinConsent === 'denied'
+        ? partial.checkinConsent
+        : DEFAULTS.checkinConsent,
   }
 }
 

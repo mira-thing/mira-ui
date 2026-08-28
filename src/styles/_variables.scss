@@ -8,7 +8,7 @@ $pad-y: 24px;
 $col-gap: 24px;
 $art-size: 200px;
 $art-size-large: 320px;
-$bottom-bar-h: 124px;
+$bottom-bar-h: 132px;
 
 // system colors
 $bg: #121212;
@@ -30,6 +30,10 @@ $lyric-unsynced: rgba(255, 255, 255, 0.6);
 
 $accent: #1ed760;
 $accent-dim: rgba(30, 215, 96, 0.32);
+
+// Spotify DJ presentation. Separate from $accent, which drives toggle-on states
+$dj-green: #65d68c;
+$dj-blue: #285ca2;
 
 $menu-bg: rgba(28, 28, 30, 0.96);
 $menu-border: rgba(255, 255, 255, 0.08);
@@ -94,6 +98,7 @@ $dur-slow: 300ms;
 
 $z-content: 1;
 $z-bottom-bar: 5;
+$z-screensaver: 45;
 $z-menu: 50;
 $z-pairing: 60;
 $z-debug: 9999;

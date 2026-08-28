@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { Controls } from '../Controls'
+import { NarrationContext } from '@/hooks/useDJNarration'
 
 // presentational only, optimistic + double-tap logic lives in usePlayerControls
 function defaultProps() {
@@ -73,6 +74,62 @@ describe('Controls', () => {
     expect(props.onNext).not.toHaveBeenCalled()
   })
 
+  it('swaps shuffle for the DJ button while a DJ set plays', () => {
+    const props = { ...defaultProps(), onDJSignal: vi.fn() }
+    render(<Controls {...props} isDJ={true} />)
+
+    expect(screen.queryByRole('button', { name: 'Shuffle' })).toBeNull()
+    const dj = screen.getByRole('button', { name: 'Switch DJ set' })
+
+    // momentary action, so it must not advertise itself as a toggle
+    expect(dj).not.toHaveAttribute('aria-pressed')
+
+    fireEvent.click(dj)
+    expect(props.onDJSignal).toHaveBeenCalledTimes(1)
+    expect(props.onToggleShuffle).not.toHaveBeenCalled()
+  })
+
+  it('keeps the shuffle button when isDJ is false', () => {
+    const props = { ...defaultProps(), onDJSignal: vi.fn() }
+    render(<Controls {...props} isDJ={false} />)
+
+    expect(screen.queryByRole('button', { name: 'Switch DJ set' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Shuffle' }))
+    expect(props.onToggleShuffle).toHaveBeenCalledTimes(1)
+    expect(props.onDJSignal).not.toHaveBeenCalled()
+  })
+
+  it('disables repeat for the whole DJ set', () => {
+    const props = { ...defaultProps(), onDJSignal: vi.fn() }
+    render(<Controls {...props} isDJ={true} repeat="off" />)
+
+    const repeat = screen.getByRole('button', { name: 'Repeat off' })
+    expect(repeat).toBeDisabled()
+    expect(repeat).toHaveAttribute('aria-disabled', 'true')
+
+    fireEvent.click(repeat)
+    expect(props.onCycleRepeat).not.toHaveBeenCalled()
+  })
+
+  it('keeps repeat usable outside a DJ set', () => {
+    const props = defaultProps()
+    render(<Controls {...props} isDJ={false} />)
+
+    const repeat = screen.getByRole('button', { name: 'Repeat off' })
+    expect(repeat).not.toBeDisabled()
+    fireEvent.click(repeat)
+    expect(props.onCycleRepeat).toHaveBeenCalledTimes(1)
+  })
+
+  it('lets podcast mode win over DJ mode in the shuffle slot', () => {
+    // a DJ set is never an episode, but the branch order must still be deterministic
+    const props = { ...defaultProps(), onDJSignal: vi.fn(), onRewind15: vi.fn() }
+    render(<Controls {...props} isPodcast={true} isDJ={true} />)
+
+    expect(screen.queryByRole('button', { name: 'Switch DJ set' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Rewind 15 seconds' })).toBeInTheDocument()
+  })
+
   it('labels the repeat button by mode (off/context/track)', () => {
     // 'track' renders RepeatOneIcon, others render RepeatIcon the accessible name is the user-facing discriminator
     const { rerender } = render(<Controls {...defaultProps()} repeat="off" />)
@@ -83,5 +140,81 @@ describe('Controls', () => {
 
     rerender(<Controls {...defaultProps()} repeat="track" />)
     expect(screen.getByRole('button', { name: 'Repeat track' })).toBeInTheDocument()
+  })
+})
+
+describe('Controls save button during narration', () => {
+  const narrating = { narrating: true, title: 'Up next', artist: 'DJ X' }
+
+  // showSave defaults to false, so the save wiring has to be passed explicitly
+  function saveProps(over: Record<string, unknown> = {}) {
+    return { ...defaultProps(), showSave: true, saved: false, onToggleSaved: vi.fn(), ...over }
+  }
+
+  it('disables the save button and ignores presses while the DJ is on screen', () => {
+    const props = saveProps()
+    render(
+      <NarrationContext.Provider value={narrating}>
+        <Controls {...props} />
+      </NarrationContext.Provider>,
+    )
+
+    const save = screen.getByRole('button', { name: 'Add to Liked Songs' })
+    expect(save).toHaveAttribute('aria-disabled', 'true')
+
+    fireEvent.click(save)
+    expect(props.onToggleSaved).not.toHaveBeenCalled()
+  })
+
+  it('disables the DJ button and ignores presses while the DJ is talking', () => {
+    // jumping mid-line cuts the speech, leaving the card up with nothing being said
+    const props = { ...defaultProps(), onDJSignal: vi.fn() }
+    render(
+      <NarrationContext.Provider value={narrating}>
+        <Controls {...props} isDJ={true} />
+      </NarrationContext.Provider>,
+    )
+
+    const dj = screen.getByRole('button', { name: 'Switch DJ set' })
+    expect(dj).toHaveAttribute('aria-disabled', 'true')
+
+    fireEvent.click(dj)
+    expect(props.onDJSignal).not.toHaveBeenCalled()
+  })
+
+  it('leaves the DJ button pressable once the DJ stops talking', () => {
+    const props = { ...defaultProps(), onDJSignal: vi.fn() }
+    render(<Controls {...props} isDJ={true} />)
+
+    const dj = screen.getByRole('button', { name: 'Switch DJ set' })
+    expect(dj).toHaveAttribute('aria-disabled', 'false')
+
+    fireEvent.click(dj)
+    expect(props.onDJSignal).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not show a saved heart while the DJ is on screen', () => {
+    // the narration uri is not a saveable track, so a filled heart would be describing nothing
+    render(
+      <NarrationContext.Provider value={narrating}>
+        <Controls {...saveProps({ saved: true })} />
+      </NarrationContext.Provider>,
+    )
+
+    expect(screen.getByRole('button', { name: 'Add to Liked Songs' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+  })
+
+  it('stays usable during ordinary playback', () => {
+    const props = saveProps()
+    render(<Controls {...props} />)
+
+    const save = screen.getByRole('button', { name: 'Add to Liked Songs' })
+    expect(save).toHaveAttribute('aria-disabled', 'false')
+
+    fireEvent.click(save)
+    expect(props.onToggleSaved).toHaveBeenCalledTimes(1)
   })
 })

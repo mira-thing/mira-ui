@@ -2,6 +2,7 @@ import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'rea
 import { darkBg, useColorExtract, type RGB } from '@/hooks/useColorExtract'
 import { useActiveLine } from '@/hooks/useActiveLine'
 import { useLyricStarts, useLyrics } from '@/hooks/useLyrics'
+import { useNarration } from '@/hooks/useDJNarration'
 import { useSettings } from '@/settings'
 import { getUiScaleY, useUiScale } from '@/uiScale'
 import type { LyricsWord, ObserverStatusActive } from '@/api/types'
@@ -126,8 +127,27 @@ const LyricLine = memo(function LyricLine({
   )
 })
 
+// the shell shared by the loading, empty and instrumental states
+function LyricsState({
+  children,
+  style,
+  ref,
+}: {
+  children: React.ReactNode
+  style?: React.CSSProperties
+  ref?: React.Ref<HTMLDivElement>
+}) {
+  return (
+    <div className={`${styles.lyrics} ${styles.state}`} style={style} ref={ref}>
+      <div className={styles.stateText}>{children}</div>
+    </div>
+  )
+}
+
 function LyricsImpl({ status, onSeek, active = true }: Props) {
   const isPodcast = status.track_uri.startsWith('spotify:episode:')
+  // status points at the next song while the DJ speaks
+  const { narrating } = useNarration()
   const { lyricOffsetMs, karaokeLyrics } = useSettings()
   // touch and wheel deltas arrive in viewport space; the scroll offset below is layout
   // space. they only agree at 100%. the hook value is here to re-run the measuring
@@ -140,11 +160,11 @@ function LyricsImpl({ status, onSeek, active = true }: Props) {
     album: status.track_album,
     durationMs: status.duration,
     episode: isPodcast,
-    enabled: active,
+    enabled: active && !narrating,
     karaoke: karaokeLyrics,
   })
 
-  const color: RGB = useColorExtract(status.track_image)
+  const color: RGB = useColorExtract(narrating ? '' : status.track_image)
   const starts = useLyricStarts(lyrics)
   const synced = lyrics?.syncType === 'LINE_SYNCED'
   const activeIdx = useActiveLine(status, synced ? starts : [], active, lyricOffsetMs)
@@ -306,31 +326,36 @@ function LyricsImpl({ status, onSeek, active = true }: Props) {
     snapBackTimer.current = window.setTimeout(snapBack, SNAP_BACK_MS)
   }
 
+  // the DJ has no lyrics, and useLyrics keeps the previous track's when disabled
+  if (narrating) {
+    return (
+      <LyricsState style={bgStyle} ref={containerRef}>
+        No lyrics available
+      </LyricsState>
+    )
+  }
+
   if (loading) {
     return (
-      <div className={`${styles.lyrics} ${styles.state}`} style={bgStyle} ref={containerRef}>
-        <div className={styles.stateText}>
-          {isPodcast ? 'Loading transcript...' : 'Loading lyrics...'}
-        </div>
-      </div>
+      <LyricsState style={bgStyle} ref={containerRef}>
+        {isPodcast ? 'Loading transcript...' : 'Loading lyrics...'}
+      </LyricsState>
     )
   }
 
   if (error || !lyrics || lyrics.lines.length === 0) {
     return (
-      <div className={`${styles.lyrics} ${styles.state}`} style={bgStyle} ref={containerRef}>
-        <div className={styles.stateText}>
-          {isPodcast ? 'No transcript available' : 'No lyrics available'}
-        </div>
-      </div>
+      <LyricsState style={bgStyle} ref={containerRef}>
+        {isPodcast ? 'No transcript available' : 'No lyrics available'}
+      </LyricsState>
     )
   }
 
   if (isInstrumental(lyrics.lines)) {
     return (
-      <div className={`${styles.lyrics} ${styles.state}`} style={bgStyle} ref={containerRef}>
-        <div className={styles.stateText}>♪ Instrumental</div>
-      </div>
+      <LyricsState style={bgStyle} ref={containerRef}>
+        ♪ Instrumental
+      </LyricsState>
     )
   }
 

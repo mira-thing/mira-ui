@@ -2,8 +2,6 @@ import { memo, useLayoutEffect, useRef, useState } from 'react'
 import { useUiScale } from '@/uiScale'
 import styles from './Marquee.module.scss'
 
-// TODO: fine tune the speed for sliding
-
 interface Props {
   text: string
   className?: string
@@ -44,8 +42,10 @@ function MarqueeImpl({ text, className }: Props) {
       ref={wrapRef}
       className={`${styles.wrap} ${animate ? styles.animating : ''} ${className ?? ''}`}
     >
-      <div ref={innerRef} className={styles.inner} dir="auto">
-        {text}
+      <div className={styles.maskRight}>
+        <div ref={innerRef} className={styles.inner} dir="auto">
+          {text}
+        </div>
       </div>
     </div>
   )

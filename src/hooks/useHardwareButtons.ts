@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ObserverStatusActive } from '@/api/types'
-import { getPreset, labelFromUri, presetIndexFromCode, setPreset } from '@/presets'
+import {
+  getPreset,
+  isDJPreset,
+  presetForContext,
+  presetIndexFromCode,
+  refreshPresetLabels,
+  setPreset,
+} from '@/presets'
 import { getSettings } from '@/settings'
 import type { NotifyFn } from '@/notify/notifyContext'
 
@@ -37,14 +44,21 @@ export interface UseHardwareButtonsParams {
   setVolume: (volume: number, relative?: boolean) => Promise<void> | void
   // play a context (used by preset buttons)
   playContext: (uri: string) => Promise<void> | void
+  // a DJ set is playing: a long-press saves the slot as DJ, and a short press on a DJ slot
+  // becomes a retry rather than a fresh start
+  inDJSet: boolean
+  // the DJ is mid-sentence, so the retry is ignored
+  djNarrating: boolean
+  // ask the DJ for a different set
+  onDJSignal: () => void
   // back button (esc), go back one step, or no-op
   onBack: () => void
   // back button double-press: open the playlists picker
   onOpenPlaylists: () => void
   // power button (KeyM): short press opens the power menu
   onTogglePowerMenu: () => void
-  // power button double-press: sleep shortcut
-  onSleep: () => void
+  // power button double-press: opens the clock screensaver
+  onScreensaver: () => void
   // hold preset 1 + 4 together for 3s: open the debug screen
   onOpenDebug: () => void
   // top banner message for playlist msgs
@@ -83,10 +97,13 @@ export function useHardwareButtons({
   onPlayPause,
   setVolume,
   playContext,
+  inDJSet,
+  djNarrating,
+  onDJSignal,
   onBack,
   onOpenPlaylists,
   onTogglePowerMenu,
-  onSleep,
+  onScreensaver,
   onOpenDebug,
   notify,
 }: UseHardwareButtonsParams): UseHardwareButtonsResult {
@@ -112,6 +129,14 @@ export function useHardwareButtons({
   volumeDisabledRef.current = volumeDisabled
   const statusRef = useRef(status)
   statusRef.current = status
+  const djRef = useRef({ inSet: inDJSet, narrating: djNarrating, signal: onDJSignal })
+  djRef.current = { inSet: inDJSet, narrating: djNarrating, signal: onDJSignal }
+
+  const contextUri = status?.context_uri
+  const contextName = status?.context_name
+  useEffect(() => {
+    if (contextUri && contextName) refreshPresetLabels(contextUri, contextName)
+  }, [contextUri, contextName])
 
   // sync volume from the device when not mid turn
   useEffect(() => {
@@ -258,9 +283,9 @@ export function useHardwareButtons({
     const saveCurrentToPreset = (idx: number) => {
       const cur = statusRef.current
       if (cur && cur.context_uri) {
-        const label = cur.context_name || labelFromUri(cur.context_uri)
-        setPreset(idx, { contextUri: cur.context_uri, label })
-        notify(`Saved "${label}" to preset ${idx}`, { variant: 'success' })
+        const config = presetForContext(cur.context_uri, cur.context_name, djRef.current.inSet)
+        setPreset(idx, config)
+        notify(`Saved "${config.label}" to preset ${idx}`, { variant: 'success' })
       } else {
         notify('Nothing playing to save', { variant: 'warning' })
       }
@@ -306,8 +331,19 @@ export function useHardwareButtons({
         saved[e.code] = false
         return // hold already saved dont also play
       }
-      // short press will play the assigned context
       const preset = getPreset(idx)
+      const dj = djRef.current
+      // a DJ slot is a retry once a set is playing: `jump` is what asks for a different set,
+      // and replaying the context appears to resume the current one instead. Ignored
+      // mid-narration, matching the on-screen DJ button
+      if (isDJPreset(preset) && dj.inSet) {
+        if (!dj.narrating) {
+          dj.signal()
+          notify('Switching DJ set')
+        }
+        return
+      }
+      // short press will play the assigned context, cold-starting DJ like any other
       if (preset?.contextUri) {
         // only claim success once the play actually lands
         void Promise.resolve(playContext(preset.contextUri))
@@ -347,10 +383,10 @@ export function useHardwareButtons({
       // a deliberate hold does nothing yet?
       if (held >= POWER_LONG_PRESS_MS) return
       if (pendingSingle != null) {
-        // second tap within the window -> double press -> sleep
+        // second tap within the window -> double press -> screensaver
         window.clearTimeout(pendingSingle)
         pendingSingle = undefined
-        onSleep()
+        onScreensaver()
       } else {
         pendingSingle = window.setTimeout(() => {
           pendingSingle = undefined
@@ -365,7 +401,7 @@ export function useHardwareButtons({
       window.removeEventListener('keyup', onKeyUp)
       if (pendingSingle != null) window.clearTimeout(pendingSingle)
     }
-  }, [onTogglePowerMenu, onSleep])
+  }, [onTogglePowerMenu, onScreensaver])
 
   // clean up timers
   useEffect(

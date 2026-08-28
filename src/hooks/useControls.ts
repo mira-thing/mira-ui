@@ -36,6 +36,8 @@ export function useControls() {
     (on: boolean) => call('POST', '/player/shuffle_context', { shuffle_context: on }),
     [],
   )
+  // ask the active device to switch to a new DJ set
+  const djSignal = useCallback(() => call('POST', '/player/dj_signal'), [])
   const setRepeat = useCallback((mode: RepeatState) => {
     const repeat_context = mode === 'context'
     const repeat_track = mode === 'track'
@@ -54,6 +56,7 @@ export function useControls() {
     playContext,
     setVolume,
     setShuffle,
+    djSignal,
     setRepeat,
   }
 }

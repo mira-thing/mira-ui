@@ -27,6 +27,9 @@ export type DevForcedScreen =
   | 'debug'
   | 'sponsor'
   | 'playlists'
+  | 'screensaver'
+  | 'consent'
+  | 'update-card'
 
 export interface DevScreenCtx {
   forced: DevForcedScreen

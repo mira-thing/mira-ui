@@ -310,4 +310,166 @@ describe('useObserver', () => {
     })
     expect(requests).toBe(2)
   })
+
+  it('captures a DJ narration even when the next song supersedes it in the same batch', async () => {
+    // batched together, only the song renders, so the reducer has to capture the narration
+    server.use(http.get('*/observer/status', () => new Promise(() => undefined)))
+
+    const { result } = renderHook(() => useObserver())
+
+    const narration = {
+      ...baseWire,
+      TrackUri: 'spotify:media:shared1',
+      TrackName: 'Up next',
+      TrackArtist: 'DJ X',
+      ContextUri: 'spotify:playlist:37i9dQZF1EYkqdzj48dyYq',
+      Duration: 5302,
+      Position: 203,
+      RawMetadata: { agentic_product_type: 'dj', is_narration: 'true' },
+    }
+    const song = {
+      ...baseWire,
+      TrackUri: 'spotify:track:shared1',
+      TrackName: 'Joshua Tree',
+      TrackArtist: 'Cautious Clay',
+      ContextUri: 'spotify:playlist:37i9dQZF1EYkqdzj48dyYq',
+      Duration: 197551,
+      Position: 357,
+      RawMetadata: { agentic_product_type: 'dj' },
+    }
+
+    // both in one act(), so React collapses them into a single render
+    await act(async () => {
+      fireEvent({ type: 'observer_track_changed', data: narration } as ApiEvent)
+      fireEvent({ type: 'observer_track_changed', data: song } as ApiEvent)
+    })
+
+    // status shows the song, which is what made the DJ screen never appear...
+    expect(result.current.status).toMatchObject({ track_name: 'Joshua Tree' })
+    // ...but the narration survived, so the hold can still be armed from it
+    expect(result.current.narration).toEqual({
+      uri: 'spotify:media:shared1',
+      trackId: 'shared1',
+      ms: 5099,
+      title: 'Up next',
+      artist: 'DJ X',
+    })
+  })
+
+  // an outro carries the id of the song it follows; an intro carries the id of the song ahead
+  const outgoingSong = {
+    ...baseWire,
+    TrackUri: 'spotify:track:outgoing1',
+    TrackName: 'Automatic',
+    TrackArtist: 'half•alive',
+    ContextUri: 'spotify:playlist:37i9dQZF1EYkqdzj48dyYq',
+    Duration: 192210,
+    Position: 25978,
+    RawMetadata: { agentic_product_type: 'dj' },
+  }
+  const outroNarration = {
+    ...baseWire,
+    TrackUri: 'spotify:media:outgoing1',
+    TrackName: 'Up next',
+    TrackArtist: 'DJ X',
+    ContextUri: 'spotify:playlist:37i9dQZF1EYkqdzj48dyYq',
+    Duration: 2377,
+    Position: 0,
+    RawMetadata: { agentic_product_type: 'dj', is_narration: 'true' },
+  }
+
+  it('ignores an outro still queued at position 0, then captures it once it moves', async () => {
+    // an outro sits current but silent for ~3.9s; arming from it would spend the hold on silence
+    server.use(http.get('*/observer/status', () => new Promise(() => undefined)))
+    const { result } = renderHook(() => useObserver())
+
+    await act(async () => {
+      fireEvent({ type: 'observer_track_changed', data: outgoingSong } as ApiEvent)
+      fireEvent({ type: 'observer_track_changed', data: outroNarration } as ApiEvent)
+    })
+    expect(result.current.narration).toBeNull()
+
+    await act(async () => {
+      fireEvent({
+        type: 'observer_state_changed',
+        data: { ...outroNarration, Position: 3 },
+      } as ApiEvent)
+    })
+    expect(result.current.narration).toMatchObject({
+      uri: 'spotify:media:outgoing1',
+      trackId: 'outgoing1',
+      // an outro's 2377ms is too short to be speech, so the default stands in for it
+      ms: 5000,
+    })
+  })
+
+  it('still reads an outro as an outro on its later events', async () => {
+    // the narration must not overwrite lastSongId, or the second event looks like an intro
+    server.use(http.get('*/observer/status', () => new Promise(() => undefined)))
+    const { result } = renderHook(() => useObserver())
+
+    await act(async () => {
+      fireEvent({ type: 'observer_track_changed', data: outgoingSong } as ApiEvent)
+      fireEvent({ type: 'observer_track_changed', data: outroNarration } as ApiEvent)
+    })
+    await act(async () => {
+      fireEvent({ type: 'observer_state_changed', data: outroNarration } as ApiEvent)
+    })
+
+    expect(result.current.narration).toBeNull()
+  })
+
+  it('captures an intro narration immediately, even at position 0', async () => {
+    // an intro starts speaking at once, so withholding the card only adds latency
+    server.use(http.get('*/observer/status', () => new Promise(() => undefined)))
+    const { result } = renderHook(() => useObserver())
+
+    const intro = {
+      ...outroNarration,
+      TrackUri: 'spotify:media:incoming2',
+      Duration: 0,
+      Position: 0,
+    }
+
+    await act(async () => {
+      fireEvent({ type: 'observer_track_changed', data: outgoingSong } as ApiEvent)
+      fireEvent({ type: 'observer_track_changed', data: intro } as ApiEvent)
+    })
+
+    // duration 0 falls back to the default guess
+    expect(result.current.narration).toMatchObject({
+      uri: 'spotify:media:incoming2',
+      trackId: 'incoming2',
+      ms: 5000,
+    })
+  })
+
+  it('keeps the narration record while ordinary songs stream past', async () => {
+    server.use(http.get('*/observer/status', () => new Promise(() => undefined)))
+    const { result } = renderHook(() => useObserver())
+
+    const narration = {
+      ...baseWire,
+      TrackUri: 'spotify:media:shared1',
+      TrackName: 'Up next',
+      TrackArtist: 'DJ X',
+      Duration: 4597,
+      Position: 253,
+      RawMetadata: { agentic_product_type: 'dj', is_narration: 'true' },
+    }
+
+    await act(async () => {
+      fireEvent({ type: 'observer_track_changed', data: narration } as ApiEvent)
+    })
+    expect(result.current.narration?.uri).toBe('spotify:media:shared1')
+
+    await act(async () => {
+      fireEvent({
+        type: 'observer_state_changed',
+        data: { ...baseWire, Position: 9000 },
+      } as ApiEvent)
+    })
+    // a plain status must not erase it
+    expect(result.current.narration?.uri).toBe('spotify:media:shared1')
+  })
 })

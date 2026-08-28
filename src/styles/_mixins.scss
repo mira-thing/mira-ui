@@ -55,6 +55,16 @@
   }
 }
 
+// a control the daemon says we cannot act on: dimmed, and no press transform
+@mixin disabled-control {
+  opacity: 0.35;
+  cursor: default;
+
+  &:active {
+    transform: none;
+  }
+}
+
 @mixin hide-scrollbar {
   scrollbar-width: none;
   &::-webkit-scrollbar {

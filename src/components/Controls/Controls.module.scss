@@ -4,14 +4,14 @@
   align-items: center;
   gap: $s-4;
   width: 100%;
-  height: 64px;
+  height: 72px;
 }
 
 .center {
   display: flex;
   align-items: center;
   justify-content: center;
-  @include flex-gap-x(28px);
+  @include flex-gap-x(36px);
 }
 
 .right {
@@ -27,8 +27,8 @@
 .btn {
   position: relative;
   @include flex-center;
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   color: $text-secondary;
   transition:
@@ -46,14 +46,8 @@
   }
 }
 
-// if the daemon tells us we cant do an action we just dim that button and dont show a transformation
 .btnDisabled {
-  opacity: 0.35;
-  cursor: default;
-
-  &:active {
-    transform: none;
-  }
+  @include disabled-control;
 }
 
 .btnXs {
@@ -65,8 +59,8 @@
 }
 
 .btnLg {
-  width: 64px;
-  height: 64px;
+  width: 72px;
+  height: 72px;
   background: $text-primary;
   color: $bg;
   border-radius: 50%;

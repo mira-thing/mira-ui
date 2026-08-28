@@ -5,6 +5,7 @@ import { Lyrics } from '../Lyrics'
 import { __resetLyricsCache } from '../../../hooks/useLyrics'
 import { server } from '../../../__tests__/msw-server'
 import { activeStatus } from '../../../__tests__/fixtures/observer'
+import { NarrationContext } from '@/hooks/useDJNarration'
 
 beforeEach(() => {
   __resetLyricsCache()
@@ -179,5 +180,29 @@ describe('lyrics rendered DOM', () => {
     render(<Lyrics status={TRACK_STATUS} />)
 
     expect(await screen.findByText(/no lyrics available/i)).toBeInTheDocument()
+  })
+
+  it('shows "No lyrics available" while the DJ is talking', async () => {
+    // must not show the previous track's lyrics, which useLyrics still holds
+    server.use(
+      http.get('*/lyrics/abc', () =>
+        HttpResponse.json({
+          syncType: 'LINE_SYNCED',
+          lines: [{ startTimeMs: '0', words: 'Stale line from the last song' }],
+        }),
+      ),
+    )
+
+    const { rerender } = render(<Lyrics status={TRACK_STATUS} />)
+    expect(await screen.findByText('Stale line from the last song')).toBeInTheDocument()
+
+    rerender(
+      <NarrationContext.Provider value={{ narrating: true, title: 'Up next', artist: 'DJ X' }}>
+        <Lyrics status={TRACK_STATUS} />
+      </NarrationContext.Provider>,
+    )
+
+    expect(screen.getByText(/no lyrics available/i)).toBeInTheDocument()
+    expect(screen.queryByText('Stale line from the last song')).toBeNull()
   })
 })

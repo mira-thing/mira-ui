@@ -1,0 +1,117 @@
+.overlay {
+  @include absolute-fill;
+  background: rgba(0, 0, 0, 0.62);
+  @include flex-center;
+  z-index: $z-menu;
+  animation: updateFadeIn $dur-base $ease-standard both;
+}
+
+@keyframes updateFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.card {
+  @include column;
+  background: $bg;
+  padding: $s-6 $s-8;
+  border-radius: $r-2xl;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+  width: 560px;
+  max-width: 100%;
+  @include flex-gap-y($s-4);
+}
+
+.title {
+  font-size: $fs-2xl;
+  font-weight: $fw-semibold;
+  color: $text-primary;
+  letter-spacing: -0.02em;
+  text-align: center;
+}
+
+.body {
+  font-size: $fs-lg;
+  color: $text-secondary;
+  line-height: 1.5;
+}
+
+.bodyCenter {
+  text-align: center;
+}
+
+.highlights {
+  @include column;
+  @include flex-gap-y($s-1);
+  list-style: none;
+}
+
+.card > .highlights {
+  margin-top: $s-1;
+}
+
+.highlight {
+  font-size: $fs-md;
+  color: $text-secondary;
+  line-height: 1.45;
+  @include truncate(2);
+
+  &::before {
+    content: '+ ';
+    color: $accent;
+    font-weight: $fw-semibold;
+  }
+}
+
+.hint {
+  font-size: $fs-md;
+  color: $text-tertiary;
+  text-align: center;
+}
+
+.hintUrl {
+  color: $accent;
+  font-weight: $fw-medium;
+}
+
+.buttons {
+  display: flex;
+  justify-content: center;
+  padding-top: $s-2;
+  @include flex-gap-x($s-4);
+}
+
+.btn {
+  padding: $s-3 $s-5;
+  border-radius: $r-pill;
+  white-space: nowrap;
+  background: $surface-elev;
+  color: $text-primary;
+  font-size: $fs-lg;
+  font-weight: $fw-semibold;
+  border: 2px solid transparent;
+  transition: transform $dur-fast $ease-standard;
+
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+.btnPrimary {
+  background: $accent;
+  color: #000;
+}
+
+.btnFocus {
+  border-color: $text-primary;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay {
+    animation: none;
+  }
+}

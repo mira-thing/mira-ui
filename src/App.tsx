@@ -3,6 +3,7 @@ import { AlbumArt } from '@/components/AlbumArt'
 import { AuthScreen } from '@/components/AuthScreen'
 import { BluetoothMenu } from '@/components/BluetoothMenu'
 import { BootSplash } from '@/components/BootSplash'
+import { CheckinConsent } from '@/components/CheckinConsent'
 import { ConnectionChooser } from '@/components/ConnectionChooser'
 import { Controls } from '@/components/Controls'
 import { DevicePicker } from '@/components/DevicePicker'
@@ -18,9 +19,11 @@ import { PowerMenu } from '@/components/PowerMenu'
 import { ProgressBar } from '@/components/ProgressBar'
 import { ReconnectBanner, type ReconnectReason } from '@/components/ReconnectBanner'
 import { ReconnectingScreen } from '@/components/ReconnectingScreen'
+import { Screensaver } from '@/components/Screensaver'
 import { SettingsSheet } from '@/components/SettingsSheet'
 import { SponsorScreen } from '@/components/SponsorScreen'
 import { TrackInfo } from '@/components/TrackInfo'
+import { UpdateCard } from '@/components/UpdateCard'
 import { VolumeOverlay } from '@/components/VolumeOverlay'
 import { DebugScreen } from '@/components/DebugScreen'
 import { useDevScreen } from '@/dev/devContext'
@@ -28,9 +31,9 @@ import { makeMockStatus } from '@/dev/mockStatus'
 import { useAuth } from '@/hooks/useAuth'
 import { useBluetooth } from '@/hooks/useBluetooth'
 import { useConnectDevices } from '@/hooks/useConnectDevices'
-import { suspendDevice } from '@/api/system'
 import { useControls } from '@/hooks/useControls'
 import { useHardwareButtons } from '@/hooks/useHardwareButtons'
+import { isDJContext, NarrationContext, presentTrack, useDJNarration } from '@/hooks/useDJNarration'
 import { useKnownDevices } from '@/hooks/useKnownDevices'
 import { useNotify } from '@/notify/notifyContext'
 import { useObserver } from '@/hooks/useObserver'
@@ -47,6 +50,10 @@ import ClockScreen from '@/components/ClockScreen/ClockScreen'
 
 const SPONSOR_SHOWN_KEY = 'mira.sponsorShown'
 const SPONSOR_AFTER_PLAY_MS = 3 * 60 * 1000
+const LAST_ART_KEY = 'mira.lastArtUrl'
+const UTC_OFFSET_KEY = 'mira.utcOffsetMin'
+const UPDATE_REMIND_MS = 24 * 60 * 60 * 1000
+const SKIPPED_VERSION_KEY = 'mira.skippedVersion'
 
 // Heavy overlay — only loaded when the playlists view is actually opened, so
 // it doesn't burden the low-powered Car Thing at startup.
@@ -56,9 +63,15 @@ const Playlists = lazy(() =>
 
 export default function App() {
   const auth = useAuth()
-  const { status: realStatus, loading, connected, setupProgress } = useObserver()
+  const {
+    status: realStatus,
+    loading,
+    connected,
+    setupProgress,
+    narration: seenNarration,
+  } = useObserver()
   const notify = useNotify()
-  const { play, pause, next, prev, seek, playContext, setVolume, setShuffle, setRepeat } =
+  const { play, pause, next, prev, seek, playContext, setVolume, setShuffle, djSignal, setRepeat } =
     useControls()
   const handleSeek = useCallback(
     (positionMs: number) => {
@@ -124,6 +137,10 @@ export default function App() {
   const [debugOpen, setDebugOpen] = useState(false)
   // support report id dialog
   const [reportId, setReportId] = useState<string | null>(null)
+
+  const [screensaverOpen, setScreensaverOpen] = useState(false)
+  // 'auto' = opened by the idle timer
+  const [screensaverBy, setScreensaverBy] = useState<'manual' | 'auto'>('manual')
 
   // one-time sponsor screen
   const [sponsorOpenReal, setSponsorOpen] = useState(false)
@@ -280,6 +297,67 @@ export default function App() {
   const pairing =
     forced === 'pairing' ? { address: 'AB:CD:EF:01:23:45', passkey: '123456' } : realPairing
 
+  // telemetry consent
+  const [consentOpen, setConsentOpen] = useState(false)
+  const consentAnsweredRef = useRef(false)
+
+  // update notifier
+  const [updateCardOpen, setUpdateCardOpen] = useState(false)
+  const updateRemindAtRef = useRef(0)
+
+  // auto screensaver: only ever from the true idle screen, after 10 quiet
+  // minutes; any user input resets the countdown. Not a setting on purpose.
+  const SCREENSAVER_AUTO_MS = 10 * 60 * 1000
+  const screensaverAutoEligible =
+    !screensaverOpen &&
+    !forced &&
+    !loading &&
+    !auth.required &&
+    !reconnecting &&
+    realStatus != null &&
+    realStatus.active !== true &&
+    realStatus.setting_up !== true &&
+    !menuOpen &&
+    !powerMenuOpen &&
+    !btMenuOpen &&
+    !settingsOpen &&
+    !deviceMenuOpen &&
+    !debugOpen &&
+    !sponsorOpenReal &&
+    !consentOpen &&
+    !updateCardOpen &&
+    !reportId &&
+    !pairing
+  useEffect(() => {
+    if (!screensaverAutoEligible) return
+    const open = () => {
+      setScreensaverBy('auto')
+      setScreensaverOpen(true)
+    }
+    let t = window.setTimeout(open, SCREENSAVER_AUTO_MS)
+    const reset = () => {
+      window.clearTimeout(t)
+      t = window.setTimeout(open, SCREENSAVER_AUTO_MS)
+    }
+    window.addEventListener('pointerdown', reset, { capture: true })
+    window.addEventListener('keydown', reset, { capture: true })
+    window.addEventListener('wheel', reset, { capture: true })
+    return () => {
+      window.clearTimeout(t)
+      window.removeEventListener('pointerdown', reset, { capture: true })
+      window.removeEventListener('keydown', reset, { capture: true })
+      window.removeEventListener('wheel', reset, { capture: true })
+    }
+  }, [screensaverAutoEligible, SCREENSAVER_AUTO_MS])
+
+  // an auto-opened saver yields to real playback; a manual one stays (desk
+  // mode) and cross-fades its art instead
+  useEffect(() => {
+    if (screensaverOpen && screensaverBy === 'auto' && realStatus?.active === true) {
+      setScreensaverOpen(false)
+    }
+  }, [screensaverOpen, screensaverBy, realStatus])
+
   const OFFLINE_HOLDOFF_MS = 10000
   const [offlineHeld, setOfflineHeld] = useState(false)
   useEffect(() => {
@@ -350,24 +428,41 @@ export default function App() {
   }, [forced, setForced])
 
   const onSleep = useCallback(() => {
+  const onOpenScreensaver = useCallback(() => {
     closePowerMenu()
-    void suspendDevice().catch(() => {})
+    setScreensaverBy('manual')
+    setScreensaverOpen(true)
   }, [closePowerMenu])
 
-  // show the sponsor screen once the first-run indexing finishes
-  const wasSettingUpRef = useRef(false)
+  // remember the last album art for the screensavers ambient background
   useEffect(() => {
-    if (realStatus?.setting_up === true) {
-      wasSettingUpRef.current = true
-      return
-    }
-    if (wasSettingUpRef.current && realStatus != null) {
-      wasSettingUpRef.current = false
-      if (!sponsorShownRef.current) setSponsorOpen(true)
+    if (realStatus?.active !== true || !realStatus.track_image) return
+    try {
+      window.localStorage.setItem(LAST_ART_KEY, realStatus.track_image)
+    } catch {
+      // ignore
     }
   }, [realStatus])
 
-  // devices set up before this existed never see the setting_up transition
+  const [utcOffsetMin, setUtcOffsetMin] = useState<number | null>(() => {
+    try {
+      const v = window.localStorage.getItem(UTC_OFFSET_KEY)
+      return v == null ? null : Number(v)
+    } catch {
+      return null
+    }
+  })
+  useEffect(() => {
+    const v = realStatus?.utc_offset_min
+    if (typeof v !== 'number') return
+    setUtcOffsetMin(v)
+    try {
+      window.localStorage.setItem(UTC_OFFSET_KEY, String(v))
+    } catch {
+      // ignore
+    }
+  }, [realStatus])
+
   const playbackActive = realStatus?.active === true
   const stillSettingUp = realStatus?.setting_up === true
   useEffect(() => {
@@ -378,8 +473,110 @@ export default function App() {
     return () => window.clearTimeout(t)
   }, [playbackActive, stillSettingUp])
 
+  const [checkinConsent, setCheckinConsent] = useState<
+    'unset' | 'granted' | 'denied' | 'disabled' | null
+  >(null)
+  const [latestVersion, setLatestVersion] = useState('')
+  const [latestHighlights, setLatestHighlights] = useState<string[]>([])
+  const [updateAvailable, setUpdateAvailable] = useState(false)
+  const [updateMandatory, setUpdateMandatory] = useState(false)
+  useEffect(() => {
+    if (realStatus == null) return
+    if (realStatus.checkin_consent != null) setCheckinConsent(realStatus.checkin_consent)
+    if (typeof realStatus.update_available === 'boolean')
+      setUpdateAvailable(realStatus.update_available)
+    if (realStatus.latest_version) setLatestVersion(realStatus.latest_version)
+    if (realStatus.latest_highlights?.length) setLatestHighlights(realStatus.latest_highlights)
+    if (typeof realStatus.update_mandatory === 'boolean')
+      setUpdateMandatory(realStatus.update_mandatory)
+  }, [realStatus])
+
+  // a skipped version stays skipped until a newer one ships
+  const [skippedVersion, setSkippedVersion] = useState(() => {
+    try {
+      return window.localStorage.getItem(SKIPPED_VERSION_KEY) ?? ''
+    } catch {
+      return ''
+    }
+  })
+  const skipVersion = useCallback(() => {
+    setSkippedVersion(latestVersion)
+    try {
+      window.localStorage.setItem(SKIPPED_VERSION_KEY, latestVersion)
+    } catch {
+      // storage broken
+    }
+    setUpdateCardOpen(false)
+  }, [latestVersion])
+
+  const overlayBusy =
+    screensaverOpen ||
+    !!forced ||
+    auth.required ||
+    reconnecting ||
+    menuOpen ||
+    powerMenuOpen ||
+    btMenuOpen ||
+    settingsOpen ||
+    deviceMenuOpen ||
+    debugOpen ||
+    sponsorOpenReal ||
+    !!reportId ||
+    !!pairing
+
+  // telemetry consent card
+  useEffect(() => {
+    if (consentOpen || consentAnsweredRef.current) return
+    if (checkinConsent !== 'unset') return
+    if (overlayBusy || updateCardOpen) return
+    if (loading || realStatus == null || realStatus.setting_up === true) return
+    setConsentOpen(true)
+  }, [consentOpen, checkinConsent, overlayBusy, updateCardOpen, loading, realStatus])
+  const chooseConsent = useCallback((consent: 'granted' | 'denied') => {
+    consentAnsweredRef.current = true
+    updateSettings({ checkinConsent: consent })
+    setConsentOpen(false)
+  }, [])
+
+  // update card
+  const updateCardEligible =
+    updateAvailable &&
+    (updateMandatory || latestVersion !== skippedVersion) &&
+    !updateCardOpen &&
+    !consentOpen &&
+    !overlayBusy &&
+    !loading &&
+    realStatus != null &&
+    realStatus.active !== true &&
+    realStatus.setting_up !== true
+  useEffect(() => {
+    if (!updateCardEligible) return
+    const delay = Math.max(1500, updateRemindAtRef.current - Date.now())
+    const t = window.setTimeout(() => setUpdateCardOpen(true), delay)
+    return () => window.clearTimeout(t)
+  }, [updateCardEligible])
+  const remindLater = useCallback(() => {
+    updateRemindAtRef.current = Date.now() + UPDATE_REMIND_MS
+    setUpdateCardOpen(false)
+  }, [])
+  useEffect(() => {
+    if (updateCardOpen && realStatus?.active === true) setUpdateCardOpen(false)
+  }, [updateCardOpen, realStatus])
+
   // hardware back button
   const goBack = useCallback(() => {
+    if (screensaverOpen) {
+      setScreensaverOpen(false)
+      return
+    }
+    if (consentOpen) {
+      // explicit choice required
+      return
+    }
+    if (updateCardOpen) {
+      remindLater()
+      return
+    }
     if (reportId) {
       setReportId(null)
       return
@@ -432,6 +629,10 @@ export default function App() {
     }
     // nothing to go back to
   }, [
+    screensaverOpen,
+    consentOpen,
+    updateCardOpen,
+    remindLater,
     reportId,
     sponsorOpenReal,
     closeSponsor,
@@ -460,11 +661,16 @@ export default function App() {
     prev,
     seek,
     setShuffle,
+    djSignal,
     setRepeat,
     onCommandError: (message) => notify(message, { variant: 'error' }),
   })
 
   const savableStatus = status && status.active ? status : reconnecting ? heldStatus : null
+  // resolved here so the hook stays unconditional
+  const isDJ = isDJContext(savableStatus)
+  // owns the DJ hold
+  const narration = useDJNarration(savableStatus, seenNarration)
   const savableUri =
     savableStatus && !savableStatus.track_uri.startsWith('spotify:episode:')
       ? savableStatus.track_uri
@@ -492,10 +698,21 @@ export default function App() {
     onPlayPause: onHardwarePlayPause,
     setVolume,
     playContext,
+    inDJSet: isDJ,
+    djNarrating: narration.narrating,
+    onDJSignal: controls.onDJSignal,
     onBack: goBack,
     onOpenPlaylists: () => setPlaylistsOpen(true),
     onTogglePowerMenu: () => setPowerMenuOpen((v) => !v),
     onSleep,
+    onTogglePowerMenu: () => {
+      if (screensaverOpen) {
+        setScreensaverOpen(false)
+        return
+      }
+      setPowerMenuOpen((v) => !v)
+    },
+    onScreensaver: onOpenScreensaver,
     onOpenDebug: openDebug,
     notify,
   })
@@ -515,6 +732,19 @@ export default function App() {
     onToggleView: toggleLyrics,
     enabled: swipeEnabled,
   })
+
+  // ambient screensaver background
+  let screensaverArt: string | null = null
+  if (screensaverOpen || forced === 'screensaver') {
+    let storedArt: string | null = null
+    try {
+      storedArt = window.localStorage.getItem(LAST_ART_KEY)
+    } catch {
+      // ignore
+    }
+    screensaverArt =
+      (status?.active === true ? status.track_image : '') || heldStatus?.track_image || storedArt
+  }
 
   const globalOverlays = (
     <>
@@ -561,6 +791,23 @@ export default function App() {
       {pairing ? <PairingDialog passkey={pairing.passkey} address={pairing.address} /> : null}
       {reportId ? <ReportDialog id={reportId} onDismiss={() => setReportId(null)} /> : null}
       {sponsorOpenReal ? <SponsorScreen onClose={closeSponsor} /> : null}
+      {consentOpen && !overlayBusy ? <CheckinConsent onChoose={chooseConsent} /> : null}
+      {updateCardOpen ? (
+        <UpdateCard
+          latest={latestVersion}
+          highlights={latestHighlights}
+          mandatory={updateMandatory}
+          onRemindLater={remindLater}
+          onSkip={skipVersion}
+        />
+      ) : null}
+      {screensaverOpen ? (
+        <Screensaver
+          artUrl={screensaverArt}
+          utcOffsetMin={utcOffsetMin}
+          onClose={() => setScreensaverOpen(false)}
+        />
+      ) : null}
     </>
   )
 
@@ -627,6 +874,40 @@ export default function App() {
     return (
       <div className={styles.app}>
         <SponsorScreen onClose={() => setForced(null)} />
+      </div>
+    )
+  }
+  if (forced === 'screensaver') {
+    return (
+      <div className={styles.app}>
+        <Screensaver
+          artUrl={mockStatus.track_image}
+          utcOffsetMin={utcOffsetMin}
+          onClose={() => setForced(null)}
+        />
+      </div>
+    )
+  }
+  if (forced === 'consent') {
+    return (
+      <div className={styles.app}>
+        <CheckinConsent onChoose={() => setForced(null)} />
+      </div>
+    )
+  }
+  if (forced === 'update-card') {
+    return (
+      <div className={styles.app}>
+        <UpdateCard
+          latest="1.1.0"
+          highlights={[
+            'Clock screensaver (double-press power)',
+            'Setup progress bar',
+            'Bluetooth pairing fixes',
+          ]}
+          onRemindLater={() => setForced(null)}
+          onSkip={() => setForced(null)}
+        />
       </div>
     )
   }
@@ -846,92 +1127,101 @@ export default function App() {
   const playerStatus = status && status.active ? status : reconnecting ? heldStatus : null
   if (!playerStatus || !playerStatus.active) return null
   const isPodcast = playerStatus.track_uri.startsWith('spotify:episode:')
+  // presentTrack substitutes the DJ while it talks
+  const shown = presentTrack(playerStatus, narration)
 
   // noti over the player on a network drops
   const bannerReason: ReconnectReason | null =
     forced === 'reconnect-banner' ? 'offline' : reconnecting ? dropReason : null
 
   return (
-    <div
-      className={`${styles.app} ${styles.appPlaying}`}
-      // the art is the only fixed-height block in the left column and never shrinks, so
-      // it has to give way when a larger display size shortens the logical viewport
-      style={{ '--art-size': `${artSize}px` } as React.CSSProperties}
-    >
-      {bannerReason ? <ReconnectBanner reason={bannerReason} carriers={carriers} /> : null}
-      <div className={styles.stage} ref={stageRef}>
-        <div
-          className={`${styles.viewLayer} ${showLyrics ? styles.viewActive : styles.viewInactive}`}
-        >
-          <div className={styles.top}>
-            <div className={`${styles.left} ${controls.transitioning ? styles.transitioning : ''}`}>
-              <AlbumArt src={playerStatus.track_image} size={artSize} />
-              <TrackInfo trackName={playerStatus.track_name} artist={playerStatus.track_artist} />
-            </div>
-            <div className={styles.right}>
-              <Lyrics status={playerStatus} onSeek={handleSeek} active={showLyrics} />
-            </div>
-          </div>
-        </div>
-        <div
-          className={`${styles.viewLayer} ${!showLyrics ? styles.viewActive : styles.viewInactive}`}
-        >
+    // provided once for all consumers
+    <NarrationContext.Provider value={narration}>
+      <div
+        className={`${styles.app} ${styles.appPlaying}`}
+        // the art is the only fixed-height block in the left column and never shrinks, so
+        // it has to give way when a larger display size shortens the logical viewport
+        style={{ '--art-size': `${artSize}px` } as React.CSSProperties}
+      >
+        {bannerReason ? <ReconnectBanner reason={bannerReason} carriers={carriers} /> : null}
+        <div className={styles.stage} ref={stageRef}>
           <div
-            className={`${styles.topNoLyrics} ${controls.transitioning ? styles.transitioning : ''}`}
+            className={`${styles.viewLayer} ${showLyrics ? styles.viewActive : styles.viewInactive}`}
           >
-            <NoLyricsView status={playerStatus} active={!showLyrics} artSize={heroArtSize} />
+            <div className={styles.top}>
+              <div
+                className={`${styles.left} ${controls.transitioning ? styles.transitioning : ''}`}
+              >
+                <AlbumArt src={shown.art} size={artSize} djFallback={shown.djFallback} />
+                <TrackInfo trackName={shown.title} artist={shown.artist} />
+              </div>
+              <div className={styles.right}>
+                <Lyrics status={playerStatus} onSeek={handleSeek} active={showLyrics} />
+              </div>
+            </div>
+          </div>
+          <div
+            className={`${styles.viewLayer} ${!showLyrics ? styles.viewActive : styles.viewInactive}`}
+          >
+            <div
+              className={`${styles.topNoLyrics} ${controls.transitioning ? styles.transitioning : ''}`}
+            >
+              <NoLyricsView status={playerStatus} active={!showLyrics} artSize={heroArtSize} />
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className={styles.bottom}>
-        <ProgressBar status={playerStatus} onSeek={handleSeek} />
-        <Controls
-          isPaused={controls.isPaused}
-          shuffle={controls.shuffle}
-          repeat={controls.repeat}
-          disallowPrev={playerStatus.disallow_prev}
-          disallowNext={playerStatus.disallow_next}
-          isPodcast={isPodcast}
-          showSave={!isPodcast}
-          saved={liked.saved}
-          onToggleSaved={liked.toggle}
-          onPrev={controls.onPrev}
-          onNext={controls.onNext}
-          onPlayPause={controls.onPlayPause}
-          onToggleShuffle={controls.onToggleShuffle}
-          onCycleRepeat={controls.onCycleRepeat}
-          onRewind15={() => seekRelative(-15000)}
-          onForward15={() => seekRelative(15000)}
-          onMore={() => setMenuOpen(true)}
+        <div className={styles.bottom}>
+          <ProgressBar status={playerStatus} onSeek={handleSeek} />
+          <Controls
+            isPaused={controls.isPaused}
+            shuffle={controls.shuffle}
+            repeat={controls.repeat}
+            disallowPrev={playerStatus.disallow_prev}
+            disallowNext={playerStatus.disallow_next}
+            isPodcast={isPodcast}
+            isDJ={isDJ}
+            showSave={!isPodcast}
+            saved={liked.saved}
+            onToggleSaved={liked.toggle}
+            onPrev={controls.onPrev}
+            onNext={controls.onNext}
+            onPlayPause={controls.onPlayPause}
+            onToggleShuffle={controls.onToggleShuffle}
+            onDJSignal={controls.onDJSignal}
+            onCycleRepeat={controls.onCycleRepeat}
+            onRewind15={() => seekRelative(-15000)}
+            onForward15={() => seekRelative(15000)}
+            onMore={() => setMenuOpen(true)}
+          />
+        </div>
+
+        <Menu
+          open={menuOpen}
+          onClose={closeMenu}
+          showLyrics={showLyrics}
+          onToggleLyrics={toggleLyrics}
+          karaokeLyrics={settings.karaokeLyrics}
+          onToggleKaraoke={toggleKaraoke}
+          voiceMic={settings.voiceMic}
+          onToggleVoiceMic={toggleVoiceMic}
+          currentDevice={playerStatus.device_name}
+          onOpenDevices={() => {
+            setMenuOpen(false)
+            setDeviceMenuOpen(true)
+          }}
+          onOpenBluetooth={() => {
+            setMenuOpen(false)
+            setBtMenuOpen(true)
+          }}
+          onOpenSettings={() => {
+            setMenuOpen(false)
+            setSettingsOpen(true)
+          }}
         />
+
+        {globalOverlays}
       </div>
-
-      <Menu
-        open={menuOpen}
-        onClose={closeMenu}
-        showLyrics={showLyrics}
-        onToggleLyrics={toggleLyrics}
-        karaokeLyrics={settings.karaokeLyrics}
-        onToggleKaraoke={toggleKaraoke}
-        voiceMic={settings.voiceMic}
-        onToggleVoiceMic={toggleVoiceMic}
-        currentDevice={playerStatus.device_name}
-        onOpenDevices={() => {
-          setMenuOpen(false)
-          setDeviceMenuOpen(true)
-        }}
-        onOpenBluetooth={() => {
-          setMenuOpen(false)
-          setBtMenuOpen(true)
-        }}
-        onOpenSettings={() => {
-          setMenuOpen(false)
-          setSettingsOpen(true)
-        }}
-      />
-
-      {globalOverlays}
-    </div>
+    </NarrationContext.Provider>
   )
 }

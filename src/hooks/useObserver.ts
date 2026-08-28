@@ -1,6 +1,7 @@
 import { useEffect, useReducer } from 'react'
 import { fetchObserverStatus, remoteStateToStatus } from '@/api/client'
 import { subscribeConnection, subscribeEvents } from '@/api/eventBus'
+import { isNarrationItem, seenNarrationFrom, type SeenNarration } from '@/hooks/useDJNarration'
 import type { ApiEvent, ObserverStatus, RemoteStateWire, SetupProgress } from '@/api/types'
 
 interface ObserverState {
@@ -9,6 +10,10 @@ interface ObserverState {
   error: string | null
   connected: boolean
   setupProgress: SetupProgress | null
+  // last DJ narration seen on the wire; the reducer sees every action, renders may not
+  narration: SeenNarration | null
+  // id of the last actual song, which is what tells an outro narration from an intro
+  lastSongId: string
 }
 
 type Action =
@@ -24,6 +29,8 @@ const initial: ObserverState = {
   error: null,
   connected: false,
   setupProgress: null,
+  narration: null,
+  lastSongId: '',
 }
 
 function mergeProgress(
@@ -33,6 +40,16 @@ function mergeProgress(
   if (!next) return prev
   if (prev && next.percent < prev.percent) return prev
   return next
+}
+
+// an outro carries the id of the song already playing and sits silent for seconds before
+// speaking, so its record waits for position to move. An intro speaks as soon as it appears,
+// where waiting would only add latency
+function narrationHeard(status: ObserverStatus, lastSongId: string): SeenNarration | null {
+  if (!status.active || !isNarrationItem(status)) return null
+  const isOutro = status.track_id === lastSongId
+  if (isOutro && status.position <= 0) return null
+  return seenNarrationFrom(status)
 }
 
 function reducer(state: ObserverState, action: Action): ObserverState {
@@ -46,12 +63,17 @@ function reducer(state: ObserverState, action: Action): ObserverState {
         incoming.setting_up === undefined && prev !== undefined
           ? { ...incoming, setting_up: prev }
           : incoming
+      const song = status.active && !isNarrationItem(status) ? status : null
+
       return {
         ...state,
         status,
         loading: false,
         error: null,
         setupProgress: mergeProgress(state.setupProgress, incoming.setting_up_progress),
+        // carried forward so the song that supersedes a narration cannot erase it
+        narration: narrationHeard(status, state.lastSongId) ?? state.narration,
+        lastSongId: song?.track_id ?? state.lastSongId,
       }
     }
     case 'error':

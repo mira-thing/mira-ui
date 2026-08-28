@@ -1,0 +1,89 @@
+.container {
+  @include absolute-fill;
+  background: $bg;
+  @include column;
+  align-items: center;
+  z-index: $z-menu;
+  animation: consentFadeIn $dur-slow $ease-standard both;
+}
+
+@keyframes consentFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.main {
+  @include absolute-fill;
+  @include flex-center;
+  padding-bottom: 72px;
+}
+
+.card {
+  @include column;
+  max-width: 720px;
+  padding: 0 $s-6;
+  @include flex-gap-y($s-5);
+}
+
+.title {
+  font-size: $fs-4xl;
+  font-weight: $fw-semibold;
+  color: $text-primary;
+  letter-spacing: -0.02em;
+}
+
+.body {
+  font-size: $fs-2xl;
+  color: $text-secondary;
+  line-height: 1.45;
+}
+
+.note {
+  font-size: $fs-lg;
+  color: $text-tertiary;
+  line-height: 1.45;
+}
+
+.buttons {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 34px;
+  display: flex;
+  justify-content: center;
+  @include flex-gap-x($s-5);
+}
+
+.btn {
+  padding: $s-3 $s-8;
+  border-radius: $r-pill;
+  background: $surface-elev;
+  color: $text-primary;
+  font-size: $fs-xl;
+  font-weight: $fw-semibold;
+  border: 2px solid transparent;
+  transition: transform $dur-fast $ease-standard;
+
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+.btnPrimary {
+  background: $accent;
+  color: #000;
+}
+
+.btnFocus {
+  border-color: $text-primary;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .container {
+    animation: none;
+  }
+}

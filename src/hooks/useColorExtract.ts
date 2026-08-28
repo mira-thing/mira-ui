@@ -2,122 +2,245 @@ import { useEffect, useRef, useState } from 'react'
 
 export type RGB = [number, number, number]
 
-// gray fallback for missing art or a bad image
+// the art is reduced to a 5-bit histogram
 const DEFAULT: RGB = [70, 75, 95]
 const SAMPLE = 32
-
-const TARGET_S = 1
-const TARGET_L = 0.5
-const MIN_S = 0.35
-const MIN_L = 0.3
-const MAX_L = 0.7
-const W_S = 3
-const W_L = 1
-const W_POP = 1
+const BINS = 16
+const GRAY = BINS
+const GRAY_C = 0.04
+const GRAY_K = 0.012
+// skin reads as the subject rather
+const SKIN_PENALTY = 0.45
+const SKIN_LO = 10
+const SKIN_HI = 37
+const SKIN_S = 0.82
+const VIVID_Q = 0.9
+const WARM_LO = 2
+const WARM_HI = 4
+const WARM_PENALTY = 0.5
 
 const CACHE_MAX = 500
-const cache = new Map<string, RGB>()
+const cache = new Map<string, Sample>()
 
-function remember(url: string, rgb: RGB) {
+// the accent colour plus how bright the artwork is overall
+interface Sample {
+  rgb: RGB
+  luminance: number
+}
+
+const DEFAULT_SAMPLE: Sample = { rgb: DEFAULT, luminance: 0 }
+
+function remember(url: string, sample: Sample) {
   if (!cache.has(url) && cache.size >= CACHE_MAX) {
     const oldest = cache.keys().next().value
     if (oldest !== undefined) cache.delete(oldest)
   }
-  cache.set(url, rgb)
+  cache.set(url, sample)
 }
 
-let sharedCanvas: HTMLCanvasElement | null = null
 let sharedCtx: CanvasRenderingContext2D | null = null
 
 function ensureCanvas(): CanvasRenderingContext2D | null {
   if (sharedCtx) return sharedCtx
-  sharedCanvas = document.createElement('canvas')
-  sharedCanvas.width = SAMPLE
-  sharedCanvas.height = SAMPLE
-  sharedCtx = sharedCanvas.getContext('2d', { willReadFrequently: true })
+  const canvas = document.createElement('canvas')
+  canvas.width = SAMPLE
+  canvas.height = SAMPLE
+  sharedCtx = canvas.getContext('2d', { willReadFrequently: true })
   return sharedCtx
 }
 
-interface Bucket {
-  n: number
-  r: number
-  g: number
-  b: number
+const UNCLASSIFIED = 255
+const famOf = new Uint8Array(32768).fill(UNCLASSIFIED)
+const chromaOf = new Float32Array(32768)
+
+function classify(key: number): number {
+  const r = (((key >> 10) & 31) << 3) | 4
+  const g = (((key >> 5) & 31) << 3) | 4
+  const b = ((key & 31) << 3) | 4
+  const lr = srgbToLinear(r)
+  const lg = srgbToLinear(g)
+  const lb = srgbToLinear(b)
+  const l = Math.cbrt(0.4122214708 * lr + 0.5363325363 * lg + 0.0514459929 * lb)
+  const m = Math.cbrt(0.2119034982 * lr + 0.6806995451 * lg + 0.1073969566 * lb)
+  const s = Math.cbrt(0.0883024619 * lr + 0.2817188376 * lg + 0.6299787005 * lb)
+  const a = 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s
+  const bb = 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s
+  const chroma = Math.sqrt(a * a + bb * bb)
+
+  let family = GRAY
+  if (chroma >= GRAY_C) {
+    let hue = (Math.atan2(bb, a) * 180) / Math.PI
+    if (hue < 0) hue += 360
+    family = Math.floor((hue / 360) * BINS) % BINS
+  }
+  famOf[key] = family
+  chromaOf[key] = chroma
+  return family
 }
 
-function extract(img: HTMLImageElement): RGB | null {
+function srgbToLinear(c: number): number {
+  const v = c / 255
+  return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)
+}
+
+// reused across calls so extracting a colour allocates nothing
+const PIXELS = SAMPLE * SAMPLE
+const slot = new Int32Array(32768)
+const bucketKey = new Int32Array(PIXELS + 1)
+const bucketN = new Int32Array(PIXELS + 1)
+const bucketR = new Int32Array(PIXELS + 1)
+const bucketG = new Int32Array(PIXELS + 1)
+const bucketB = new Int32Array(PIXELS + 1)
+const famWeight = new Float64Array(BINS + 1)
+const famChroma = new Float64Array(BINS + 1)
+const famCw = new Float64Array(BINS + 1)
+const famR = new Float64Array(BINS + 1)
+const famG = new Float64Array(BINS + 1)
+const famB = new Float64Array(BINS + 1)
+
+function extractAccent(data: ArrayLike<number>): RGB | null {
+  let buckets = 0
+  let total = 0
+  try {
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i + 3] < 128) continue
+      const r = data[i]
+      const g = data[i + 1]
+      const b = data[i + 2]
+      const key = ((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3)
+      let idx = slot[key]
+      if (idx === 0) {
+        idx = ++buckets
+        slot[key] = idx
+        bucketKey[idx] = key
+        bucketN[idx] = 0
+        bucketR[idx] = 0
+        bucketG[idx] = 0
+        bucketB[idx] = 0
+      }
+      bucketN[idx]++
+      bucketR[idx] += r
+      bucketG[idx] += g
+      bucketB[idx] += b
+      total++
+    }
+    if (total === 0) return null
+
+    famWeight.fill(0)
+    famChroma.fill(0)
+    famCw.fill(0)
+    famR.fill(0)
+    famG.fill(0)
+    famB.fill(0)
+
+    for (let i = 1; i <= buckets; i++) {
+      const key = bucketKey[i]
+      const family = famOf[key] === UNCLASSIFIED ? classify(key) : famOf[key]
+      const chroma = chromaOf[key]
+      const n = bucketN[i]
+      const weight = n / total
+      famWeight[family] += weight
+      famChroma[family] += weight * chroma
+      // squared so washed-out members barely move the family's centre
+      const cw = weight * (chroma + 0.005) * (chroma + 0.005)
+      famCw[family] += cw
+      famR[family] += (cw * bucketR[i]) / n
+      famG[family] += (cw * bucketG[i]) / n
+      famB[family] += (cw * bucketB[i]) / n
+    }
+
+    let winner = -1
+    let bestScore = -1
+    let accent: RGB = DEFAULT
+    for (let f = 0; f <= BINS; f++) {
+      if (famWeight[f] === 0) continue
+      const rgb: RGB = [
+        Math.round(famR[f] / famCw[f]),
+        Math.round(famG[f] / famCw[f]),
+        Math.round(famB[f] / famCw[f]),
+      ]
+      const chroma = f === GRAY ? GRAY_K : famChroma[f] / famWeight[f]
+      let score = Math.sqrt(famWeight[f]) * chroma
+      if (f !== GRAY) {
+        if (f >= WARM_LO && f <= WARM_HI) score *= WARM_PENALTY
+        const [h, s] = rgbToHsl(rgb[0], rgb[1], rgb[2])
+        const deg = h * 360
+        if (deg >= SKIN_LO && deg <= SKIN_HI && s <= SKIN_S) score *= SKIN_PENALTY
+      }
+      if (score > bestScore) {
+        bestScore = score
+        winner = f
+        accent = rgb
+      }
+    }
+    if (winner < 0) return null
+    return winner === GRAY ? accent : vivid(accent, winner, buckets, total)
+  } catch {
+    return null
+  } finally {
+    for (let i = 1; i <= buckets; i++) slot[bucketKey[i]] = 0
+  }
+}
+
+function vivid(accent: RGB, family: number, buckets: number, total: number): RGB {
+  const members: number[] = []
+  for (let i = 1; i <= buckets; i++) {
+    if (famOf[bucketKey[i]] === family) members.push(i)
+  }
+  if (members.length === 0) return accent
+  members.sort((a, b) => chromaOf[bucketKey[a]] - chromaOf[bucketKey[b]])
+
+  const cut = famWeight[family] * (1 - VIVID_Q)
+  let seen = 0
+  let target = members[members.length - 1]
+  for (let i = members.length - 1; i >= 0; i--) {
+    seen += bucketN[members[i]] / total
+    if (seen >= cut) {
+      target = members[i]
+      break
+    }
+  }
+  const n = bucketN[target]
+  const [, saturation] = rgbToHsl(bucketR[target] / n, bucketG[target] / n, bucketB[target] / n)
+  const [h, s, l] = rgbToHsl(accent[0], accent[1], accent[2])
+  return hslToRgb(h, Math.max(s, saturation), l)
+}
+
+function meanLuminance(data: ArrayLike<number>): number {
+  let sum = 0
+  let n = 0
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] < 128) continue
+    sum += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]
+    n++
+  }
+  return n === 0 ? 0 : sum / n / 255
+}
+
+function extract(img: HTMLImageElement): Sample | null {
   const ctx = ensureCanvas()
   if (!ctx) return null
   try {
     ctx.clearRect(0, 0, SAMPLE, SAMPLE)
     ctx.drawImage(img, 0, 0, SAMPLE, SAMPLE)
     const { data } = ctx.getImageData(0, 0, SAMPLE, SAMPLE)
-
-    const buckets = new Map<number, Bucket>()
-    let maxPop = 0
-    for (let i = 0; i < data.length; i += 4) {
-      if (data[i + 3] < 128) continue
-      const r = data[i]
-      const g = data[i + 1]
-      const b = data[i + 2]
-      const key = ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4)
-      let bkt = buckets.get(key)
-      if (!bkt) {
-        bkt = { n: 0, r: 0, g: 0, b: 0 }
-        buckets.set(key, bkt)
-      }
-      bkt.n++
-      bkt.r += r
-      bkt.g += g
-      bkt.b += b
-      if (bkt.n > maxPop) maxPop = bkt.n
-    }
-    if (maxPop === 0) return null
-
-    // try to get the most vibrant color from art
-    let bestScore = -1
-    let best: RGB | null = null
-    let fbScore = -1
-    let fallback: RGB | null = null
-    const norm = W_S + W_L + W_POP
-    for (const bkt of buckets.values()) {
-      const r = bkt.r / bkt.n
-      const g = bkt.g / bkt.n
-      const b = bkt.b / bkt.n
-      const [, s, l] = rgbToHsl(r, g, b)
-      const pop = bkt.n / maxPop
-      const swatch: RGB = [Math.round(r), Math.round(g), Math.round(b)]
-
-      if (s >= MIN_S && l >= MIN_L && l <= MAX_L) {
-        const score =
-          ((1 - Math.abs(s - TARGET_S)) * W_S + (1 - Math.abs(l - TARGET_L)) * W_L + pop * W_POP) /
-          norm
-        if (score > bestScore) {
-          bestScore = score
-          best = swatch
-        }
-      }
-
-      const fb = s * 0.7 + pop * 0.3
-      if (fb > fbScore) {
-        fbScore = fb
-        fallback = swatch
-      }
-    }
-
-    return best ?? fallback
+    const rgb = extractAccent(data)
+    if (!rgb) return null
+    return { rgb, luminance: meanLuminance(data) }
   } catch {
     return null
   }
 }
 
-export function useColorExtract(url: string | undefined): RGB {
-  const [color, setColor] = useState<RGB>(() => (url ? (cache.get(url) ?? DEFAULT) : DEFAULT))
+function useSample(url: string | undefined): Sample {
+  const [sample, setSample] = useState<Sample>(() =>
+    url ? (cache.get(url) ?? DEFAULT_SAMPLE) : DEFAULT_SAMPLE,
+  )
   const lastUrlRef = useRef<string | undefined>(undefined)
 
   useEffect(() => {
     if (!url) {
-      setColor(DEFAULT)
+      setSample(DEFAULT_SAMPLE)
       lastUrlRef.current = undefined
       return
     }
@@ -126,7 +249,7 @@ export function useColorExtract(url: string | undefined): RGB {
 
     const cached = cache.get(url)
     if (cached) {
-      setColor(cached)
+      setSample(cached)
       return
     }
 
@@ -136,20 +259,25 @@ export function useColorExtract(url: string | undefined): RGB {
     img.decoding = 'async'
     img.referrerPolicy = 'no-referrer'
 
-    const apply = (rgb: RGB) =>
-      setColor((prev) =>
-        prev[0] === rgb[0] && prev[1] === rgb[1] && prev[2] === rgb[2] ? prev : rgb,
+    const apply = (next: Sample) =>
+      setSample((prev) =>
+        prev.rgb[0] === next.rgb[0] &&
+        prev.rgb[1] === next.rgb[1] &&
+        prev.rgb[2] === next.rgb[2] &&
+        prev.luminance === next.luminance
+          ? prev
+          : next,
       )
 
     img.onload = () => {
       if (cancelled) return
-      const rgb = extract(img) ?? DEFAULT
-      remember(url, rgb)
-      apply(rgb)
+      const next = extract(img) ?? DEFAULT_SAMPLE
+      remember(url, next)
+      apply(next)
     }
     img.onerror = () => {
       if (cancelled) return
-      apply(DEFAULT)
+      apply(DEFAULT_SAMPLE)
     }
     img.src = url
 
@@ -161,11 +289,16 @@ export function useColorExtract(url: string | undefined): RGB {
     }
   }, [url])
 
-  return color
+  return sample
 }
 
-export function rgba([r, g, b]: RGB, a: number): string {
-  return `rgba(${r}, ${g}, ${b}, ${a})`
+export function useColorExtract(url: string | undefined): RGB {
+  return useSample(url).rgb
+}
+
+// mean artwork luminance
+export function useArtLuminance(url: string | undefined): number {
+  return useSample(url).luminance
 }
 
 function rgbToHsl(r: number, g: number, b: number): [number, number, number] {

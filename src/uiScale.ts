@@ -22,9 +22,9 @@ const BASE_H = 480
 
 // the album art is the only fixed-height block in the player column and it never
 // shrinks, so it has to give way first when the logical viewport gets shorter.
-//   stage row = h - (pad-y 24 + pad-bottom 28 + row gap 12 + bottom bar 124)
+//   stage row = h - (pad-y 24 + pad-bottom 28 + row gap 12 + bottom bar 132)
 //   .left     = art + gap 12 + TrackInfo 62.8
-const STAGE_RESERVED_H = 188
+const STAGE_RESERVED_H = 196
 const ART_MAX = 200
 const ART_MIN = 120
 const ART_RESERVED_H = STAGE_RESERVED_H + 12 + 62.8

@@ -1,0 +1,1 @@
+export { UpdateCard } from './UpdateCard'

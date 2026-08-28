@@ -1,8 +1,8 @@
 .save {
   position: relative;
   @include flex-center;
-  width: 48px;
-  height: 48px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   color: $text-tertiary;
   transition: color $dur-fast $ease-standard;
@@ -18,8 +18,8 @@
 
 .icons {
   position: relative;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
 }
 
 .outline,
@@ -162,4 +162,8 @@
   .bit {
     animation: none;
   }
+}
+
+.disabled {
+  @include disabled-control;
 }

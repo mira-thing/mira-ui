@@ -39,7 +39,8 @@
   background-position: center;
   // no brightness boost: it blew out the white areas of the cover
   filter: blur(30px) saturate(1.5);
-  opacity: 0.75;
+  // capped against artwork luminance
+  opacity: var(--glow-opacity, 0.75);
   will-change: transform;
 }
 

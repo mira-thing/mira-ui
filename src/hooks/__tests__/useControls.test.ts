@@ -90,6 +90,26 @@ describe('useControls endpoint dispatch', () => {
     expect(bodies).toEqual([{ shuffle_context: true }, { shuffle_context: false }])
   })
 
+  it('sends djSignal to its endpoint without a body', async () => {
+    let hits = 0
+    let contentType: string | null = null
+    server.use(
+      http.post('*/player/dj_signal', ({ request }) => {
+        hits++
+        contentType = request.headers.get('content-type')
+        return HttpResponse.json({})
+      }),
+    )
+
+    const { result } = renderHook(() => useControls())
+
+    await result.current.djSignal()
+
+    expect(hits).toBe(1)
+    // momentary action: no payload, so no json content-type is set
+    expect(contentType).toBeNull()
+  })
+
   it('sends setRepeat to both repeat endpoints with mode-derived flags', async () => {
     const contextBodies: unknown[] = []
     const trackBodies: unknown[] = []

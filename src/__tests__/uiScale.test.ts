@@ -60,33 +60,33 @@ describe('artSizeFor', () => {
   })
 
   it('shrinks the art so the left column still fits the stage row', () => {
-    expect(artSizeFor(110)).toBe(174)
-    expect(artSizeFor(115)).toBe(155)
+    expect(artSizeFor(110)).toBe(166)
+    expect(artSizeFor(115)).toBe(147)
   })
 
   // pinned against the real scss rather than re-deriving from the same constant, which
   // would tautologically pass whatever the reserved height was set to
   it('pins the shrink curve across the range', () => {
     expect([85, 90, 95, 100, 105, 110, 115].map(artSizeFor)).toEqual([
-      200, 200, 200, 200, 195, 174, 155,
+      200, 200, 200, 200, 187, 166, 147,
     ])
   })
 })
 
 describe('heroArtSizeFor', () => {
-  it('leaves the no-lyrics art untouched at the default scale', () => {
-    expect(heroArtSizeFor(100)).toBe(220)
+  it('gives up 2px at the default scale for the taller bar', () => {
+    expect(heroArtSizeFor(100)).toBe(218)
   })
 
   it('keeps the 130% glow inside the stage row at every notch', () => {
     for (const pct of [85, 90, 95, 100, 105, 110, 115]) {
-      const stage = logicalSize(pct).h - 188
+      const stage = logicalSize(pct).h - 196
       expect(heroArtSizeFor(pct) * 1.3).toBeLessThanOrEqual(stage)
     }
   })
 
   it('shrinks once the stage row can no longer hold the glow', () => {
-    expect(heroArtSizeFor(115)).toBe(176)
+    expect(heroArtSizeFor(115)).toBe(170)
   })
 })
 

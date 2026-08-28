@@ -1,15 +1,18 @@
 import { memo, useEffect, useRef, useState } from 'react'
+import { DJIcon } from '@/components/Controls/icons'
 import styles from './AlbumArt.module.scss'
 
 interface Props {
   src: string | undefined
   size?: number
   alt?: string
+  // show the DJ mark instead of an empty box
+  djFallback?: boolean
 }
 
 const FADE_MS = 220
 
-function AlbumArtImpl({ src, size = 200, alt = '' }: Props) {
+function AlbumArtImpl({ src, size = 200, alt = '', djFallback = false }: Props) {
   const [front, setFront] = useState<string | undefined>(src)
   const [back, setBack] = useState<string | undefined>(undefined)
   const [showFront, setShowFront] = useState(true)
@@ -39,6 +42,15 @@ function AlbumArtImpl({ src, size = 200, alt = '' }: Props) {
 
   const sizePx: React.CSSProperties = { width: size, height: size }
 
+  // shared by both crossfade layers
+  const empty = djFallback ? (
+    <div className={styles.djFallback} role="img" aria-label="DJ">
+      <DJIcon size={Math.round(size * 0.55)} />
+    </div>
+  ) : (
+    <div className={styles.placeholder} />
+  )
+
   return (
     <div className={styles.art} style={sizePx}>
       <div
@@ -55,7 +67,7 @@ function AlbumArtImpl({ src, size = 200, alt = '' }: Props) {
             draggable={false}
           />
         ) : (
-          <div className={styles.placeholder} />
+          empty
         )}
       </div>
       <div
@@ -72,7 +84,7 @@ function AlbumArtImpl({ src, size = 200, alt = '' }: Props) {
             draggable={false}
           />
         ) : (
-          <div className={styles.placeholder} />
+          empty
         )}
       </div>
     </div>

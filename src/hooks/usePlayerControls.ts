@@ -24,6 +24,7 @@ export interface UsePlayerControlsParams {
   prev: () => Promise<void> | void
   seek: (positionMs: number) => Promise<void> | void
   setShuffle: (on: boolean) => Promise<void> | void
+  djSignal?: () => Promise<void> | void
   setRepeat: (mode: RepeatMode) => Promise<void> | void
   onCommandError?: (message: string) => void
 }
@@ -38,11 +39,13 @@ export interface UsePlayerControlsResult {
   onPrevTrack: () => void // straight to prev track (swipe gestures)
   onNext: () => void
   onToggleShuffle: () => void
+  onDJSignal: () => void
   onCycleRepeat: () => void
 }
 
 export function usePlayerControls(params: UsePlayerControlsParams): UsePlayerControlsResult {
-  const { status, play, pause, next, prev, seek, setShuffle, setRepeat, onCommandError } = params
+  const { status, play, pause, next, prev, seek, setShuffle, djSignal, setRepeat, onCommandError } =
+    params
 
   const [optimisticPause, setOptimisticPause] = useState<OptimisticValue<boolean> | null>(null)
   const [optimisticShuffle, setOptimisticShuffle] = useState<OptimisticValue<boolean> | null>(null)
@@ -160,6 +163,14 @@ export function usePlayerControls(params: UsePlayerControlsParams): UsePlayerCon
     })
   }, [reportCommandError, setShuffle, shuffle])
 
+  // nothing to predict; the new set arrives on the next status update
+  const onDJSignal = useCallback(() => {
+    if (!djSignal) return
+    void Promise.resolve(djSignal()).catch((err) => {
+      reportCommandError('Switching DJ set failed', err)
+    })
+  }, [djSignal, reportCommandError])
+
   const onCycleRepeat = useCallback(() => {
     const nextMode: RepeatMode =
       repeat === 'off' ? 'context' : repeat === 'context' ? 'track' : 'off'
@@ -180,6 +191,7 @@ export function usePlayerControls(params: UsePlayerControlsParams): UsePlayerCon
     onPrevTrack,
     onNext,
     onToggleShuffle,
+    onDJSignal,
     onCycleRepeat,
   }
 }
