@@ -23,7 +23,7 @@ function SponsorScreenImpl({ onClose }: Props) {
   const qrSize = zoom > 1 ? Math.round(220 / zoom) : 220
   return (
     <div className={styles.container}>
-      <div className={zoom > 1 ? `${styles.main} ${styles.mainScaled}` : styles.main}>
+      <div className={styles.main}>
         <div className={styles.card}>
           <div className={styles.qrWrap}>
             <QRCodeSVG
@@ -43,8 +43,12 @@ function SponsorScreenImpl({ onClose }: Props) {
               </span>
             </div>
             <p className={styles.body}>
-              {BRAND_NAME} is free, open source, and made by one person. If it brought your Car
-              Thing back to life, you can help keep it going.
+              {BRAND_NAME} is free, open source, and made by two people in their spare time. If it
+              brought your Car Thing back to life, you can help keep it going.
+            </p>
+            <p className={styles.perks}>
+              Sponsors get <strong>early access to betas</strong> and{' '}
+              <strong>access to the dev chat</strong>.
             </p>
             <div className={styles.fallback}>
               <div className={styles.fallbackLabel}>Scan the QR or visit</div>

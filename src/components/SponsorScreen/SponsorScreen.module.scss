@@ -26,9 +26,6 @@ $support-wash-dim: rgba(240, 109, 180, 0.05);
 .main {
   @include absolute-fill;
   @include flex-center;
-}
-
-.mainScaled {
   padding-bottom: 84px;
 }
 
@@ -101,6 +98,18 @@ $support-wash-dim: rgba(240, 109, 180, 0.05);
   color: $text-secondary;
   line-height: 1.55;
   max-width: 400px;
+}
+
+.perks {
+  font-size: $fs-lg;
+  color: $text-secondary;
+  line-height: 1.55;
+  max-width: 400px;
+
+  strong {
+    color: $text-primary;
+    font-weight: $fw-medium;
+  }
 }
 
 .fallback {
