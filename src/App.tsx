@@ -30,16 +30,18 @@ import { resolveRoute, type OfflineScreen } from '@/app/routes'
 import { useDevScreen } from '@/dev/devContext'
 import { makeMockStatus } from '@/dev/mockStatus'
 import { useAuth } from '@/hooks/useAuth'
-import { useBluetooth } from '@/hooks/useBluetooth'
 import { useConnectDevices } from '@/hooks/useConnectDevices'
+import { useConnectivity } from '@/hooks/useConnectivity'
 import { useControls } from '@/hooks/useControls'
+import { useDelayedFlag } from '@/hooks/useDelayedFlag'
 import { useHardwareButtons } from '@/hooks/useHardwareButtons'
 import { isDJContext, NarrationContext, presentTrack, useDJNarration } from '@/hooks/useDJNarration'
-import { useKnownDevices } from '@/hooks/useKnownDevices'
 import { useNotify } from '@/notify/notifyContext'
 import { useObserver } from '@/hooks/useObserver'
+import { useOfflineScreen } from '@/hooks/useOfflineScreen'
 import { usePlayerControls } from '@/hooks/usePlayerControls'
 import { usePrefetch } from '@/hooks/usePrefetch'
+import { resolveDropReason, useHeldStatus } from '@/hooks/useReconnect'
 import { useSavedTrack } from '@/hooks/useSavedTrack'
 import { useSwipeGestures } from '@/hooks/useSwipeGestures'
 import { resumeLastDevice, transferToDevice } from '@/api/client'
@@ -80,12 +82,12 @@ export default function App() {
     pairing: realPairing,
     trouble: btTrouble,
     setDiscoverable,
-  } = useBluetooth()
+    hasKnownDevice,
+    btConnectedDevice,
+    topKnownDeviceName,
+    wasOnline,
+  } = useConnectivity()
   const connectDevices = useConnectDevices()
-  const { devices: knownDevices } = useKnownDevices(true) // paired bt devices
-  const hasKnownDevice = (knownDevices?.length ?? 0) > 0
-  const btConnectedDevice = knownDevices?.find((d) => d.connected) ?? null
-  const topKnownDeviceName = knownDevices?.[0]?.name ?? null
   const [deviceMenuOpen, setDeviceMenuOpen] = useState(false)
 
   // notification for the playback device changes
@@ -151,8 +153,6 @@ export default function App() {
     }
     setSponsorOpen(false)
   }, [])
-  const [offlineMethod, setOfflineMethod] = useState<'chooser' | 'bluetooth' | 'pc'>('chooser')
-  const [setupOverride, setSetupOverride] = useState(false)
   const stageRef = useRef<HTMLDivElement | null>(null)
 
   const toggleLyrics = useCallback(() => {
@@ -176,33 +176,12 @@ export default function App() {
   // BOOT_STUCK_MS without an online signal, so the user gets actionable
   // instructions instead of staring at a splash forever.
   const BOOT_STUCK_MS = 12000
-  const [bootStuck, setBootStuck] = useState(false)
-  useEffect(() => {
-    setBootStuck(false)
-    const t = window.setTimeout(() => setBootStuck(true), BOOT_STUCK_MS)
-    return () => window.clearTimeout(t)
-  }, [])
+  const bootStuck = useDelayedFlag(true, BOOT_STUCK_MS)
 
   // if something goes wrong change the text to try restarting
   // TODO: maybe not needed at this point since some further changes while developing the bluetooth flow showed this was not an issue as i thought
   const LOAD_STUCK_MS = 30000
-  const [loadStuck, setLoadStuck] = useState(false)
-  useEffect(() => {
-    setLoadStuck(false)
-    const t = window.setTimeout(() => setLoadStuck(true), LOAD_STUCK_MS)
-    return () => window.clearTimeout(t)
-  }, [])
-
-  // reset the "set up a different connection" override once we online again
-  useEffect(() => {
-    if (online === true) setSetupOverride(false)
-  }, [online])
-
-  // were we ever online? shows first time setup or wifi dropped
-  const [wasOnline, setWasOnline] = useState(false)
-  useEffect(() => {
-    if (online === true) setWasOnline(true)
-  }, [online])
+  const loadStuck = useDelayedFlag(true, LOAD_STUCK_MS)
 
   const { forced, setForced } = useDevScreen()
 
@@ -223,47 +202,33 @@ export default function App() {
   const SPOTIFY_STUCK_MS = 60000
   const playerStartingUp = status != null && !status.active && status.message === 'starting up'
   const splashOnlineStuck = playerStartingUp && online === true && !auth.url
-  const [spotifyStuck, setSpotifyStuck] = useState(false)
-  useEffect(() => {
-    if (!splashOnlineStuck) {
-      setSpotifyStuck(false)
-      return
-    }
-    const t = window.setTimeout(() => setSpotifyStuck(true), SPOTIFY_STUCK_MS)
-    return () => window.clearTimeout(t)
-  }, [splashOnlineStuck])
+  const spotifyStuck = useDelayedFlag(splashOnlineStuck, SPOTIFY_STUCK_MS)
 
   // hold the last now-playing through any small drops in network
-  const [heldStatus, setHeldStatus] = useState<ObserverStatusActive | null>(null)
-  useEffect(() => {
-    if (realStatus?.active) setHeldStatus(realStatus)
-  }, [realStatus])
-
-  const connecting =
-    online === false && (carriers?.bt === true || btConnectedDevice != null || heldStatus != null)
-  const connMilestone = `${carriers?.bt === true}|${btConnectedDevice?.address ?? ''}|${heldStatus != null}`
-  const OFFLINE_GRACE_MS = 6000
-  const [graceElapsed, setGraceElapsed] = useState(false)
-  useEffect(() => {
-    if (!connecting) {
-      setGraceElapsed(true)
-      return
-    }
-    setGraceElapsed(false)
-    const t = window.setTimeout(() => setGraceElapsed(true), OFFLINE_GRACE_MS)
-    return () => window.clearTimeout(t)
-  }, [connecting, connMilestone])
+  const heldStatus = useHeldStatus(realStatus)
 
   // small drops while the phone is still reachable
-  let dropReason: ReconnectReason | null = null
-  if (!forced && heldStatus && realStatus?.active !== true && online === true) {
-    if (!connected) {
-      dropReason = 'ws'
-    } else if (realStatus && !realStatus.active && realStatus.message === 'starting up') {
-      dropReason = 'dealer'
-    }
-  }
+  const dropReason = resolveDropReason({
+    suppressed: !!forced,
+    held: heldStatus,
+    status: realStatus,
+    online,
+    connected,
+  })
   const reconnecting = dropReason !== null
+
+  const offline = useOfflineScreen({
+    suppressed: !!forced,
+    online,
+    carriers,
+    btConnectedDevice,
+    hasKnownDevice,
+    wasOnline,
+    heldStatus,
+    bootStuck,
+    reconnecting,
+  })
+  const offlineScreen = offline.screen
 
   // seek relative to the live position
   const seekRelative = useCallback(
@@ -346,39 +311,6 @@ export default function App() {
       setScreensaverOpen(false)
     }
   }, [screensaverOpen, screensaverBy, realStatus])
-
-  const OFFLINE_HOLDOFF_MS = 10000
-  const [offlineHeld, setOfflineHeld] = useState(false)
-  useEffect(() => {
-    if (online !== false) {
-      setOfflineHeld(false)
-      return
-    }
-    const t = window.setTimeout(() => setOfflineHeld(true), OFFLINE_HOLDOFF_MS)
-    return () => window.clearTimeout(t)
-  }, [online])
-  const offlineConfirmed = online === false && (offlineHeld || !wasOnline)
-
-  const offlineActive =
-    !forced && !reconnecting && (offlineConfirmed || (bootStuck && online !== true))
-  // hold a brief "checking connection"
-  const offlineChecking = offlineActive && connecting && !graceElapsed
-  const onOfflineSetup = offlineActive
-
-  // which offline screen wins
-  let offlineScreen: OfflineScreen | null = null
-  if (offlineActive) {
-    if (offlineChecking) {
-      offlineScreen = 'checking'
-    } else if (btConnectedDevice && !setupOverride) {
-      // phone is connected but no internet -> "turn on tethering"
-      offlineScreen = 'tethering'
-    } else if ((hasKnownDevice || wasOnline) && !setupOverride) {
-      offlineScreen = 'reconnecting'
-    } else {
-      offlineScreen = offlineMethod
-    }
-  }
 
   // discoverable while the Bluetooth pairing screen is up
   const pairingScreenShown = forced === 'needs-network' || offlineScreen === 'bluetooth'
@@ -591,13 +523,13 @@ export default function App() {
       closeMenu()
       return
     }
-    if (onOfflineSetup && offlineMethod !== 'chooser') {
-      setOfflineMethod('chooser')
+    if (offline.active && offline.method !== 'chooser') {
+      offline.setMethod('chooser')
       return
     }
     // back out of the chooser the reconnecting screen pushed us into
-    if (onOfflineSetup && setupOverride) {
-      setSetupOverride(false)
+    if (offline.active && offline.setupOverride) {
+      offline.setSetupOverride(false)
       return
     }
     // nothing to go back to
@@ -617,9 +549,7 @@ export default function App() {
     closePowerMenu,
     menuOpen,
     closeMenu,
-    onOfflineSetup,
-    offlineMethod,
-    setupOverride,
+    offline,
   ])
 
   const controls = usePlayerControls({
@@ -924,7 +854,7 @@ export default function App() {
             deviceName={topKnownDeviceName}
             carriers={carriers}
             trouble={btTrouble}
-            onSetUpOther={() => setSetupOverride(true)}
+            onSetUpOther={() => offline.setSetupOverride(true)}
           />
         )
       case 'pc':
@@ -934,8 +864,8 @@ export default function App() {
       default:
         return (
           <ConnectionChooser
-            onPickPc={() => setOfflineMethod('pc')}
-            onPickBluetooth={() => setOfflineMethod('bluetooth')}
+            onPickPc={() => offline.setMethod('pc')}
+            onPickBluetooth={() => offline.setMethod('bluetooth')}
           />
         )
     }
