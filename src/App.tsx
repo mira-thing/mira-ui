@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { AlbumArt } from '@/components/AlbumArt'
 import { AuthScreen } from '@/components/AuthScreen'
 import { BluetoothMenu } from '@/components/BluetoothMenu'
@@ -31,10 +31,15 @@ import { useDevScreen } from '@/dev/devContext'
 import { makeMockStatus } from '@/dev/mockStatus'
 import { useAuth } from '@/hooks/useAuth'
 import { useConnectDevices } from '@/hooks/useConnectDevices'
+import { useCheckinConsent } from '@/hooks/useCheckinConsent'
 import { useConnectivity } from '@/hooks/useConnectivity'
 import { useControls } from '@/hooks/useControls'
 import { useDelayedFlag } from '@/hooks/useDelayedFlag'
+import { useDiscoverableWhilePairing } from '@/hooks/useDiscoverableWhilePairing'
+import { useDeviceSwitch } from '@/hooks/useDeviceSwitch'
 import { useHardwareButtons } from '@/hooks/useHardwareButtons'
+import { useIdleScreensaver } from '@/hooks/useIdleScreensaver'
+import { useLastArtUrl } from '@/hooks/useLastArtUrl'
 import { isDJContext, NarrationContext, presentTrack, useDJNarration } from '@/hooks/useDJNarration'
 import { useNotify } from '@/notify/notifyContext'
 import { useObserver } from '@/hooks/useObserver'
@@ -44,17 +49,15 @@ import { usePlayerControls } from '@/hooks/usePlayerControls'
 import { usePrefetch } from '@/hooks/usePrefetch'
 import { resolveDropReason, useHeldStatus } from '@/hooks/useReconnect'
 import { useSavedTrack } from '@/hooks/useSavedTrack'
+import { useSponsorGate } from '@/hooks/useSponsorGate'
 import { useSwipeGestures } from '@/hooks/useSwipeGestures'
-import { resumeLastDevice, transferToDevice } from '@/api/client'
-import type { ConnectDevice, ObserverStatusActive } from '@/api/types'
+import { useUpdateNotice } from '@/hooks/useUpdateNotice'
+import { useUtcOffset } from '@/hooks/useUtcOffset'
+import { resumeLastDevice } from '@/api/client'
+import type { ObserverStatusActive } from '@/api/types'
 import { getSettings, initSettings, updateSettings, useSettings } from '@/settings'
 import { artSizeFor, heroArtSizeFor } from '@/uiScale'
 import styles from './App.module.scss'
-
-const SPONSOR_AFTER_PLAY_MS = 3 * 60 * 1000
-const LAST_ART_KEY = 'mira.lastArtUrl'
-const UTC_OFFSET_KEY = 'mira.utcOffsetMin'
-const SKIPPED_VERSION_KEY = 'mira.skippedVersion'
 
 export default function App() {
   const auth = useAuth()
@@ -122,33 +125,12 @@ export default function App() {
   } = useConnectivity()
   const connectDevices = useConnectDevices()
 
-  // notification for the playback device changes
-  const prevDeviceRef = useRef<string | undefined>(undefined)
-  useEffect(() => {
-    if (realStatus == null) return
-    const curId = realStatus.active ? realStatus.device_id : ''
-    const prev = prevDeviceRef.current
-    if (prev !== undefined && prev !== curId) {
-      if (realStatus.active) {
-        notify(`Now playing on ${realStatus.device_name}`, { variant: 'info' })
-      } else {
-        notify('Nothing is playing. Pick a device or start Spotify', { variant: 'info' })
-      }
-    }
-    prevDeviceRef.current = curId
-  }, [realStatus, notify])
-
-  const onPickDevice = useCallback(
-    (d: ConnectDevice) => {
-      overlays.close('deviceMenu')
-      notify(`Switching to ${d.name}...`, { variant: 'info' })
-      void transferToDevice(d.id).catch((err) => {
-        console.warn('transfer failed', err)
-        notify(`Couldn't switch to ${d.name}`, { variant: 'error' })
-      })
-    },
-    [notify, overlays],
-  )
+  const closeDeviceMenu = useCallback(() => overlays.close('deviceMenu'), [overlays])
+  const onPickDevice = useDeviceSwitch({
+    status: realStatus,
+    notify,
+    onPicked: closeDeviceMenu,
+  })
 
   const settings = useSettings()
   const showLyricsReal = settings.showLyrics
@@ -246,78 +228,32 @@ export default function App() {
   const pairing =
     forced === 'pairing' ? { address: 'AB:CD:EF:01:23:45', passkey: '123456' } : realPairing
 
-  // telemetry consent
-  const consentAnsweredRef = useRef(false)
+  // an overlay owns the screen, or something that is not an overlay does
+  const overlayBusy = overlays.busy || !!forced || auth.required || reconnecting || !!pairing
 
-  // auto screensaver: only ever from the true idle screen, after 10 quiet
-  // minutes; any user input resets the countdown. Not a setting on purpose.
-  const SCREENSAVER_AUTO_MS = 10 * 60 * 1000
-  const screensaverAutoEligible =
-    !screensaverOpen &&
-    !forced &&
-    !loading &&
-    !auth.required &&
-    !reconnecting &&
-    realStatus != null &&
-    realStatus.active !== true &&
-    realStatus.setting_up !== true &&
-    !menuOpen &&
-    !powerMenuOpen &&
-    !btMenuOpen &&
-    !settingsOpen &&
-    !deviceMenuOpen &&
-    !debugOpen &&
-    !sponsorOpen &&
-    !consentOpen &&
-    !updateCardOpen &&
-    !reportId &&
-    !pairing
-  useEffect(() => {
-    if (!screensaverAutoEligible) return
-    const open = () => overlays.openScreensaver('auto')
-    let t = window.setTimeout(open, SCREENSAVER_AUTO_MS)
-    const reset = () => {
-      window.clearTimeout(t)
-      t = window.setTimeout(open, SCREENSAVER_AUTO_MS)
-    }
-    window.addEventListener('pointerdown', reset, { capture: true })
-    window.addEventListener('keydown', reset, { capture: true })
-    window.addEventListener('wheel', reset, { capture: true })
-    return () => {
-      window.clearTimeout(t)
-      window.removeEventListener('pointerdown', reset, { capture: true })
-      window.removeEventListener('keydown', reset, { capture: true })
-      window.removeEventListener('wheel', reset, { capture: true })
-    }
-  }, [screensaverAutoEligible, SCREENSAVER_AUTO_MS, overlays])
+  const openConsent = useCallback(() => overlays.open('consent'), [overlays])
+  const openSponsor = useCallback(() => overlays.open('sponsor'), [overlays])
+  const openUpdateCard = useCallback(() => overlays.open('updateCard'), [overlays])
+  const closeUpdateCard = useCallback(() => overlays.close('updateCard'), [overlays])
+  const closeConsent = useCallback(() => overlays.close('consent'), [overlays])
+  const openScreensaverAuto = useCallback(() => overlays.openScreensaver('auto'), [overlays])
+  const closeScreensaver = useCallback(() => overlays.close('screensaver'), [overlays])
 
-  // an auto-opened saver yields to real playback; a manual one stays (desk
-  // mode) and cross-fades its art instead
-  useEffect(() => {
-    if (screensaverOpen && overlays.screensaverBy === 'auto' && realStatus?.active === true) {
-      overlays.close('screensaver')
-    }
-  }, [screensaverOpen, realStatus, overlays])
+  useIdleScreensaver({
+    open: screensaverOpen,
+    openedBy: overlays.screensaverBy,
+    busy: overlayBusy,
+    consentOpen,
+    updateCardOpen,
+    loading,
+    status: realStatus,
+    onOpen: openScreensaverAuto,
+    onClose: closeScreensaver,
+  })
 
   // discoverable while the Bluetooth pairing screen is up
   const pairingScreenShown = forced === 'needs-network' || offlineScreen === 'bluetooth'
-  useEffect(() => {
-    if (btMenuOpen) return
-    if (!pairingScreenShown) {
-      void setDiscoverable(false).catch(() => {})
-      return
-    }
-    let cancelled = false
-    const assertOn = () => {
-      if (!cancelled) void setDiscoverable(true).catch(() => {})
-    }
-    assertOn()
-    const id = window.setInterval(assertOn, 3000)
-    return () => {
-      cancelled = true
-      window.clearInterval(id)
-    }
-  }, [pairingScreenShown, btMenuOpen, setDiscoverable])
+  useDiscoverableWhilePairing({ pairingScreenShown, btMenuOpen, setDiscoverable })
 
   const closeMenu = useCallback(() => overlays.close('menu'), [overlays])
   const closePowerMenu = useCallback(() => overlays.close('powerMenu'), [overlays])
@@ -327,121 +263,37 @@ export default function App() {
     overlays.openScreensaver('manual')
   }, [closePowerMenu, overlays])
 
-  // remember the last album art for the screensavers ambient background
-  useEffect(() => {
-    if (realStatus?.active !== true || !realStatus.track_image) return
-    try {
-      window.localStorage.setItem(LAST_ART_KEY, realStatus.track_image)
-    } catch {
-      // ignore
-    }
-  }, [realStatus])
+  // remembered across boots: the screensaver needs both on a cold start
+  const lastArtUrl = useLastArtUrl(realStatus)
+  const utcOffsetMin = useUtcOffset(realStatus)
 
-  const [utcOffsetMin, setUtcOffsetMin] = useState<number | null>(() => {
-    try {
-      const v = window.localStorage.getItem(UTC_OFFSET_KEY)
-      return v == null ? null : Number(v)
-    } catch {
-      return null
-    }
+  useSponsorGate({ status: realStatus, shown: overlays.sponsorShown, onShow: openSponsor })
+
+  const { choose: chooseConsent } = useCheckinConsent({
+    status: realStatus,
+    loading,
+    open: consentOpen,
+    busy: overlayBusy,
+    updateCardOpen,
+    onAsk: openConsent,
+    onAnswered: closeConsent,
   })
-  useEffect(() => {
-    const v = realStatus?.utc_offset_min
-    if (typeof v !== 'number') return
-    setUtcOffsetMin(v)
-    try {
-      window.localStorage.setItem(UTC_OFFSET_KEY, String(v))
-    } catch {
-      // ignore
-    }
-  }, [realStatus])
 
-  const playbackActive = realStatus?.active === true
-  const stillSettingUp = realStatus?.setting_up === true
-  useEffect(() => {
-    if (!playbackActive || stillSettingUp || overlays.sponsorShown()) return
-    const t = window.setTimeout(() => {
-      if (!overlays.sponsorShown()) overlays.open('sponsor')
-    }, SPONSOR_AFTER_PLAY_MS)
-    return () => window.clearTimeout(t)
-  }, [playbackActive, stillSettingUp, overlays])
-
-  const [checkinConsent, setCheckinConsent] = useState<
-    'unset' | 'granted' | 'denied' | 'disabled' | null
-  >(null)
-  const [latestVersion, setLatestVersion] = useState('')
-  const [latestHighlights, setLatestHighlights] = useState<string[]>([])
-  const [updateAvailable, setUpdateAvailable] = useState(false)
-  const [updateMandatory, setUpdateMandatory] = useState(false)
-  useEffect(() => {
-    if (realStatus == null) return
-    if (realStatus.checkin_consent != null) setCheckinConsent(realStatus.checkin_consent)
-    if (typeof realStatus.update_available === 'boolean')
-      setUpdateAvailable(realStatus.update_available)
-    if (realStatus.latest_version) setLatestVersion(realStatus.latest_version)
-    if (realStatus.latest_highlights?.length) setLatestHighlights(realStatus.latest_highlights)
-    if (typeof realStatus.update_mandatory === 'boolean')
-      setUpdateMandatory(realStatus.update_mandatory)
-  }, [realStatus])
-
-  // a skipped version stays skipped until a newer one ships
-  const [skippedVersion, setSkippedVersion] = useState(() => {
-    try {
-      return window.localStorage.getItem(SKIPPED_VERSION_KEY) ?? ''
-    } catch {
-      return ''
-    }
+  const {
+    version: latestVersion,
+    highlights: latestHighlights,
+    mandatory: updateMandatory,
+    skip: skipVersion,
+  } = useUpdateNotice({
+    status: realStatus,
+    loading,
+    open: updateCardOpen,
+    consentOpen,
+    busy: overlayBusy,
+    remindAt: overlays.updateRemindAt(),
+    onShow: openUpdateCard,
+    onDismiss: closeUpdateCard,
   })
-  const skipVersion = useCallback(() => {
-    setSkippedVersion(latestVersion)
-    try {
-      window.localStorage.setItem(SKIPPED_VERSION_KEY, latestVersion)
-    } catch {
-      // storage broken
-    }
-    overlays.close('updateCard')
-  }, [latestVersion, overlays])
-
-  // an overlay owns the screen, or something that is not an overlay does
-  const overlayBusy = overlays.busy || !!forced || auth.required || reconnecting || !!pairing
-
-  // telemetry consent card
-  useEffect(() => {
-    if (consentOpen || consentAnsweredRef.current) return
-    if (checkinConsent !== 'unset') return
-    if (overlayBusy || updateCardOpen) return
-    if (loading || realStatus == null || realStatus.setting_up === true) return
-    overlays.open('consent')
-  }, [consentOpen, checkinConsent, overlayBusy, updateCardOpen, loading, realStatus, overlays])
-  const chooseConsent = useCallback(
-    (consent: 'granted' | 'denied') => {
-      consentAnsweredRef.current = true
-      updateSettings({ checkinConsent: consent })
-      overlays.close('consent')
-    },
-    [overlays],
-  )
-
-  // update card
-  const updateCardEligible =
-    updateAvailable &&
-    (updateMandatory || latestVersion !== skippedVersion) &&
-    !updateCardOpen &&
-    !consentOpen &&
-    !overlayBusy &&
-    !loading &&
-    realStatus != null &&
-    realStatus.active !== true &&
-    realStatus.setting_up !== true
-  useEffect(() => {
-    if (!updateCardEligible) return
-    const delay = Math.max(1500, overlays.updateRemindAt() - Date.now())
-    const t = window.setTimeout(() => overlays.open('updateCard'), delay)
-    return () => window.clearTimeout(t)
-  }, [updateCardEligible, overlays])
-  useEffect(() => {
-    if (updateCardOpen && realStatus?.active === true) overlays.close('updateCard')
-  }, [updateCardOpen, realStatus, overlays])
 
   // hardware back button
   const goBack = useCallback(() => {
@@ -538,14 +390,8 @@ export default function App() {
   // ambient screensaver background
   let screensaverArt: string | null = null
   if (screensaverOpen || forced === 'screensaver') {
-    let storedArt: string | null = null
-    try {
-      storedArt = window.localStorage.getItem(LAST_ART_KEY)
-    } catch {
-      // ignore
-    }
     screensaverArt =
-      (status?.active === true ? status.track_image : '') || heldStatus?.track_image || storedArt
+      (status?.active === true ? status.track_image : '') || heldStatus?.track_image || lastArtUrl
   }
 
   const globalOverlays = (
