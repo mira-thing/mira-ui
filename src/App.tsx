@@ -39,6 +39,7 @@ import { isDJContext, NarrationContext, presentTrack, useDJNarration } from '@/h
 import { useNotify } from '@/notify/notifyContext'
 import { useObserver } from '@/hooks/useObserver'
 import { useOfflineScreen } from '@/hooks/useOfflineScreen'
+import { useOverlays, type OverlayId } from '@/hooks/useOverlays'
 import { usePlayerControls } from '@/hooks/usePlayerControls'
 import { usePrefetch } from '@/hooks/usePrefetch'
 import { resolveDropReason, useHeldStatus } from '@/hooks/useReconnect'
@@ -50,11 +51,9 @@ import { getSettings, initSettings, updateSettings, useSettings } from '@/settin
 import { artSizeFor, heroArtSizeFor } from '@/uiScale'
 import styles from './App.module.scss'
 
-const SPONSOR_SHOWN_KEY = 'mira.sponsorShown'
 const SPONSOR_AFTER_PLAY_MS = 3 * 60 * 1000
 const LAST_ART_KEY = 'mira.lastArtUrl'
 const UTC_OFFSET_KEY = 'mira.utcOffsetMin'
-const UPDATE_REMIND_MS = 24 * 60 * 60 * 1000
 const SKIPPED_VERSION_KEY = 'mira.skippedVersion'
 
 export default function App() {
@@ -67,6 +66,40 @@ export default function App() {
     narration: seenNarration,
   } = useObserver()
   const notify = useNotify()
+  const { forced, setForced } = useDevScreen()
+
+  // a forced screen shows its overlay without touching the real state
+  const forcedOpen = useMemo(
+    () => ({
+      menu: forced === 'menu' || undefined,
+      powerMenu: forced === 'power-menu' || undefined,
+      btMenu: forced === 'bluetooth-menu' || undefined,
+      settings: forced === 'settings' || undefined,
+    }),
+    [forced],
+  )
+  // closing a forced menu has to drop the override too, or it springs back
+  const onOverlayClosed = useCallback(
+    (id: OverlayId) => {
+      if ((id === 'menu' && forced === 'menu') || (id === 'powerMenu' && forced === 'power-menu')) {
+        setForced('playing-lyrics')
+      }
+    },
+    [forced, setForced],
+  )
+  const overlays = useOverlays({ forcedOpen, onClosed: onOverlayClosed })
+  const menuOpen = overlays.isOpen('menu')
+  const powerMenuOpen = overlays.isOpen('powerMenu')
+  const btMenuOpen = overlays.isOpen('btMenu')
+  const settingsOpen = overlays.isOpen('settings')
+  const deviceMenuOpen = overlays.isOpen('deviceMenu')
+  const debugOpen = overlays.isOpen('debug')
+  const screensaverOpen = overlays.isOpen('screensaver')
+  const sponsorOpen = overlays.isOpen('sponsor')
+  const consentOpen = overlays.isOpen('consent')
+  const updateCardOpen = overlays.isOpen('updateCard')
+  const reportId = overlays.reportId
+
   const { play, pause, next, prev, seek, playContext, setVolume, setShuffle, djSignal, setRepeat } =
     useControls()
   const handleSeek = useCallback(
@@ -88,7 +121,6 @@ export default function App() {
     wasOnline,
   } = useConnectivity()
   const connectDevices = useConnectDevices()
-  const [deviceMenuOpen, setDeviceMenuOpen] = useState(false)
 
   // notification for the playback device changes
   const prevDeviceRef = useRef<string | undefined>(undefined)
@@ -108,51 +140,20 @@ export default function App() {
 
   const onPickDevice = useCallback(
     (d: ConnectDevice) => {
-      setDeviceMenuOpen(false)
+      overlays.close('deviceMenu')
       notify(`Switching to ${d.name}...`, { variant: 'info' })
       void transferToDevice(d.id).catch((err) => {
         console.warn('transfer failed', err)
         notify(`Couldn't switch to ${d.name}`, { variant: 'error' })
       })
     },
-    [notify],
+    [notify, overlays],
   )
 
   const settings = useSettings()
   const showLyricsReal = settings.showLyrics
   const artSize = artSizeFor(settings.uiScalePct)
   const heroArtSize = heroArtSizeFor(settings.uiScalePct)
-  const [menuOpenReal, setMenuOpen] = useState(false)
-  const [powerMenuOpenReal, setPowerMenuOpen] = useState(false)
-  const [settingsOpenReal, setSettingsOpen] = useState(false)
-  const [btMenuOpenReal, setBtMenuOpen] = useState(false)
-  const [debugOpen, setDebugOpen] = useState(false)
-  // support report id dialog
-  const [reportId, setReportId] = useState<string | null>(null)
-
-  const [screensaverOpen, setScreensaverOpen] = useState(false)
-  // 'auto' = opened by the idle timer
-  const [screensaverBy, setScreensaverBy] = useState<'manual' | 'auto'>('manual')
-
-  // one-time sponsor screen
-  const [sponsorOpenReal, setSponsorOpen] = useState(false)
-  const sponsorShownRef = useRef(false)
-  useEffect(() => {
-    try {
-      sponsorShownRef.current = window.localStorage.getItem(SPONSOR_SHOWN_KEY) === '1'
-    } catch {
-      sponsorShownRef.current = true
-    }
-  }, [])
-  const closeSponsor = useCallback(() => {
-    sponsorShownRef.current = true
-    try {
-      window.localStorage.setItem(SPONSOR_SHOWN_KEY, '1')
-    } catch {
-      // ignore
-    }
-    setSponsorOpen(false)
-  }, [])
   const stageRef = useRef<HTMLDivElement | null>(null)
 
   const toggleLyrics = useCallback(() => {
@@ -182,8 +183,6 @@ export default function App() {
   // TODO: maybe not needed at this point since some further changes while developing the bluetooth flow showed this was not an issue as i thought
   const LOAD_STUCK_MS = 30000
   const loadStuck = useDelayedFlag(true, LOAD_STUCK_MS)
-
-  const { forced, setForced } = useDevScreen()
 
   const mockStatus = useMemo<ObserverStatusActive>(() => makeMockStatus(), [])
 
@@ -244,20 +243,11 @@ export default function App() {
   )
 
   const showLyrics = forced === 'playing-no-lyrics' ? false : showLyricsReal
-  const menuOpen = forced === 'menu' ? true : menuOpenReal
-  const powerMenuOpen = forced === 'power-menu' ? true : powerMenuOpenReal
-  const btMenuOpen = forced === 'bluetooth-menu' ? true : btMenuOpenReal
-  const settingsOpen = forced === 'settings' ? true : settingsOpenReal
   const pairing =
     forced === 'pairing' ? { address: 'AB:CD:EF:01:23:45', passkey: '123456' } : realPairing
 
   // telemetry consent
-  const [consentOpen, setConsentOpen] = useState(false)
   const consentAnsweredRef = useRef(false)
-
-  // update notifier
-  const [updateCardOpen, setUpdateCardOpen] = useState(false)
-  const updateRemindAtRef = useRef(0)
 
   // auto screensaver: only ever from the true idle screen, after 10 quiet
   // minutes; any user input resets the countdown. Not a setting on purpose.
@@ -277,17 +267,14 @@ export default function App() {
     !settingsOpen &&
     !deviceMenuOpen &&
     !debugOpen &&
-    !sponsorOpenReal &&
+    !sponsorOpen &&
     !consentOpen &&
     !updateCardOpen &&
     !reportId &&
     !pairing
   useEffect(() => {
     if (!screensaverAutoEligible) return
-    const open = () => {
-      setScreensaverBy('auto')
-      setScreensaverOpen(true)
-    }
+    const open = () => overlays.openScreensaver('auto')
     let t = window.setTimeout(open, SCREENSAVER_AUTO_MS)
     const reset = () => {
       window.clearTimeout(t)
@@ -302,15 +289,15 @@ export default function App() {
       window.removeEventListener('keydown', reset, { capture: true })
       window.removeEventListener('wheel', reset, { capture: true })
     }
-  }, [screensaverAutoEligible, SCREENSAVER_AUTO_MS])
+  }, [screensaverAutoEligible, SCREENSAVER_AUTO_MS, overlays])
 
   // an auto-opened saver yields to real playback; a manual one stays (desk
   // mode) and cross-fades its art instead
   useEffect(() => {
-    if (screensaverOpen && screensaverBy === 'auto' && realStatus?.active === true) {
-      setScreensaverOpen(false)
+    if (screensaverOpen && overlays.screensaverBy === 'auto' && realStatus?.active === true) {
+      overlays.close('screensaver')
     }
-  }, [screensaverOpen, screensaverBy, realStatus])
+  }, [screensaverOpen, realStatus, overlays])
 
   // discoverable while the Bluetooth pairing screen is up
   const pairingScreenShown = forced === 'needs-network' || offlineScreen === 'bluetooth'
@@ -332,21 +319,13 @@ export default function App() {
     }
   }, [pairingScreenShown, btMenuOpen, setDiscoverable])
 
-  const closeMenu = useCallback(() => {
-    setMenuOpen(false)
-    if (forced === 'menu') setForced('playing-lyrics')
-  }, [forced, setForced])
-
-  const closePowerMenu = useCallback(() => {
-    setPowerMenuOpen(false)
-    if (forced === 'power-menu') setForced('playing-lyrics')
-  }, [forced, setForced])
+  const closeMenu = useCallback(() => overlays.close('menu'), [overlays])
+  const closePowerMenu = useCallback(() => overlays.close('powerMenu'), [overlays])
 
   const onOpenScreensaver = useCallback(() => {
     closePowerMenu()
-    setScreensaverBy('manual')
-    setScreensaverOpen(true)
-  }, [closePowerMenu])
+    overlays.openScreensaver('manual')
+  }, [closePowerMenu, overlays])
 
   // remember the last album art for the screensavers ambient background
   useEffect(() => {
@@ -380,12 +359,12 @@ export default function App() {
   const playbackActive = realStatus?.active === true
   const stillSettingUp = realStatus?.setting_up === true
   useEffect(() => {
-    if (!playbackActive || stillSettingUp || sponsorShownRef.current) return
+    if (!playbackActive || stillSettingUp || overlays.sponsorShown()) return
     const t = window.setTimeout(() => {
-      if (!sponsorShownRef.current) setSponsorOpen(true)
+      if (!overlays.sponsorShown()) overlays.open('sponsor')
     }, SPONSOR_AFTER_PLAY_MS)
     return () => window.clearTimeout(t)
-  }, [playbackActive, stillSettingUp])
+  }, [playbackActive, stillSettingUp, overlays])
 
   const [checkinConsent, setCheckinConsent] = useState<
     'unset' | 'granted' | 'denied' | 'disabled' | null
@@ -420,23 +399,11 @@ export default function App() {
     } catch {
       // storage broken
     }
-    setUpdateCardOpen(false)
-  }, [latestVersion])
+    overlays.close('updateCard')
+  }, [latestVersion, overlays])
 
-  const overlayBusy =
-    screensaverOpen ||
-    !!forced ||
-    auth.required ||
-    reconnecting ||
-    menuOpen ||
-    powerMenuOpen ||
-    btMenuOpen ||
-    settingsOpen ||
-    deviceMenuOpen ||
-    debugOpen ||
-    sponsorOpenReal ||
-    !!reportId ||
-    !!pairing
+  // an overlay owns the screen, or something that is not an overlay does
+  const overlayBusy = overlays.busy || !!forced || auth.required || reconnecting || !!pairing
 
   // telemetry consent card
   useEffect(() => {
@@ -444,13 +411,16 @@ export default function App() {
     if (checkinConsent !== 'unset') return
     if (overlayBusy || updateCardOpen) return
     if (loading || realStatus == null || realStatus.setting_up === true) return
-    setConsentOpen(true)
-  }, [consentOpen, checkinConsent, overlayBusy, updateCardOpen, loading, realStatus])
-  const chooseConsent = useCallback((consent: 'granted' | 'denied') => {
-    consentAnsweredRef.current = true
-    updateSettings({ checkinConsent: consent })
-    setConsentOpen(false)
-  }, [])
+    overlays.open('consent')
+  }, [consentOpen, checkinConsent, overlayBusy, updateCardOpen, loading, realStatus, overlays])
+  const chooseConsent = useCallback(
+    (consent: 'granted' | 'denied') => {
+      consentAnsweredRef.current = true
+      updateSettings({ checkinConsent: consent })
+      overlays.close('consent')
+    },
+    [overlays],
+  )
 
   // update card
   const updateCardEligible =
@@ -465,64 +435,17 @@ export default function App() {
     realStatus.setting_up !== true
   useEffect(() => {
     if (!updateCardEligible) return
-    const delay = Math.max(1500, updateRemindAtRef.current - Date.now())
-    const t = window.setTimeout(() => setUpdateCardOpen(true), delay)
+    const delay = Math.max(1500, overlays.updateRemindAt() - Date.now())
+    const t = window.setTimeout(() => overlays.open('updateCard'), delay)
     return () => window.clearTimeout(t)
-  }, [updateCardEligible])
-  const remindLater = useCallback(() => {
-    updateRemindAtRef.current = Date.now() + UPDATE_REMIND_MS
-    setUpdateCardOpen(false)
-  }, [])
+  }, [updateCardEligible, overlays])
   useEffect(() => {
-    if (updateCardOpen && realStatus?.active === true) setUpdateCardOpen(false)
-  }, [updateCardOpen, realStatus])
+    if (updateCardOpen && realStatus?.active === true) overlays.close('updateCard')
+  }, [updateCardOpen, realStatus, overlays])
 
   // hardware back button
   const goBack = useCallback(() => {
-    if (screensaverOpen) {
-      setScreensaverOpen(false)
-      return
-    }
-    if (consentOpen) {
-      // explicit choice required
-      return
-    }
-    if (updateCardOpen) {
-      remindLater()
-      return
-    }
-    if (reportId) {
-      setReportId(null)
-      return
-    }
-    if (sponsorOpenReal) {
-      closeSponsor()
-      return
-    }
-    if (debugOpen) {
-      setDebugOpen(false)
-      return
-    }
-    if (deviceMenuOpen) {
-      setDeviceMenuOpen(false)
-      return
-    }
-    if (btMenuOpen) {
-      setBtMenuOpen(false)
-      return
-    }
-    if (settingsOpen) {
-      setSettingsOpen(false)
-      return
-    }
-    if (powerMenuOpen) {
-      closePowerMenu()
-      return
-    }
-    if (menuOpen) {
-      closeMenu()
-      return
-    }
+    if (overlays.goBack()) return
     if (offline.active && offline.method !== 'chooser') {
       offline.setMethod('chooser')
       return
@@ -533,24 +456,7 @@ export default function App() {
       return
     }
     // nothing to go back to
-  }, [
-    screensaverOpen,
-    consentOpen,
-    updateCardOpen,
-    remindLater,
-    reportId,
-    sponsorOpenReal,
-    closeSponsor,
-    debugOpen,
-    deviceMenuOpen,
-    btMenuOpen,
-    settingsOpen,
-    powerMenuOpen,
-    closePowerMenu,
-    menuOpen,
-    closeMenu,
-    offline,
-  ])
+  }, [overlays, offline])
 
   const controls = usePlayerControls({
     status: status && status.active ? status : null,
@@ -590,7 +496,7 @@ export default function App() {
 
   // stable ref so the preset/chord effect isn't torn down on every re-render
   // (an unstable handler would clear the 1+4 chord timer before it fires)
-  const openDebug = useCallback(() => setDebugOpen(true), [])
+  const openDebug = useCallback(() => overlays.open('debug'), [overlays])
 
   const hardware = useHardwareButtons({
     status: status && status.active ? status : null,
@@ -603,10 +509,10 @@ export default function App() {
     onBack: goBack,
     onTogglePowerMenu: () => {
       if (screensaverOpen) {
-        setScreensaverOpen(false)
+        overlays.close('screensaver')
         return
       }
-      setPowerMenuOpen((v) => !v)
+      overlays.toggle('powerMenu')
     },
     onScreensaver: onOpenScreensaver,
     onOpenDebug: openDebug,
@@ -650,12 +556,12 @@ export default function App() {
         onClose={closePowerMenu}
         onSupport={() => {
           closePowerMenu()
-          setSponsorOpen(true)
+          overlays.open('sponsor')
         }}
       />
       <SettingsSheet
         open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
+        onClose={() => overlays.close('settings')}
         phoneVolume={status !== null && status.active === true && status.volume_disabled === true}
       />
       {deviceMenuOpen ? (
@@ -663,21 +569,27 @@ export default function App() {
           devices={connectDevices}
           onSelect={onPickDevice}
           placement="modal"
-          onClose={() => setDeviceMenuOpen(false)}
+          onClose={() => overlays.close('deviceMenu')}
         />
       ) : null}
-      {btMenuOpen ? <BluetoothMenu online={online} onClose={() => setBtMenuOpen(false)} /> : null}
-      <DebugScreen open={debugOpen} onClose={() => setDebugOpen(false)} onReport={setReportId} />
+      {btMenuOpen ? (
+        <BluetoothMenu online={online} onClose={() => overlays.close('btMenu')} />
+      ) : null}
+      <DebugScreen
+        open={debugOpen}
+        onClose={() => overlays.close('debug')}
+        onReport={overlays.openReport}
+      />
       {pairing ? <PairingDialog passkey={pairing.passkey} address={pairing.address} /> : null}
-      {reportId ? <ReportDialog id={reportId} onDismiss={() => setReportId(null)} /> : null}
-      {sponsorOpenReal ? <SponsorScreen onClose={closeSponsor} /> : null}
+      {reportId ? <ReportDialog id={reportId} onDismiss={() => overlays.close('report')} /> : null}
+      {sponsorOpen ? <SponsorScreen onClose={() => overlays.close('sponsor')} /> : null}
       {consentOpen && !overlayBusy ? <CheckinConsent onChoose={chooseConsent} /> : null}
       {updateCardOpen ? (
         <UpdateCard
           latest={latestVersion}
           highlights={latestHighlights}
           mandatory={updateMandatory}
-          onRemindLater={remindLater}
+          onRemindLater={overlays.remindLater}
           onSkip={skipVersion}
         />
       ) : null}
@@ -685,7 +597,7 @@ export default function App() {
         <Screensaver
           artUrl={screensaverArt}
           utcOffsetMin={utcOffsetMin}
-          onClose={() => setScreensaverOpen(false)}
+          onClose={() => overlays.close('screensaver')}
         />
       ) : null}
     </>
@@ -786,8 +698,10 @@ export default function App() {
   if (forced === 'debug') {
     return (
       <div className={styles.app}>
-        <DebugScreen open onClose={() => setForced(null)} onReport={setReportId} />
-        {reportId ? <ReportDialog id={reportId} onDismiss={() => setReportId(null)} /> : null}
+        <DebugScreen open onClose={() => setForced(null)} onReport={overlays.openReport} />
+        {reportId ? (
+          <ReportDialog id={reportId} onDismiss={() => overlays.close('report')} />
+        ) : null}
       </div>
     )
   }
@@ -1028,7 +942,7 @@ export default function App() {
             onCycleRepeat={controls.onCycleRepeat}
             onRewind15={() => seekRelative(-15000)}
             onForward15={() => seekRelative(15000)}
-            onMore={() => setMenuOpen(true)}
+            onMore={() => overlays.open('menu')}
           />
         </div>
 
@@ -1043,16 +957,16 @@ export default function App() {
           onToggleVoiceMic={toggleVoiceMic}
           currentDevice={playerStatus.device_name}
           onOpenDevices={() => {
-            setMenuOpen(false)
-            setDeviceMenuOpen(true)
+            overlays.close('menu')
+            overlays.open('deviceMenu')
           }}
           onOpenBluetooth={() => {
-            setMenuOpen(false)
-            setBtMenuOpen(true)
+            overlays.close('menu')
+            overlays.open('btMenu')
           }}
           onOpenSettings={() => {
-            setMenuOpen(false)
-            setSettingsOpen(true)
+            overlays.close('menu')
+            overlays.open('settings')
           }}
         />
 
