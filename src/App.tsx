@@ -1,30 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { AlbumArt } from '@/components/AlbumArt'
 import { AuthScreen } from '@/components/AuthScreen'
-import { BluetoothMenu } from '@/components/BluetoothMenu'
 import { BootSplash } from '@/components/BootSplash'
 import { CheckinConsent } from '@/components/CheckinConsent'
 import { ConnectionChooser } from '@/components/ConnectionChooser'
 import { Controls } from '@/components/Controls'
-import { DevicePicker } from '@/components/DevicePicker'
 import { IdleScreen } from '@/components/IdleScreen'
 import { Lyrics } from '@/components/Lyrics'
 import { Menu } from '@/components/Menu'
 import { NeedsNetwork } from '@/components/NeedsNetwork'
 import { NoLyricsView } from '@/components/NoLyricsView'
-import { PairingDialog } from '@/components/PairingDialog'
 import { ReportDialog } from '@/components/ReportDialog'
 import { PcConnect } from '@/components/PcConnect'
-import { PowerMenu } from '@/components/PowerMenu'
 import { ProgressBar } from '@/components/ProgressBar'
 import { ReconnectBanner, type ReconnectReason } from '@/components/ReconnectBanner'
 import { ReconnectingScreen } from '@/components/ReconnectingScreen'
 import { Screensaver } from '@/components/Screensaver'
-import { SettingsSheet } from '@/components/SettingsSheet'
 import { SponsorScreen } from '@/components/SponsorScreen'
 import { TrackInfo } from '@/components/TrackInfo'
 import { UpdateCard } from '@/components/UpdateCard'
-import { VolumeOverlay } from '@/components/VolumeOverlay'
 import { DebugScreen } from '@/components/DebugScreen'
 import { resolveRoute, type OfflineScreen } from '@/app/routes'
 import { useDevScreen } from '@/dev/devContext'
@@ -45,6 +39,8 @@ import { useNotify } from '@/notify/notifyContext'
 import { useObserver } from '@/hooks/useObserver'
 import { useOfflineScreen } from '@/hooks/useOfflineScreen'
 import { useOverlays, type OverlayId } from '@/hooks/useOverlays'
+import { OverlayContext, useOverlayState } from '@/overlays/overlayContext'
+import { OverlayHost } from '@/overlays/OverlayHost'
 import { usePlayerControls } from '@/hooks/usePlayerControls'
 import { usePrefetch } from '@/hooks/usePrefetch'
 import { resolveDropReason, useHeldStatus } from '@/hooks/useReconnect'
@@ -59,16 +55,12 @@ import { getSettings, initSettings, updateSettings, useSettings } from '@/settin
 import { artSizeFor, heroArtSizeFor } from '@/uiScale'
 import styles from './App.module.scss'
 
+/**
+ * Owns the overlay stack so every screen below can reach it, and nothing else.
+ * The dev-screen override lives here because it is what `useOverlays` needs to
+ * treat a forced menu as open.
+ */
 export default function App() {
-  const auth = useAuth()
-  const {
-    status: realStatus,
-    loading,
-    connected,
-    setupProgress,
-    narration: seenNarration,
-  } = useObserver()
-  const notify = useNotify()
   const { forced, setForced } = useDevScreen()
 
   // a forced screen shows its overlay without touching the real state
@@ -91,17 +83,26 @@ export default function App() {
     [forced, setForced],
   )
   const overlays = useOverlays({ forcedOpen, onClosed: onOverlayClosed })
-  const menuOpen = overlays.isOpen('menu')
-  const powerMenuOpen = overlays.isOpen('powerMenu')
-  const btMenuOpen = overlays.isOpen('btMenu')
-  const settingsOpen = overlays.isOpen('settings')
-  const deviceMenuOpen = overlays.isOpen('deviceMenu')
-  const debugOpen = overlays.isOpen('debug')
-  const screensaverOpen = overlays.isOpen('screensaver')
-  const sponsorOpen = overlays.isOpen('sponsor')
-  const consentOpen = overlays.isOpen('consent')
-  const updateCardOpen = overlays.isOpen('updateCard')
-  const reportId = overlays.reportId
+
+  return (
+    <OverlayContext.Provider value={overlays}>
+      <AppContent />
+    </OverlayContext.Provider>
+  )
+}
+
+function AppContent() {
+  const auth = useAuth()
+  const {
+    status: realStatus,
+    loading,
+    connected,
+    setupProgress,
+    narration: seenNarration,
+  } = useObserver()
+  const notify = useNotify()
+  const { forced, setForced } = useDevScreen()
+  const overlays = useOverlayState()
 
   const { play, pause, next, prev, seek, playContext, setVolume, setShuffle, djSignal, setRepeat } =
     useControls()
@@ -240,11 +241,11 @@ export default function App() {
   const closeScreensaver = useCallback(() => overlays.close('screensaver'), [overlays])
 
   useIdleScreensaver({
-    open: screensaverOpen,
+    open: overlays.isOpen('screensaver'),
     openedBy: overlays.screensaverBy,
     busy: overlayBusy,
-    consentOpen,
-    updateCardOpen,
+    consentOpen: overlays.isOpen('consent'),
+    updateCardOpen: overlays.isOpen('updateCard'),
     loading,
     status: realStatus,
     onOpen: openScreensaverAuto,
@@ -253,7 +254,11 @@ export default function App() {
 
   // discoverable while the Bluetooth pairing screen is up
   const pairingScreenShown = forced === 'needs-network' || offlineScreen === 'bluetooth'
-  useDiscoverableWhilePairing({ pairingScreenShown, btMenuOpen, setDiscoverable })
+  useDiscoverableWhilePairing({
+    pairingScreenShown,
+    btMenuOpen: overlays.isOpen('btMenu'),
+    setDiscoverable,
+  })
 
   const closeMenu = useCallback(() => overlays.close('menu'), [overlays])
   const closePowerMenu = useCallback(() => overlays.close('powerMenu'), [overlays])
@@ -272,9 +277,9 @@ export default function App() {
   const { choose: chooseConsent } = useCheckinConsent({
     status: realStatus,
     loading,
-    open: consentOpen,
+    open: overlays.isOpen('consent'),
     busy: overlayBusy,
-    updateCardOpen,
+    updateCardOpen: overlays.isOpen('updateCard'),
     onAsk: openConsent,
     onAnswered: closeConsent,
   })
@@ -287,8 +292,8 @@ export default function App() {
   } = useUpdateNotice({
     status: realStatus,
     loading,
-    open: updateCardOpen,
-    consentOpen,
+    open: overlays.isOpen('updateCard'),
+    consentOpen: overlays.isOpen('consent'),
     busy: overlayBusy,
     remindAt: overlays.updateRemindAt(),
     onShow: openUpdateCard,
@@ -360,7 +365,7 @@ export default function App() {
     onDJSignal: controls.onDJSignal,
     onBack: goBack,
     onTogglePowerMenu: () => {
-      if (screensaverOpen) {
+      if (overlays.isOpen('screensaver')) {
         overlays.close('screensaver')
         return
       }
@@ -374,11 +379,11 @@ export default function App() {
   // touch gestures
   const swipeEnabled =
     status?.active === true &&
-    !menuOpen &&
-    !powerMenuOpen &&
-    !deviceMenuOpen &&
-    !btMenuOpen &&
-    !settingsOpen &&
+    !overlays.isOpen('menu') &&
+    !overlays.isOpen('powerMenu') &&
+    !overlays.isOpen('deviceMenu') &&
+    !overlays.isOpen('btMenu') &&
+    !overlays.isOpen('settings') &&
     !pairing
   useSwipeGestures(stageRef, {
     onNext: controls.onNext,
@@ -389,64 +394,30 @@ export default function App() {
 
   // ambient screensaver background
   let screensaverArt: string | null = null
-  if (screensaverOpen || forced === 'screensaver') {
+  if (overlays.isOpen('screensaver') || forced === 'screensaver') {
     screensaverArt =
       (status?.active === true ? status.track_image : '') || heldStatus?.track_image || lastArtUrl
   }
 
   const globalOverlays = (
-    <>
-      <VolumeOverlay state={hardware.volumeOverlay} />
-      <PowerMenu
-        open={powerMenuOpen}
-        onClose={closePowerMenu}
-        onSupport={() => {
-          closePowerMenu()
-          overlays.open('sponsor')
-        }}
-      />
-      <SettingsSheet
-        open={settingsOpen}
-        onClose={() => overlays.close('settings')}
-        phoneVolume={status !== null && status.active === true && status.volume_disabled === true}
-      />
-      {deviceMenuOpen ? (
-        <DevicePicker
-          devices={connectDevices}
-          onSelect={onPickDevice}
-          placement="modal"
-          onClose={() => overlays.close('deviceMenu')}
-        />
-      ) : null}
-      {btMenuOpen ? (
-        <BluetoothMenu online={online} onClose={() => overlays.close('btMenu')} />
-      ) : null}
-      <DebugScreen
-        open={debugOpen}
-        onClose={() => overlays.close('debug')}
-        onReport={overlays.openReport}
-      />
-      {pairing ? <PairingDialog passkey={pairing.passkey} address={pairing.address} /> : null}
-      {reportId ? <ReportDialog id={reportId} onDismiss={() => overlays.close('report')} /> : null}
-      {sponsorOpen ? <SponsorScreen onClose={() => overlays.close('sponsor')} /> : null}
-      {consentOpen && !overlayBusy ? <CheckinConsent onChoose={chooseConsent} /> : null}
-      {updateCardOpen ? (
-        <UpdateCard
-          latest={latestVersion}
-          highlights={latestHighlights}
-          mandatory={updateMandatory}
-          onRemindLater={overlays.remindLater}
-          onSkip={skipVersion}
-        />
-      ) : null}
-      {screensaverOpen ? (
-        <Screensaver
-          artUrl={screensaverArt}
-          utcOffsetMin={utcOffsetMin}
-          onClose={() => overlays.close('screensaver')}
-        />
-      ) : null}
-    </>
+    <OverlayHost
+      volumeOverlay={hardware.volumeOverlay}
+      phoneVolume={status !== null && status.active === true && status.volume_disabled === true}
+      online={online}
+      connectDevices={connectDevices}
+      onPickDevice={onPickDevice}
+      pairing={pairing}
+      busy={overlayBusy}
+      onChooseConsent={chooseConsent}
+      update={{
+        latest: latestVersion,
+        highlights: latestHighlights,
+        mandatory: updateMandatory,
+        onSkip: skipVersion,
+      }}
+      screensaverArt={screensaverArt}
+      utcOffsetMin={utcOffsetMin}
+    />
   )
 
   if (forced === 'connection-chooser') {
@@ -545,8 +516,8 @@ export default function App() {
     return (
       <div className={styles.app}>
         <DebugScreen open onClose={() => setForced(null)} onReport={overlays.openReport} />
-        {reportId ? (
-          <ReportDialog id={reportId} onDismiss={() => overlays.close('report')} />
+        {overlays.reportId ? (
+          <ReportDialog id={overlays.reportId} onDismiss={() => overlays.close('report')} />
         ) : null}
       </div>
     )
@@ -793,7 +764,7 @@ export default function App() {
         </div>
 
         <Menu
-          open={menuOpen}
+          open={overlays.isOpen('menu')}
           onClose={closeMenu}
           showLyrics={showLyrics}
           onToggleLyrics={toggleLyrics}
