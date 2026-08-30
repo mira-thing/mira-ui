@@ -20,7 +20,7 @@ import { SponsorScreen } from '@/components/SponsorScreen'
 import { TrackInfo } from '@/components/TrackInfo'
 import { UpdateCard } from '@/components/UpdateCard'
 import { DebugScreen } from '@/components/DebugScreen'
-import { resolveRoute, type OfflineScreen } from '@/app/routes'
+import { resolveRoute } from '@/app/routes'
 import { useDevScreen } from '@/dev/devContext'
 import { makeMockStatus } from '@/dev/mockStatus'
 import { useAuth } from '@/hooks/useAuth'
@@ -41,6 +41,7 @@ import { useOfflineScreen } from '@/hooks/useOfflineScreen'
 import { useOverlays, type OverlayId } from '@/hooks/useOverlays'
 import { OverlayContext, useOverlayState } from '@/overlays/overlayContext'
 import { OverlayHost } from '@/overlays/OverlayHost'
+import { OfflinePage } from '@/pages/Offline/OfflinePage'
 import { usePlayerControls } from '@/hooks/usePlayerControls'
 import { usePrefetch } from '@/hooks/usePrefetch'
 import { resolveDropReason, useHeldStatus } from '@/hooks/useReconnect'
@@ -572,36 +573,6 @@ function AppContent() {
     )
   }
 
-  const offlineScreenFor = (screen: OfflineScreen) => {
-    switch (screen) {
-      case 'checking':
-        return <ReconnectingScreen phase="checking" deviceName={topKnownDeviceName} />
-      case 'tethering':
-        return <NeedsNetwork />
-      case 'reconnecting':
-        return (
-          <ReconnectingScreen
-            phase="reconnecting"
-            deviceName={topKnownDeviceName}
-            carriers={carriers}
-            trouble={btTrouble}
-            onSetUpOther={() => offline.setSetupOverride(true)}
-          />
-        )
-      case 'pc':
-        return <PcConnect />
-      case 'bluetooth':
-        return <NeedsNetwork />
-      default:
-        return (
-          <ConnectionChooser
-            onPickPc={() => offline.setMethod('pc')}
-            onPickBluetooth={() => offline.setMethod('bluetooth')}
-          />
-        )
-    }
-  }
-
   if (!forced) {
     const route = resolveRoute({
       offlineScreen,
@@ -621,7 +592,14 @@ function AppContent() {
       case 'offline':
         return (
           <div className={styles.app}>
-            {offlineScreenFor(route.screen)}
+            <OfflinePage
+              screen={route.screen}
+              deviceName={topKnownDeviceName}
+              carriers={carriers}
+              trouble={btTrouble}
+              onSetUpOther={() => offline.setSetupOverride(true)}
+              onPickMethod={offline.setMethod}
+            />
             {globalOverlays}
           </div>
         )
