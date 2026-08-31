@@ -8,6 +8,10 @@ React + TypeScript + Vite.
 
 Part of [Mira](https://github.com/mira-thing).
 
+## Support
+
+Mira is free and open source. If you'd like to support development, you can do so on [GitHub Sponsors](https://github.com/sponsors/MustakimK) or [Ko-fi](https://ko-fi.com/MustakimK). Sponsors get early access to betas and access to the dev chat, both set up through [Discord](https://discord.gg/SR2Pne7EPM). Every bit genuinely helps and it's what makes this sustainable to keep working on.
+
 ## Related projects
 
 - [`mira-daemon`](https://github.com/mira-thing/mira-daemon) - daemon
@@ -15,10 +19,6 @@ Part of [Mira](https://github.com/mira-thing).
 - [`mira-firmware`](https://github.com/mira-thing/mira-firmware) - image builder
 - [`mira-releases`](https://github.com/mira-thing/mira-releases) - prebuilt firmware images
 - [`mira-ui`](.) - Vite + React UI (this repo)
-
-## Support
-
-Mira is free and open source. If you'd like to support development, you can do so on [GitHub Sponsors](https://github.com/sponsors/MustakimK) or [Ko-fi](https://ko-fi.com/MustakimK). Every bit genuinely helps and it's what makes this sustainable to keep working on. Questions and updates are on [Discord](https://discord.gg/SR2Pne7EPM).
 
 ## Development
 
