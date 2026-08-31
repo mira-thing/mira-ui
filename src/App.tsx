@@ -41,6 +41,8 @@ import { useOfflineScreen } from '@/hooks/useOfflineScreen'
 import { useOverlays, type OverlayId } from '@/hooks/useOverlays'
 import { OverlayContext, useOverlayState } from '@/overlays/overlayContext'
 import { OverlayHost } from '@/overlays/OverlayHost'
+import { AuthPage } from '@/pages/Auth/AuthPage'
+import { BootPage } from '@/pages/Boot/BootPage'
 import { OfflinePage } from '@/pages/Offline/OfflinePage'
 import { usePlayerControls } from '@/hooks/usePlayerControls'
 import { usePrefetch } from '@/hooks/usePrefetch'
@@ -606,7 +608,7 @@ function AppContent() {
       case 'auth':
         return (
           <>
-            <AuthScreen url={route.url} />
+            <AuthPage url={route.url} />
             {globalOverlays}
           </>
         )
@@ -617,38 +619,24 @@ function AppContent() {
             {globalOverlays}
           </div>
         )
-      // hides the starting up screen on first boot after a successful bluetooth pairing with pan
       case 'auth-pending':
         return (
           <>
-            <AuthScreen
-              hint={
-                route.stuck
-                  ? 'Still fetching from Spotify if this persists, try unplugging and replugging.'
-                  : undefined
-              }
-            />
+            <AuthPage stuck={route.stuck} />
             {globalOverlays}
           </>
         )
       case 'booting':
         return (
           <div className={styles.app}>
-            <BootSplash
-              caption="starting up"
-              hint={
-                route.stuck
-                  ? 'Still connecting to Spotify if this persists for another minute, try unplugging and replugging.'
-                  : undefined
-              }
-            />
+            <BootPage phase="starting" stuck={route.stuck} />
             {globalOverlays}
           </div>
         )
       case 'setting-up':
         return (
           <div className={styles.app}>
-            <BootSplash caption="setting things up" progress={route.progress} />
+            <BootPage phase="setting-up" progress={route.progress} />
             {globalOverlays}
           </div>
         )
