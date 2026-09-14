@@ -402,6 +402,10 @@ function AppContent() {
     screensaverArt =
       (status?.active === true ? status.track_image : '') || heldStatus?.track_image || lastArtUrl
   }
+  const screensaverTrack =
+    (status?.active === true ? status.track_name : null) ?? heldStatus?.track_name ?? null
+  const screensaverArtist =
+    (status?.active === true ? status.track_artist : null) ?? heldStatus?.track_artist ?? null
 
   const globalOverlays = (
     <OverlayHost
@@ -420,6 +424,8 @@ function AppContent() {
         onSkip: skipVersion,
       }}
       screensaverArt={screensaverArt}
+      screensaverTrack={screensaverTrack}
+      screensaverArtist={screensaverArtist}
       utcOffsetMin={utcOffsetMin}
     />
   )
@@ -487,6 +493,8 @@ function AppContent() {
       <div className={styles.app}>
         <Screensaver
           artUrl={mockStatus.track_image}
+          trackName={mockStatus.track_name}
+          trackArtist={mockStatus.track_artist}
           utcOffsetMin={utcOffsetMin}
           onClose={() => setForced(null)}
         />
