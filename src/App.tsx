@@ -759,9 +759,9 @@ export default function App() {
     return (
       <div className={styles.app}>
         <Screensaver
-          artUrl={mockStatus.track_image}
-          trackName={mockStatus.track_name}
-          trackArtist={mockStatus.track_artist}
+          artUrl={screensaverArt || mockStatus.track_image}
+          trackName={screensaverTrack || mockStatus.track_name}
+          trackArtist={screensaverArtist || mockStatus.track_artist}
           utcOffsetMin={utcOffsetMin}
           onClose={() => setForced(null)}
         />
