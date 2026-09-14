@@ -57,6 +57,10 @@ function ScreensaverImpl({ artUrl, utcOffsetMin, trackName, trackArtist, onClose
       setPrevArt(shownArt)
       setShownArt(next)
     }
+    img.onerror = () => {
+      if (cancelled) return
+      setShownArt(next)
+    }
     img.src = next
     return () => {
       cancelled = true
@@ -91,7 +95,7 @@ function ScreensaverImpl({ artUrl, utcOffsetMin, trackName, trackArtist, onClose
 
   let hours = now.getHours() % 12
   if (hours === 0) hours = 12
-  const ampm = now.getHours() < 12 ? 'AM' : 'PM'
+  const ampm = now.getHours() < 12 ? 'A M' : 'P M'
   const date = now.toLocaleDateString(undefined, {
     weekday: 'long',
     month: 'long',
@@ -118,7 +122,7 @@ function ScreensaverImpl({ artUrl, utcOffsetMin, trackName, trackArtist, onClose
       <div className={styles.content}>
         <div className={styles.hero}>
           <div className={styles.date}>{date}</div>
-          <div className={styles.clock}>
+          <div className={styles.clockRow}>
             <span className={styles.time}>
               {hours}
               <span className={styles.colon} aria-hidden>
@@ -134,10 +138,10 @@ function ScreensaverImpl({ artUrl, utcOffsetMin, trackName, trackArtist, onClose
         {playing ? (
           <div className={styles.nowPlayingDock}>
             <div className={styles.nowPlaying}>
-              {shownArt ? (
+              {artUrl || shownArt ? (
                 <div
                   className={styles.thumb}
-                  style={{ backgroundImage: `url(${shownArt})` }}
+                  style={{ backgroundImage: `url(${artUrl || shownArt})` }}
                   aria-hidden
                 />
               ) : null}

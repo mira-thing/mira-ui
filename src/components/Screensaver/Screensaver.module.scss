@@ -51,23 +51,17 @@
 .plain {
   @include absolute-fill;
   background:
-    radial-gradient(ellipse 70% 55% at 50% 38%, rgba(30, 215, 96, 0.1) 0%, transparent 58%),
-    radial-gradient(ellipse 45% 40% at 18% 78%, rgba(40, 92, 162, 0.12) 0%, transparent 70%),
-    radial-gradient(ellipse 40% 36% at 86% 72%, rgba(30, 215, 96, 0.05) 0%, transparent 68%),
-    #050505;
+    radial-gradient(ellipse 65% 55% at 50% 44%, rgba(255, 255, 255, 0.09) 0%, rgba(255, 255, 255, 0.02) 45%, transparent 75%),
+    radial-gradient(circle at 18% 22%, rgba(255, 255, 255, 0.04) 0%, transparent 40%),
+    radial-gradient(circle at 82% 26%, rgba(255, 255, 255, 0.04) 0%, transparent 40%),
+    #000000;
 }
 
 .scrim {
   @include absolute-fill;
   background:
-    radial-gradient(ellipse 62% 58% at 50% 42%, rgba(0, 0, 0, 0.08) 0%, rgba(0, 0, 0, 0.52) 100%),
-    linear-gradient(
-      180deg,
-      rgba(0, 0, 0, 0.38) 0%,
-      rgba(0, 0, 0, 0.08) 28%,
-      rgba(0, 0, 0, 0.12) 58%,
-      rgba(0, 0, 0, 0.58) 100%
-    );
+    radial-gradient(ellipse 75% 65% at 50% 45%, rgba(0, 0, 0, 0.25) 0%, rgba(0, 0, 0, 0.75) 60%, #000000 100%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.35) 0%, transparent 35%, transparent 60%, rgba(0, 0, 0, 0.8) 100%);
 }
 
 .content {
@@ -83,51 +77,53 @@
 .hero {
   position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  transform: translateY(-20px);
   animation: heroIn 700ms $ease-emphasized both;
 }
 
 @keyframes heroIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(-10px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(-20px);
   }
 }
 
 .date {
-  position: absolute;
-  left: 50%;
-  bottom: calc(100% + 16px);
-  transform: translateX(-50%);
+  font-size: 20px;
+  font-weight: $fw-semibold;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.72);
+  margin-bottom: 12px;
   white-space: nowrap;
-  font-size: $fs-lg;
-  font-weight: $fw-medium;
-  letter-spacing: 0.06em;
-  color: $text-secondary;
-  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.55);
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.7);
 }
 
-.clock {
+.clockRow {
   position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
 }
 
 .time {
   display: flex;
   align-items: center;
-  font-size: 120px;
-  font-weight: $fw-medium;
-  letter-spacing: -0.045em;
-  line-height: 0.92;
-  color: $text-primary;
+  font-size: 144px;
+  font-weight: $fw-regular;
+  letter-spacing: -0.04em;
+  line-height: 0.88;
+  color: #ffffff;
   font-variant-numeric: tabular-nums;
   text-shadow:
-    0 1px 0 rgba(0, 0, 0, 0.18),
-    0 10px 36px rgba(0, 0, 0, 0.5);
+    0 2px 4px rgba(0, 0, 0, 0.3),
+    0 12px 36px rgba(0, 0, 0, 0.6);
 }
 
 .colon {
@@ -135,19 +131,18 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  height: 0.68em;
-  width: 0.22em;
-  margin: 0 0.06em;
-  @include flex-gap-y(0.16em);
+  height: 0.6em;
+  margin: 0 14px;
+  gap: 16px;
 }
 
 .colonDot {
   display: block;
-  width: 0.09em;
-  height: 0.09em;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
-  background: currentColor;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  background: #ffffff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
 }
 
 .colonSr {
@@ -163,14 +158,13 @@
 }
 
 .ampm {
-  position: absolute;
-  left: 100%;
-  top: 14px;
-  margin-left: $s-3;
-  font-size: 18px;
-  font-weight: $fw-medium;
-  letter-spacing: 0.16em;
-  color: $text-secondary;
+  margin-left: 14px;
+  margin-top: 14px;
+  font-size: 19px;
+  font-weight: $fw-semibold;
+  letter-spacing: 0.22em;
+  color: rgba(255, 255, 255, 0.65);
+  text-transform: uppercase;
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
 }
 
@@ -178,28 +172,30 @@
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 28px;
+  bottom: 34px;
   display: flex;
   justify-content: center;
-  padding: 0 40px;
+  padding: 0 24px;
+  pointer-events: none;
 }
 
 .nowPlaying {
   display: flex;
   flex-direction: row;
   align-items: center;
-  @include flex-gap-x($s-3);
+  width: fit-content;
   max-width: 420px;
   min-width: 0;
-  background: rgba(18, 18, 18, 0.42);
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: $r-xl;
-  padding: 8px 18px 8px 8px;
+  background: rgba(16, 16, 18, 0.88);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  padding: 7px 22px 7px 7px;
   box-shadow:
-    0 8px 28px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    0 12px 36px rgba(0, 0, 0, 0.65),
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
   animation: nowPlayingIn 600ms $ease-standard 280ms both;
 }
 
@@ -215,41 +211,45 @@
 }
 
 .thumb {
-  width: 52px;
-  height: 52px;
+  width: 48px;
+  height: 48px;
   flex-shrink: 0;
-  border-radius: $r-md;
+  border-radius: 13px;
   background-size: cover;
   background-position: center;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
 .nowPlayingMeta {
-  @include column;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   min-width: 0;
-  @include flex-gap-y(3px);
-  padding-right: $s-1;
+  gap: 2px;
+  margin-left: 12px;
 }
 
 .nowPlayingTrack {
-  font-size: $fs-lg;
-  font-weight: $fw-semibold;
-  color: $text-primary;
+  font-size: 16px;
+  font-weight: $fw-bold;
+  color: #ffffff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 300px;
+  max-width: 260px;
   letter-spacing: 0.01em;
+  line-height: 1.2;
 }
 
 .nowPlayingArtist {
-  font-size: $fs-sm;
+  font-size: 13px;
   font-weight: $fw-regular;
-  color: $text-secondary;
+  color: rgba(255, 255, 255, 0.54);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 300px;
+  max-width: 260px;
+  line-height: 1.2;
 }
 
 @media (prefers-reduced-motion: reduce) {

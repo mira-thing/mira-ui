@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import legacy from '@vitejs/plugin-legacy'
 
-const API_TARGET = process.env.VITE_API_TARGET ?? 'http://localhost:3678'
+const API_TARGET = process.env.VITE_API_TARGET ?? 'http://[::1]:3678'
 
 // Daemon API proxy
 const apiProxy = {
