@@ -641,6 +641,10 @@ export default function App() {
     screensaverArt =
       (status?.active === true ? status.track_image : '') || heldStatus?.track_image || storedArt
   }
+  const screensaverTrack =
+    (status?.active === true ? status.track_name : null) ?? heldStatus?.track_name ?? null
+  const screensaverArtist =
+    (status?.active === true ? status.track_artist : null) ?? heldStatus?.track_artist ?? null
 
   const globalOverlays = (
     <>
@@ -684,6 +688,8 @@ export default function App() {
       {screensaverOpen ? (
         <Screensaver
           artUrl={screensaverArt}
+          trackName={screensaverTrack}
+          trackArtist={screensaverArtist}
           utcOffsetMin={utcOffsetMin}
           onClose={() => setScreensaverOpen(false)}
         />
@@ -754,6 +760,8 @@ export default function App() {
       <div className={styles.app}>
         <Screensaver
           artUrl={mockStatus.track_image}
+          trackName={mockStatus.track_name}
+          trackArtist={mockStatus.track_artist}
           utcOffsetMin={utcOffsetMin}
           onClose={() => setForced(null)}
         />
