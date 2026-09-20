@@ -93,7 +93,6 @@
   left: 0;
   right: 0;
   bottom: 34px;
-  margin: 0;
   display: flex;
   justify-content: center;
   padding: 0 24px;
@@ -137,7 +136,9 @@
   width: 48px;
   height: 48px;
   flex-shrink: 0;
+  margin-right: 12px;
   border-radius: 13px;
+  background-color: $surface-elev;
   background-size: cover;
   background-position: center;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
@@ -149,7 +150,6 @@
   justify-content: center;
   min-width: 0;
   flex: 1;
-  margin-left: 12px;
   overflow: hidden;
   @include flex-gap-y(2px);
 }
@@ -157,7 +157,7 @@
 .nowPlayingTrack {
   font-size: 16px;
   font-weight: $fw-bold;
-  color: #ffffff;
+  color: $text-primary;
   letter-spacing: 0.01em;
   line-height: 1.25;
 }
@@ -165,7 +165,7 @@
 .nowPlayingArtist {
   font-size: 13px;
   font-weight: $fw-regular;
-  color: rgba(255, 255, 255, 0.54);
+  color: $text-secondary;
   line-height: 1.25;
 }
 

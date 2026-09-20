@@ -127,26 +127,26 @@ function ScreensaverImpl({ artUrl, utcOffsetMin, trackName, trackArtist, onClose
           <span className={styles.ampm}>{ampm}</span>
         </div>
         <div className={styles.date}>{date}</div>
-        {playing && trackName ? (
-          <div className={styles.nowPlayingDock}>
-            <div className={`${styles.nowPlaying} ${!thumbUrl ? styles.noThumb : ''}`}>
-              {thumbUrl ? (
-                <div
-                  className={styles.thumb}
-                  style={{ backgroundImage: `url(${thumbUrl})` }}
-                  aria-hidden
-                />
+      </div>
+      {playing && trackName ? (
+        <div className={styles.nowPlayingDock}>
+          <div className={`${styles.nowPlaying} ${!thumbUrl ? styles.noThumb : ''}`}>
+            {thumbUrl ? (
+              <div
+                className={styles.thumb}
+                style={{ backgroundImage: `url(${thumbUrl})` }}
+                aria-hidden
+              />
+            ) : null}
+            <div className={styles.nowPlayingMeta}>
+              <Marquee text={trackName} className={styles.nowPlayingTrack} />
+              {trackArtist ? (
+                <Marquee text={trackArtist} className={styles.nowPlayingArtist} />
               ) : null}
-              <div className={styles.nowPlayingMeta}>
-                <Marquee text={trackName} className={styles.nowPlayingTrack} />
-                {trackArtist ? (
-                  <Marquee text={trackArtist} className={styles.nowPlayingArtist} />
-                ) : null}
-              </div>
             </div>
           </div>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </div>
   )
 }
