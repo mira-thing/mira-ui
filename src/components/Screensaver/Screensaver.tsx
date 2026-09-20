@@ -1,4 +1,5 @@
 import { memo, useEffect, useState } from 'react'
+import { Marquee } from '@/components/TrackInfo/Marquee'
 import styles from './Screensaver.module.scss'
 
 // double press of the power button opens this screensaver w clock
@@ -23,7 +24,7 @@ function displayNow(utcOffsetMin: number | null | undefined): Date {
   return new Date(utcMs + utcOffsetMin * 60_000)
 }
 
-const POWER_KEY_CODE = 'Space'
+const POWER_KEY_CODE = 'KeyM'
 const ART_FADE_MS = 900
 
 function ScreensaverImpl({ artUrl, utcOffsetMin, trackName, trackArtist, onClose }: Props) {
@@ -95,13 +96,14 @@ function ScreensaverImpl({ artUrl, utcOffsetMin, trackName, trackArtist, onClose
 
   let hours = now.getHours() % 12
   if (hours === 0) hours = 12
-  const ampm = now.getHours() < 12 ? 'A M' : 'P M'
+  const ampm = now.getHours() < 12 ? 'AM' : 'PM'
   const date = now.toLocaleDateString(undefined, {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
   })
   const playing = Boolean(trackName)
+  const thumbUrl = artUrl || shownArt
 
   return (
     <div className={styles.container} onClick={onClose}>
@@ -111,7 +113,7 @@ function ScreensaverImpl({ artUrl, utcOffsetMin, trackName, trackArtist, onClose
       {shownArt ? (
         <div
           key={shownArt}
-          className={`${styles.art} ${styles.artDrift}`}
+          className={`${styles.art} ${styles.artEnter}`}
           style={{ backgroundImage: `url(${shownArt})` }}
           aria-hidden
         />
@@ -120,35 +122,25 @@ function ScreensaverImpl({ artUrl, utcOffsetMin, trackName, trackArtist, onClose
       )}
       <div className={styles.scrim} aria-hidden />
       <div className={styles.content}>
-        <div className={styles.hero}>
-          <div className={styles.date}>{date}</div>
-          <div className={styles.clockRow}>
-            <span className={styles.time}>
-              {hours}
-              <span className={styles.colon} aria-hidden>
-                <span className={styles.colonDot} />
-                <span className={styles.colonDot} />
-              </span>
-              <span className={styles.colonSr}>:</span>
-              {pad2(now.getMinutes())}
-            </span>
-            <span className={styles.ampm}>{ampm}</span>
-          </div>
+        <div className={styles.clock}>
+          {hours}:{pad2(now.getMinutes())}
+          <span className={styles.ampm}>{ampm}</span>
         </div>
-        {playing ? (
+        <div className={styles.date}>{date}</div>
+        {playing && trackName ? (
           <div className={styles.nowPlayingDock}>
-            <div className={styles.nowPlaying}>
-              {artUrl || shownArt ? (
+            <div className={`${styles.nowPlaying} ${!thumbUrl ? styles.noThumb : ''}`}>
+              {thumbUrl ? (
                 <div
                   className={styles.thumb}
-                  style={{ backgroundImage: `url(${artUrl || shownArt})` }}
+                  style={{ backgroundImage: `url(${thumbUrl})` }}
                   aria-hidden
                 />
               ) : null}
               <div className={styles.nowPlayingMeta}>
-                <span className={styles.nowPlayingTrack}>{trackName}</span>
+                <Marquee text={trackName} className={styles.nowPlayingTrack} />
                 {trackArtist ? (
-                  <span className={styles.nowPlayingArtist}>{trackArtist}</span>
+                  <Marquee text={trackArtist} className={styles.nowPlayingArtist} />
                 ) : null}
               </div>
             </div>

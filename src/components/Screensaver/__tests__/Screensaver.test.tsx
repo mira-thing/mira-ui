@@ -4,9 +4,8 @@ import { Screensaver } from '../Screensaver'
 
 describe('Screensaver', () => {
   it('shows the clock', () => {
-    const { container } = render(<Screensaver onClose={vi.fn()} utcOffsetMin={0} />)
-    const timeEl = container.querySelector('.time') || container.querySelector('[class*="time"]')
-    expect(timeEl?.textContent).toMatch(/\d{1,2}:\d{2}/)
+    render(<Screensaver onClose={vi.fn()} utcOffsetMin={0} />)
+    expect(screen.getByText(/\d{1,2}:\d{2}/)).toBeInTheDocument()
   })
 
   it('dismisses on tap release, not on press, so the tap cannot land on the ui below', () => {
@@ -26,6 +25,13 @@ describe('Screensaver', () => {
     render(<Screensaver onClose={onClose} utcOffsetMin={0} />)
     fireEvent.keyDown(window, { code: 'ArrowLeft' })
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not dismiss on power key (KeyM)', () => {
+    const onClose = vi.fn()
+    render(<Screensaver onClose={onClose} utcOffsetMin={0} />)
+    fireEvent.keyDown(window, { code: 'KeyM' })
+    expect(onClose).not.toHaveBeenCalled()
   })
 
   it('shows now-playing track and artist when provided', () => {
