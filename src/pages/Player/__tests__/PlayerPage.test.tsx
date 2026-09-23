@@ -33,6 +33,7 @@ const silent: DJNarration = { narrating: false, title: '', artist: '' }
 function props(over: Partial<PlayerPageProps> = {}): PlayerPageProps {
   return {
     status: activeStatus,
+    live: true,
     controls: controls(),
     narration: silent,
     showLyrics: true,
@@ -61,6 +62,19 @@ function renderPage(p: PlayerPageProps = props(), children?: ReactNode) {
     http.get('*/lyrics/*', () => HttpResponse.json({ lines: [] })),
   )
   return render(<Harness>{<PlayerPage {...p}>{children}</PlayerPage>}</Harness>)
+}
+
+// one horizontal finger travel, far enough past SWIPE_MIN_PX to read as "next"
+function swipeLeft(stage: Element) {
+  const at = (x: number) => [{ identifier: 1, clientX: x, clientY: 100 }]
+  const send = (type: string, touches: ReturnType<typeof at>) => {
+    const ev = new Event(type, { bubbles: true })
+    Object.assign(ev, { touches, changedTouches: at(0) })
+    stage.dispatchEvent(ev)
+  }
+  send('touchstart', at(200))
+  send('touchmove', at(130))
+  send('touchend', [])
 }
 
 describe('PlayerPage', () => {
@@ -171,5 +185,34 @@ describe('PlayerPage', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Rewind 15 seconds' }))
     expect(seek).toHaveBeenLastCalledWith(0)
+  })
+  // the page stays mounted on the held status through a drop, so everything
+  // that would talk to an unreachable daemon has to stand down
+  describe('while holding a dropped status', () => {
+    it('ignores a swipe that would skip the track', () => {
+      const live = controls()
+      const { container: on } = renderPage(props({ controls: live }))
+      swipeLeft(on.querySelector('.stage')!)
+      expect(live.onNext).toHaveBeenCalledTimes(1)
+
+      const held = controls()
+      const { container: off } = renderPage(props({ live: false, controls: held }))
+      swipeLeft(off.querySelector('.stage')!)
+      expect(held.onNext).not.toHaveBeenCalled()
+    })
+
+    it('ignores the skip buttons instead of reporting a failed seek', async () => {
+      const seek = vi.fn(async () => {})
+      const notify = vi.fn()
+      // only a podcast shows the 15s buttons
+      const pod = { ...activeStatus, track_uri: 'spotify:episode:pod' }
+      renderPage(props({ live: false, status: pod, seek, notify }))
+
+      await userEvent.click(screen.getByRole('button', { name: 'Forward 15 seconds' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Rewind 15 seconds' }))
+
+      expect(seek).not.toHaveBeenCalled()
+      expect(notify).not.toHaveBeenCalled()
+    })
   })
 })

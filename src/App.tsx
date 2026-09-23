@@ -602,6 +602,7 @@ function AppContent() {
   return (
     <PlayerPage
       status={playerStatus}
+      live={statusActive}
       controls={controls}
       narration={narration}
       showLyrics={showLyrics}

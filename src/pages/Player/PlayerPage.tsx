@@ -29,6 +29,8 @@ const SKIP_MS = 15000
 export interface PlayerPageProps {
   /** live while playing, or the held status while a drop recovers */
   status: ObserverStatusActive
+  /** false while `status` is the held one: the daemon cannot be reached */
+  live: boolean
   controls: UsePlayerControlsResult
   /** app-level, because the hardware buttons need it on every screen */
   narration: DJNarration
@@ -45,6 +47,7 @@ export interface PlayerPageProps {
 
 export function PlayerPage({
   status,
+  live,
   controls,
   narration,
   showLyrics,
@@ -71,13 +74,14 @@ export function PlayerPage({
   // relative to where playback actually is now, not where the last status said
   const seekRelative = useCallback(
     (deltaMs: number) => {
+      if (!live) return
       const base = status.is_paused
         ? status.position
         : status.position + (Date.now() - status.received_at)
       const target = Math.min(status.duration, Math.max(0, base + deltaMs))
       void seek(target).catch(() => notify('Seek failed', { variant: 'error' }))
     },
-    [status, seek, notify],
+    [live, status, seek, notify],
   )
 
   const isPodcast = status.track_uri.startsWith('spotify:episode:')
@@ -90,6 +94,7 @@ export function PlayerPage({
   }, [])
 
   const swipeEnabled =
+    live &&
     !overlays.isOpen('menu') &&
     !overlays.isOpen('powerMenu') &&
     !overlays.isOpen('deviceMenu') &&
