@@ -8,6 +8,8 @@ updates:
       vitest:
         patterns: ['vitest', '@vitest/*']
       npm-minor-patch:
+        patterns: ['*']
+        exclude-patterns: ['vitest', '@vitest/*']
         update-types: [minor, patch]
 
   - package-ecosystem: github-actions
