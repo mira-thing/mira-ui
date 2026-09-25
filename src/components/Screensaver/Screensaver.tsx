@@ -1,4 +1,5 @@
 import { memo, useEffect, useState } from 'react'
+import { Marquee } from '@/components/TrackInfo/Marquee'
 import styles from './Screensaver.module.scss'
 
 // double press of the power button opens this screensaver w clock
@@ -7,6 +8,8 @@ import styles from './Screensaver.module.scss'
 interface Props {
   artUrl?: string | null
   utcOffsetMin?: number | null
+  trackName?: string | null
+  trackArtist?: string | null
   onClose: () => void
 }
 
@@ -24,7 +27,7 @@ function displayNow(utcOffsetMin: number | null | undefined): Date {
 const POWER_KEY_CODE = 'KeyM'
 const ART_FADE_MS = 900
 
-function ScreensaverImpl({ artUrl, utcOffsetMin, onClose }: Props) {
+function ScreensaverImpl({ artUrl, utcOffsetMin, trackName, trackArtist, onClose }: Props) {
   const [now, setNow] = useState(() => displayNow(utcOffsetMin))
 
   useEffect(() => {
@@ -53,6 +56,10 @@ function ScreensaverImpl({ artUrl, utcOffsetMin, onClose }: Props) {
     img.onload = () => {
       if (cancelled) return
       setPrevArt(shownArt)
+      setShownArt(next)
+    }
+    img.onerror = () => {
+      if (cancelled) return
       setShownArt(next)
     }
     img.src = next
@@ -95,6 +102,8 @@ function ScreensaverImpl({ artUrl, utcOffsetMin, onClose }: Props) {
     month: 'long',
     day: 'numeric',
   })
+  const playing = Boolean(trackName)
+  const thumbUrl = artUrl || shownArt
 
   return (
     <div className={styles.container} onClick={onClose}>
@@ -119,6 +128,25 @@ function ScreensaverImpl({ artUrl, utcOffsetMin, onClose }: Props) {
         </div>
         <div className={styles.date}>{date}</div>
       </div>
+      {playing && trackName ? (
+        <div className={styles.nowPlayingDock}>
+          <div className={`${styles.nowPlaying} ${!thumbUrl ? styles.noThumb : ''}`}>
+            {thumbUrl ? (
+              <div
+                className={styles.thumb}
+                style={{ backgroundImage: `url(${thumbUrl})` }}
+                aria-hidden
+              />
+            ) : null}
+            <div className={styles.nowPlayingMeta}>
+              <Marquee text={trackName} className={styles.nowPlayingTrack} />
+              {trackArtist ? (
+                <Marquee text={trackArtist} className={styles.nowPlayingArtist} />
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

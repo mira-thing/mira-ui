@@ -399,9 +399,10 @@ function AppContent() {
   // ambient screensaver background
   let screensaverArt: string | null = null
   if (overlays.isOpen('screensaver') || forced === 'screensaver') {
-    screensaverArt =
-      (status?.active === true ? status.track_image : '') || heldStatus?.track_image || lastArtUrl
+    screensaverArt = savableStatus?.track_image || lastArtUrl
   }
+  const screensaverTrack = savableStatus?.track_name ?? null
+  const screensaverArtist = savableStatus?.track_artist ?? null
 
   const globalOverlays = (
     <OverlayHost
@@ -420,6 +421,8 @@ function AppContent() {
         onSkip: skipVersion,
       }}
       screensaverArt={screensaverArt}
+      screensaverTrack={screensaverTrack}
+      screensaverArtist={screensaverArtist}
       utcOffsetMin={utcOffsetMin}
     />
   )
@@ -486,7 +489,12 @@ function AppContent() {
     return (
       <div className={styles.app}>
         <Screensaver
-          artUrl={mockStatus.track_image}
+          artUrl={screensaverArt || mockStatus.track_image}
+          trackName={screensaverTrack || mockStatus.track_name}
+          trackArtist={screensaverArtist || mockStatus.track_artist}
+          artUrl={screensaverArt || mockStatus.track_image}
+          trackName={screensaverTrack || mockStatus.track_name}
+          trackArtist={screensaverArtist || mockStatus.track_artist}
           utcOffsetMin={utcOffsetMin}
           onClose={() => setForced(null)}
         />
@@ -658,7 +666,8 @@ function AppContent() {
   }
 
   // live status when active otherwise the last playing
-  const playerStatus = status && status.active ? status : reconnecting ? heldStatus : null
+  const playerStatus = savableStatus
+  const playerStatus = savableStatus
   if (!playerStatus || !playerStatus.active) return null
   const isPodcast = playerStatus.track_uri.startsWith('spotify:episode:')
   // presentTrack substitutes the DJ while it talks
