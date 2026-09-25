@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react'
 import type { ObserverStatusActive } from '@/api/types'
 import {
   getPreset,
@@ -125,6 +125,13 @@ export function useHardwareButtons({
   statusRef.current = status
   const djRef = useRef({ inSet: inDJSet, narrating: djNarrating, signal: onDJSignal })
   djRef.current = { inSet: inDJSet, narrating: djNarrating, signal: onDJSignal }
+  // effect events, so the button listeners below attach once: their cleanups
+  // clear the hold and double-press timers, dropping a press already in progress
+  const togglePower = useEffectEvent(() => onTogglePowerMenu())
+  const openScreensaver = useEffectEvent(() => onScreensaver())
+  const openDebug = useEffectEvent(() => onOpenDebug())
+  const playPreset = useEffectEvent((uri: string) => playContext(uri))
+  const notifyEvent = useEffectEvent<NotifyFn>((message, opts) => notify(message, opts))
 
   const contextUri = status?.context_uri
   const contextName = status?.context_name
@@ -257,9 +264,9 @@ export function useHardwareButtons({
       if (cur && cur.context_uri) {
         const config = presetForContext(cur.context_uri, cur.context_name, djRef.current.inSet)
         setPreset(idx, config)
-        notify(`Saved "${config.label}" to preset ${idx}`, { variant: 'success' })
+        notifyEvent(`Saved "${config.label}" to preset ${idx}`, { variant: 'success' })
       } else {
-        notify('Nothing playing to save', { variant: 'warning' })
+        notifyEvent('Nothing playing to save', { variant: 'warning' })
       }
     }
 
@@ -286,7 +293,7 @@ export function useHardwareButtons({
         }
         chordTimer = window.setTimeout(() => {
           chordTimer = undefined
-          onOpenDebug()
+          openDebug()
         }, CHORD_MS)
       }
     }
@@ -311,16 +318,16 @@ export function useHardwareButtons({
       if (isDJPreset(preset) && dj.inSet) {
         if (!dj.narrating) {
           dj.signal()
-          notify('Switching DJ set')
+          notifyEvent('Switching DJ set')
         }
         return
       }
       // short press will play the assigned context, cold-starting DJ like any other
       if (preset?.contextUri) {
         // only claim success once the play actually lands
-        void Promise.resolve(playContext(preset.contextUri))
-          .then(() => notify(`Playing from ${preset.label}`))
-          .catch(() => notify(`Couldn't play ${preset.label}`, { variant: 'error' }))
+        void Promise.resolve(playPreset(preset.contextUri))
+          .then(() => notifyEvent(`Playing from ${preset.label}`))
+          .catch(() => notifyEvent(`Couldn't play ${preset.label}`, { variant: 'error' }))
       }
       // unassigned slots (2-4 until saved) just do nothing
     }
@@ -332,7 +339,7 @@ export function useHardwareButtons({
       for (const t of Object.values(holdTimers)) if (t != null) window.clearTimeout(t)
       clearChord()
     }
-  }, [playContext, notify, onOpenDebug])
+  }, [])
 
   // power button controls
   useEffect(() => {
@@ -358,11 +365,11 @@ export function useHardwareButtons({
         // second tap within the window -> double press -> screensaver
         window.clearTimeout(pendingSingle)
         pendingSingle = undefined
-        onScreensaver()
+        openScreensaver()
       } else {
         pendingSingle = window.setTimeout(() => {
           pendingSingle = undefined
-          onTogglePowerMenu()
+          togglePower()
         }, POWER_DOUBLE_MS)
       }
     }
@@ -373,7 +380,9 @@ export function useHardwareButtons({
       window.removeEventListener('keyup', onKeyUp)
       if (pendingSingle != null) window.clearTimeout(pendingSingle)
     }
-  }, [onTogglePowerMenu, onScreensaver])
+    // never re-run: a re-render mid-gesture would clear `pendingSingle` and
+    // swallow the second press
+  }, [])
 
   // clean up timers
   useEffect(
