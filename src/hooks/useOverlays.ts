@@ -69,8 +69,12 @@ export interface Overlays {
   toggle: (id: FlagId) => void
   /** an overlay owns the screen: idle timers and one-shot cards stand down */
   busy: boolean
-  /** closes the topmost overlay; false when there was nothing to close */
-  goBack: () => boolean
+  /**
+   * Closes the topmost overlay; false when there was nothing to close. Takes
+   * the caller's own busy state, because the consent card is hidden while
+   * anything else owns the screen and must not swallow back when it is.
+   */
+  goBack: (externallyBusy?: boolean) => boolean
 
   /** the support report dialog carries the id it is showing */
   reportId: string | null
@@ -171,20 +175,26 @@ export function useOverlays({ forcedOpen, onClosed }: UseOverlaysParams = {}): O
     close('updateCard')
   }, [close])
 
-  const goBack = useCallback(() => {
-    for (const id of BACK_ORDER) {
-      if (!isOpen(id)) continue
-      // consent needs an explicit answer, so back neither dismisses it nor
-      // falls through to whatever is underneath
-      if (id === 'consent') return true
-      if (id === 'updateCard') remindLater()
-      else close(id)
-      return true
-    }
-    return false
-  }, [isOpen, close, remindLater])
-
   const busy = BACK_ORDER.some((id) => !NOT_BUSY.includes(id) && isOpen(id))
+
+  const goBack = useCallback(
+    (externallyBusy = false) => {
+      for (const id of BACK_ORDER) {
+        if (!isOpen(id)) continue
+        if (id === 'consent') {
+          // hidden behind whatever owns the screen: let that one take the press
+          if (busy || externallyBusy) continue
+          // on screen, and it needs an explicit answer rather than a dismissal
+          return true
+        }
+        if (id === 'updateCard') remindLater()
+        else close(id)
+        return true
+      }
+      return false
+    },
+    [isOpen, busy, close, remindLater],
+  )
 
   return useMemo(
     () => ({
