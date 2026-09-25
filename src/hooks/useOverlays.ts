@@ -42,6 +42,12 @@ const BACK_ORDER: readonly OverlayId[] = [
  */
 const NOT_BUSY: readonly OverlayId[] = ['consent', 'updateCard']
 
+/**
+ * Every overlay but the report dialog, which has no flag: `isOpen` reads its
+ * id instead, so a flag would be written and never looked at.
+ */
+export type FlagId = Exclude<OverlayId, 'report'>
+
 export type ScreensaverBy = 'manual' | 'auto'
 
 export interface UseOverlaysParams {
@@ -56,10 +62,11 @@ export interface UseOverlaysParams {
 
 export interface Overlays {
   isOpen: (id: OverlayId) => boolean
-  open: (id: OverlayId) => void
+  /** the report dialog opens through `openReport`, which carries its id */
+  open: (id: FlagId) => void
   close: (id: OverlayId) => void
   /** flips the real state, ignoring any dev override on top of it */
-  toggle: (id: OverlayId) => void
+  toggle: (id: FlagId) => void
   /** an overlay owns the screen: idle timers and one-shot cards stand down */
   busy: boolean
   /** closes the topmost overlay; false when there was nothing to close */
@@ -80,11 +87,10 @@ export interface Overlays {
   remindLater: () => void
 }
 
-const NONE: Record<OverlayId, boolean> = {
+const NONE: Record<FlagId, boolean> = {
   screensaver: false,
   consent: false,
   updateCard: false,
-  report: false,
   sponsor: false,
   debug: false,
   deviceMenu: false,
@@ -125,28 +131,31 @@ export function useOverlays({ forcedOpen, onClosed }: UseOverlaysParams = {}): O
     [forcedOpen, flags, reportId],
   )
 
-  const open = useCallback((id: OverlayId) => {
+  const open = useCallback((id: FlagId) => {
     setFlags((f) => ({ ...f, [id]: true }))
   }, [])
 
   const close = useCallback(
     (id: OverlayId) => {
-      if (id === 'report') setReportId(null)
-      if (id === 'sponsor') {
-        sponsorShownRef.current = true
-        try {
-          window.localStorage.setItem(SPONSOR_SHOWN_KEY, '1')
-        } catch {
-          // ignore
+      if (id === 'report') {
+        setReportId(null)
+      } else {
+        if (id === 'sponsor') {
+          sponsorShownRef.current = true
+          try {
+            window.localStorage.setItem(SPONSOR_SHOWN_KEY, '1')
+          } catch {
+            // ignore
+          }
         }
+        setFlags((f) => ({ ...f, [id]: false }))
       }
-      setFlags((f) => ({ ...f, [id]: false }))
       onClosed?.(id)
     },
     [onClosed],
   )
 
-  const toggle = useCallback((id: OverlayId) => {
+  const toggle = useCallback((id: FlagId) => {
     setFlags((f) => ({ ...f, [id]: !f[id] }))
   }, [])
 
