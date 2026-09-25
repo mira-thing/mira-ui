@@ -492,6 +492,9 @@ function AppContent() {
           artUrl={screensaverArt || mockStatus.track_image}
           trackName={screensaverTrack || mockStatus.track_name}
           trackArtist={screensaverArtist || mockStatus.track_artist}
+          artUrl={screensaverArt || mockStatus.track_image}
+          trackName={screensaverTrack || mockStatus.track_name}
+          trackArtist={screensaverArtist || mockStatus.track_artist}
           utcOffsetMin={utcOffsetMin}
           onClose={() => setForced(null)}
         />
@@ -663,6 +666,7 @@ function AppContent() {
   }
 
   // live status when active otherwise the last playing
+  const playerStatus = savableStatus
   const playerStatus = savableStatus
   if (!playerStatus || !playerStatus.active) return null
   const isPodcast = playerStatus.track_uri.startsWith('spotify:episode:')
