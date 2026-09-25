@@ -399,13 +399,10 @@ function AppContent() {
   // ambient screensaver background
   let screensaverArt: string | null = null
   if (overlays.isOpen('screensaver') || forced === 'screensaver') {
-    screensaverArt =
-      (status?.active === true ? status.track_image : '') || heldStatus?.track_image || lastArtUrl
+    screensaverArt = savableStatus?.track_image || lastArtUrl
   }
-  const screensaverTrack =
-    (status?.active === true ? status.track_name : null) ?? heldStatus?.track_name ?? null
-  const screensaverArtist =
-    (status?.active === true ? status.track_artist : null) ?? heldStatus?.track_artist ?? null
+  const screensaverTrack = savableStatus?.track_name ?? null
+  const screensaverArtist = savableStatus?.track_artist ?? null
 
   const globalOverlays = (
     <OverlayHost
@@ -666,7 +663,7 @@ function AppContent() {
   }
 
   // live status when active otherwise the last playing
-  const playerStatus = status && status.active ? status : reconnecting ? heldStatus : null
+  const playerStatus = savableStatus
   if (!playerStatus || !playerStatus.active) return null
   const isPodcast = playerStatus.track_uri.startsWith('spotify:episode:')
   // presentTrack substitutes the DJ while it talks
