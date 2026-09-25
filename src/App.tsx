@@ -1,23 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
-import { AlbumArt } from '@/components/AlbumArt'
+import { useCallback, useEffect, useMemo } from 'react'
 import { AuthScreen } from '@/components/AuthScreen'
 import { BootSplash } from '@/components/BootSplash'
 import { CheckinConsent } from '@/components/CheckinConsent'
 import { ConnectionChooser } from '@/components/ConnectionChooser'
-import { Controls } from '@/components/Controls'
 import { IdleScreen } from '@/components/IdleScreen'
-import { Lyrics } from '@/components/Lyrics'
-import { Menu } from '@/components/Menu'
 import { NeedsNetwork } from '@/components/NeedsNetwork'
-import { NoLyricsView } from '@/components/NoLyricsView'
 import { ReportDialog } from '@/components/ReportDialog'
 import { PcConnect } from '@/components/PcConnect'
-import { ProgressBar } from '@/components/ProgressBar'
-import { ReconnectBanner, type ReconnectReason } from '@/components/ReconnectBanner'
+import type { ReconnectReason } from '@/components/ReconnectBanner'
 import { ReconnectingScreen } from '@/components/ReconnectingScreen'
 import { Screensaver } from '@/components/Screensaver'
 import { SponsorScreen } from '@/components/SponsorScreen'
-import { TrackInfo } from '@/components/TrackInfo'
 import { UpdateCard } from '@/components/UpdateCard'
 import { DebugScreen } from '@/components/DebugScreen'
 import { resolveRoute } from '@/app/routes'
@@ -34,7 +27,7 @@ import { useDeviceSwitch } from '@/hooks/useDeviceSwitch'
 import { useHardwareButtons } from '@/hooks/useHardwareButtons'
 import { useIdleScreensaver } from '@/hooks/useIdleScreensaver'
 import { useLastArtUrl } from '@/hooks/useLastArtUrl'
-import { isDJContext, NarrationContext, presentTrack, useDJNarration } from '@/hooks/useDJNarration'
+import { isDJContext, useDJNarration } from '@/hooks/useDJNarration'
 import { useNotify } from '@/notify/notifyContext'
 import { useObserver } from '@/hooks/useObserver'
 import { useOfflineScreen } from '@/hooks/useOfflineScreen'
@@ -44,18 +37,16 @@ import { OverlayHost } from '@/overlays/OverlayHost'
 import { AuthPage } from '@/pages/Auth/AuthPage'
 import { BootPage } from '@/pages/Boot/BootPage'
 import { OfflinePage } from '@/pages/Offline/OfflinePage'
+import { PlayerPage } from '@/pages/Player/PlayerPage'
 import { usePlayerControls } from '@/hooks/usePlayerControls'
 import { usePrefetch } from '@/hooks/usePrefetch'
 import { resolveDropReason, useHeldStatus } from '@/hooks/useReconnect'
-import { useSavedTrack } from '@/hooks/useSavedTrack'
 import { useSponsorGate } from '@/hooks/useSponsorGate'
-import { useSwipeGestures } from '@/hooks/useSwipeGestures'
 import { useUpdateNotice } from '@/hooks/useUpdateNotice'
 import { useUtcOffset } from '@/hooks/useUtcOffset'
 import { resumeLastDevice } from '@/api/client'
 import type { ObserverStatusActive } from '@/api/types'
-import { getSettings, initSettings, updateSettings, useSettings } from '@/settings'
-import { artSizeFor, heroArtSizeFor } from '@/uiScale'
+import { initSettings, useSettings } from '@/settings'
 import styles from './App.module.scss'
 
 /**
@@ -112,12 +103,6 @@ function AppContent() {
 
   const { play, pause, next, prev, seek, playContext, setVolume, setShuffle, djSignal, setRepeat } =
     useControls()
-  const handleSeek = useCallback(
-    (positionMs: number) => {
-      void seek(positionMs).catch(() => notify('Seek failed', { variant: 'error' }))
-    },
-    [notify, seek],
-  )
   usePrefetch(realStatus)
   const {
     online,
@@ -141,21 +126,6 @@ function AppContent() {
 
   const settings = useSettings()
   const showLyricsReal = settings.showLyrics
-  const artSize = artSizeFor(settings.uiScalePct)
-  const heroArtSize = heroArtSizeFor(settings.uiScalePct)
-  const stageRef = useRef<HTMLDivElement | null>(null)
-
-  const toggleLyrics = useCallback(() => {
-    updateSettings({ showLyrics: !getSettings().showLyrics })
-  }, [])
-
-  const toggleKaraoke = useCallback(() => {
-    updateSettings({ karaokeLyrics: !getSettings().karaokeLyrics })
-  }, [])
-
-  const toggleVoiceMic = useCallback(() => {
-    updateSettings({ voiceMic: !getSettings().voiceMic })
-  }, [])
 
   // get settings from the daemon
   useEffect(() => {
@@ -218,19 +188,6 @@ function AppContent() {
   })
   const offlineScreen = offline.screen
 
-  // seek relative to the live position
-  const seekRelative = useCallback(
-    (deltaMs: number) => {
-      if (!status?.active) return
-      const base = status.is_paused
-        ? status.position
-        : status.position + (Date.now() - status.received_at)
-      const target = Math.min(status.duration, Math.max(0, base + deltaMs))
-      void seek(target).catch(() => notify('Seek failed', { variant: 'error' }))
-    },
-    [status, seek, notify],
-  )
-
   const showLyrics = forced === 'playing-no-lyrics' ? false : showLyricsReal
   const pairing =
     forced === 'pairing' ? { address: 'AB:CD:EF:01:23:45', passkey: '123456' } : realPairing
@@ -266,7 +223,6 @@ function AppContent() {
     setDiscoverable,
   })
 
-  const closeMenu = useCallback(() => overlays.close('menu'), [overlays])
   const closePowerMenu = useCallback(() => overlays.close('powerMenu'), [overlays])
 
   const onOpenScreensaver = useCallback(() => {
@@ -339,12 +295,6 @@ function AppContent() {
   const isDJ = isDJContext(savableStatus)
   // owns the DJ hold
   const narration = useDJNarration(savableStatus, seenNarration)
-  const savableUri =
-    savableStatus && !savableStatus.track_uri.startsWith('spotify:episode:')
-      ? savableStatus.track_uri
-      : null
-  const liked = useSavedTrack(savableUri, (message) => notify(message, { variant: 'error' }))
-
   const statusActive = status?.active === true
   const onPlayPauseActive = controls.onPlayPause
   const resumeLast = useCallback(() => {
@@ -378,22 +328,6 @@ function AppContent() {
     onScreensaver: onOpenScreensaver,
     onOpenDebug: openDebug,
     notify,
-  })
-
-  // touch gestures
-  const swipeEnabled =
-    status?.active === true &&
-    !overlays.isOpen('menu') &&
-    !overlays.isOpen('powerMenu') &&
-    !overlays.isOpen('deviceMenu') &&
-    !overlays.isOpen('btMenu') &&
-    !overlays.isOpen('settings') &&
-    !pairing
-  useSwipeGestures(stageRef, {
-    onNext: controls.onNext,
-    onPrev: controls.onPrevTrack,
-    onToggleView: toggleLyrics,
-    enabled: swipeEnabled,
   })
 
   // ambient screensaver background
@@ -660,102 +594,25 @@ function AppContent() {
   // live status when active otherwise the last playing
   const playerStatus = status && status.active ? status : reconnecting ? heldStatus : null
   if (!playerStatus || !playerStatus.active) return null
-  const isPodcast = playerStatus.track_uri.startsWith('spotify:episode:')
-  // presentTrack substitutes the DJ while it talks
-  const shown = presentTrack(playerStatus, narration)
 
   // noti over the player on a network drops
   const bannerReason: ReconnectReason | null =
     forced === 'reconnect-banner' ? 'offline' : reconnecting ? dropReason : null
 
   return (
-    // provided once for all consumers
-    <NarrationContext.Provider value={narration}>
-      <div
-        className={`${styles.app} ${styles.appPlaying}`}
-        // the art is the only fixed-height block in the left column and never shrinks, so
-        // it has to give way when a larger display size shortens the logical viewport
-        style={{ '--art-size': `${artSize}px` } as React.CSSProperties}
-      >
-        {bannerReason ? <ReconnectBanner reason={bannerReason} carriers={carriers} /> : null}
-        <div className={styles.stage} ref={stageRef}>
-          <div
-            className={`${styles.viewLayer} ${showLyrics ? styles.viewActive : styles.viewInactive}`}
-          >
-            <div className={styles.top}>
-              <div
-                className={`${styles.left} ${controls.transitioning ? styles.transitioning : ''}`}
-              >
-                <AlbumArt src={shown.art} size={artSize} djFallback={shown.djFallback} />
-                <TrackInfo trackName={shown.title} artist={shown.artist} />
-              </div>
-              <div className={styles.right}>
-                <Lyrics status={playerStatus} onSeek={handleSeek} active={showLyrics} />
-              </div>
-            </div>
-          </div>
-          <div
-            className={`${styles.viewLayer} ${!showLyrics ? styles.viewActive : styles.viewInactive}`}
-          >
-            <div
-              className={`${styles.topNoLyrics} ${controls.transitioning ? styles.transitioning : ''}`}
-            >
-              <NoLyricsView status={playerStatus} active={!showLyrics} artSize={heroArtSize} />
-            </div>
-          </div>
-        </div>
-
-        <div className={styles.bottom}>
-          <ProgressBar status={playerStatus} onSeek={handleSeek} />
-          <Controls
-            isPaused={controls.isPaused}
-            shuffle={controls.shuffle}
-            repeat={controls.repeat}
-            disallowPrev={playerStatus.disallow_prev}
-            disallowNext={playerStatus.disallow_next}
-            isPodcast={isPodcast}
-            isDJ={isDJ}
-            showSave={!isPodcast}
-            saved={liked.saved}
-            onToggleSaved={liked.toggle}
-            onPrev={controls.onPrev}
-            onNext={controls.onNext}
-            onPlayPause={controls.onPlayPause}
-            onToggleShuffle={controls.onToggleShuffle}
-            onDJSignal={controls.onDJSignal}
-            onCycleRepeat={controls.onCycleRepeat}
-            onRewind15={() => seekRelative(-15000)}
-            onForward15={() => seekRelative(15000)}
-            onMore={() => overlays.open('menu')}
-          />
-        </div>
-
-        <Menu
-          open={overlays.isOpen('menu')}
-          onClose={closeMenu}
-          showLyrics={showLyrics}
-          onToggleLyrics={toggleLyrics}
-          karaokeLyrics={settings.karaokeLyrics}
-          onToggleKaraoke={toggleKaraoke}
-          voiceMic={settings.voiceMic}
-          onToggleVoiceMic={toggleVoiceMic}
-          currentDevice={playerStatus.device_name}
-          onOpenDevices={() => {
-            overlays.close('menu')
-            overlays.open('deviceMenu')
-          }}
-          onOpenBluetooth={() => {
-            overlays.close('menu')
-            overlays.open('btMenu')
-          }}
-          onOpenSettings={() => {
-            overlays.close('menu')
-            overlays.open('settings')
-          }}
-        />
-
-        {globalOverlays}
-      </div>
-    </NarrationContext.Provider>
+    <PlayerPage
+      status={playerStatus}
+      live={statusActive}
+      controls={controls}
+      narration={narration}
+      showLyrics={showLyrics}
+      bannerReason={bannerReason}
+      carriers={carriers}
+      pairing={pairing}
+      seek={seek}
+      notify={notify}
+    >
+      {globalOverlays}
+    </PlayerPage>
   )
 }
