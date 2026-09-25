@@ -64,12 +64,7 @@ describe('Screensaver', () => {
 
   it('renders track without artist and applies noThumb when artwork is missing', () => {
     const { container } = render(
-      <Screensaver
-        onClose={vi.fn()}
-        utcOffsetMin={0}
-        trackName="Solo Track"
-        artUrl={null}
-      />,
+      <Screensaver onClose={vi.fn()} utcOffsetMin={0} trackName="Solo Track" artUrl={null} />,
     )
     expect(screen.getByText('Solo Track')).toBeInTheDocument()
     expect(container.querySelector('[class*="thumb"]')).toBeNull()

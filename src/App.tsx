@@ -638,13 +638,10 @@ export default function App() {
     } catch {
       // ignore
     }
-    screensaverArt =
-      (status?.active === true ? status.track_image : '') || heldStatus?.track_image || storedArt
+    screensaverArt = savableStatus?.track_image || storedArt
   }
-  const screensaverTrack =
-    (status?.active === true ? status.track_name : null) ?? heldStatus?.track_name ?? null
-  const screensaverArtist =
-    (status?.active === true ? status.track_artist : null) ?? heldStatus?.track_artist ?? null
+  const screensaverTrack = savableStatus?.track_name ?? null
+  const screensaverArtist = savableStatus?.track_artist ?? null
 
   const globalOverlays = (
     <>
@@ -968,7 +965,7 @@ export default function App() {
   }
 
   // live status when active otherwise the last playing
-  const playerStatus = status && status.active ? status : reconnecting ? heldStatus : null
+  const playerStatus = savableStatus
   if (!playerStatus || !playerStatus.active) return null
   const isPodcast = playerStatus.track_uri.startsWith('spotify:episode:')
   // presentTrack substitutes the DJ while it talks
