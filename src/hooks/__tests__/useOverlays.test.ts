@@ -96,10 +96,7 @@ describe('useOverlays', () => {
 
     it('is swallowed by the consent card, which needs an answer', () => {
       const { result } = render()
-      act(() => {
-        result.current.open('menu')
-        result.current.open('consent')
-      })
+      act(() => result.current.open('consent'))
 
       let handled = false
       act(() => {
@@ -107,8 +104,36 @@ describe('useOverlays', () => {
       })
       expect(handled).toBe(true)
       expect(result.current.isOpen('consent')).toBe(true)
-      // and it does not fall through to what is underneath
-      expect(result.current.isOpen('menu')).toBe(true)
+    })
+
+    // the host hides the card while anything else owns the screen, so claiming
+    // the press here would wedge the button against an overlay nobody can see
+    it('falls past a consent card that another overlay is covering', () => {
+      const { result } = render()
+      act(() => {
+        result.current.open('consent')
+        result.current.open('menu')
+      })
+
+      let handled = false
+      act(() => {
+        handled = result.current.goBack()
+      })
+      expect(handled).toBe(true)
+      expect(result.current.isOpen('menu')).toBe(false)
+      expect(result.current.isOpen('consent')).toBe(true)
+    })
+
+    it('falls past it for a caller that is busy for its own reasons', () => {
+      const { result } = render()
+      act(() => result.current.open('consent'))
+
+      let handled = false
+      act(() => {
+        handled = result.current.goBack(true)
+      })
+      expect(handled).toBe(false)
+      expect(result.current.isOpen('consent')).toBe(true)
     })
 
     it('treats a forced-open overlay as really open', () => {

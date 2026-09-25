@@ -264,7 +264,7 @@ function AppContent() {
 
   // hardware back button
   const goBack = useCallback(() => {
-    if (overlays.goBack()) return
+    if (overlays.goBack(overlayBusy)) return
     if (offline.active && offline.method !== 'chooser') {
       offline.setMethod('chooser')
       return
@@ -275,7 +275,7 @@ function AppContent() {
       return
     }
     // nothing to go back to
-  }, [overlays, offline])
+  }, [overlays, overlayBusy, offline])
 
   const controls = usePlayerControls({
     status: status && status.active ? status : null,
