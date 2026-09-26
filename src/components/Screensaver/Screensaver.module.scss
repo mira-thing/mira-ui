@@ -88,8 +88,90 @@
   text-shadow: 0 2px 16px rgba(0, 0, 0, 0.5);
 }
 
+.nowPlayingDock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 34px;
+  display: flex;
+  justify-content: center;
+  padding: 0 24px;
+  pointer-events: none;
+}
+
+.nowPlaying {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: 400px;
+  height: 64px;
+  box-sizing: border-box;
+  background: rgba(18, 18, 20, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  padding: 7px 20px 7px 7px;
+  box-shadow:
+    0 12px 36px rgba(0, 0, 0, 0.65),
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  animation: nowPlayingIn 600ms $ease-standard 280ms both;
+}
+
+.noThumb {
+  padding-left: 20px;
+}
+
+@keyframes nowPlayingIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.thumb {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  margin-right: 12px;
+  border-radius: 13px;
+  background-color: $surface-elev;
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.nowPlayingMeta {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  @include flex-gap-y(2px);
+}
+
+.nowPlayingTrack {
+  font-size: 16px;
+  font-weight: $fw-bold;
+  color: $text-primary;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+}
+
+.nowPlayingArtist {
+  font-size: 13px;
+  font-weight: $fw-regular;
+  color: $text-secondary;
+  line-height: 1.25;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .container {
+  .container,
+  .nowPlaying {
     animation: none;
   }
   .artEnter {

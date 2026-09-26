@@ -32,7 +32,7 @@ Mira is free and open source. If you'd like to support development, you can do s
 | `npm run test:watch`    | Vitest in watch mode        |
 | `npm run test:coverage` | Coverage report             |
 
-screen switcher is available when holding down the (`` ` ``) key for iterating on individual UI states without a live daemon.
+screen switcher is available by pressing the (`` ` ``) or (`T`) key for iterating on individual UI states without a live daemon.
 
 ### Browser target
 

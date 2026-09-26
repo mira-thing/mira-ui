@@ -6,7 +6,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: $s-6;
+  padding: $s-2;
   animation: scrimIn 120ms $ease-standard both;
 }
 
@@ -22,6 +22,9 @@
 .panel {
   width: 100%;
   max-width: 480px;
+  max-height: calc(100% - #{$s-4});
+  display: flex;
+  flex-direction: column;
   background: $menu-bg;
   border: 1px solid $menu-border;
   border-radius: $r-lg;
@@ -30,6 +33,7 @@
   color: $text-primary;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
   animation: panelIn 160ms $ease-standard both;
+  overflow: hidden;
 }
 
 @keyframes panelIn {
@@ -48,6 +52,36 @@
   align-items: center;
   justify-content: space-between;
   padding: $s-2 $s-3 $s-3;
+  flex-shrink: 0;
+}
+
+.list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 4px;
+
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.35);
+    }
+  }
 }
 
 .title {

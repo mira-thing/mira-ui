@@ -35,6 +35,8 @@ export interface OverlayHostProps {
   onChooseConsent: (consent: 'granted' | 'denied') => void
   update: UpdateOfferProps
   screensaverArt: string | null
+  screensaverTrack: string | null
+  screensaverArtist: string | null
   utcOffsetMin: number | null
 }
 
@@ -53,6 +55,8 @@ export function OverlayHost({
   onChooseConsent,
   update,
   screensaverArt,
+  screensaverTrack,
+  screensaverArtist,
   utcOffsetMin,
 }: OverlayHostProps) {
   const overlays = useOverlayState()
@@ -109,6 +113,8 @@ export function OverlayHost({
       {overlays.isOpen('screensaver') ? (
         <Screensaver
           artUrl={screensaverArt}
+          trackName={screensaverTrack}
+          trackArtist={screensaverArtist}
           utcOffsetMin={utcOffsetMin}
           onClose={() => overlays.close('screensaver')}
         />

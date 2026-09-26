@@ -102,33 +102,37 @@ export function DevOverlay() {
         target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable
       if (inEditable) return
 
-      if (e.key === '`' && !e.repeat) {
+      const isT = e.code === 'KeyT' || e.key === 't' || e.key === 'T'
+      const isBacktick = e.code === 'Backquote' || e.key === '`' || e.key === '~'
+      const isToggleKey = (!e.ctrlKey && !e.metaKey && !e.altKey && isT) || isBacktick
+      if (isToggleKey && !e.repeat) {
         e.preventDefault()
+        e.stopPropagation()
         setOpen((v) => !v)
         return
       }
       if (open && e.key === 'Escape') {
         e.preventDefault()
+        e.stopPropagation()
         setOpen(false)
       }
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    window.addEventListener('keydown', onKey, { capture: true })
+    return () => window.removeEventListener('keydown', onKey, { capture: true })
   }, [open])
 
   if (!DEV_SCREENS_ENABLED) return null
 
-  const badge =
-    !open && forced ? (
-      <button
-        type="button"
-        className={styles.badge}
-        onClick={() => setOpen(true)}
-        title="Open dev screens (`)"
-      >
-        DEV - {forced}
-      </button>
-    ) : null
+  const badge = !open ? (
+    <button
+      type="button"
+      className={styles.badge}
+      onClick={() => setOpen(true)}
+      title="Open dev screens (press T or `)"
+    >
+      {forced ? `DEV - ${forced}` : 'DEV (T)'}
+    </button>
+  ) : null
 
   if (!open) return badge
 
@@ -142,42 +146,44 @@ export function DevOverlay() {
       >
         <div className={styles.header}>
           <span className={styles.title}>Dev screens</span>
-          <span className={styles.kbd}>` to toggle</span>
+          <span className={styles.kbd}>` or T to toggle</span>
         </div>
 
-        <button
-          type="button"
-          className={`${styles.row} ${forced === null ? styles.rowActive : ''}`}
-          onClick={() => {
-            setForced(null)
-            setOpen(false)
-          }}
-        >
-          <span className={styles.rowMark}>{forced === null ? '->' : ''}</span>
-          <span className={styles.rowLabel}>Reset (live state)</span>
-          <span className={styles.rowHint}>Stop overriding</span>
-        </button>
+        <div className={styles.list}>
+          <button
+            type="button"
+            className={`${styles.row} ${forced === null ? styles.rowActive : ''}`}
+            onClick={() => {
+              setForced(null)
+              setOpen(false)
+            }}
+          >
+            <span className={styles.rowMark}>{forced === null ? '->' : ''}</span>
+            <span className={styles.rowLabel}>Reset (live state)</span>
+            <span className={styles.rowHint}>Stop overriding</span>
+          </button>
 
-        <div className={styles.divider} aria-hidden />
+          <div className={styles.divider} aria-hidden />
 
-        {SCREENS.map((s) => {
-          const active = forced === s.id
-          return (
-            <button
-              key={s.id}
-              type="button"
-              className={`${styles.row} ${active ? styles.rowActive : ''}`}
-              onClick={() => {
-                setForced(s.id)
-                setOpen(false)
-              }}
-            >
-              <span className={styles.rowMark}>{active ? '->' : ''}</span>
-              <span className={styles.rowLabel}>{s.label}</span>
-              <span className={styles.rowHint}>{s.hint ?? ''}</span>
-            </button>
-          )
-        })}
+          {SCREENS.map((s) => {
+            const active = forced === s.id
+            return (
+              <button
+                key={s.id}
+                type="button"
+                className={`${styles.row} ${active ? styles.rowActive : ''}`}
+                onClick={() => {
+                  setForced(s.id)
+                  setOpen(false)
+                }}
+              >
+                <span className={styles.rowMark}>{active ? '->' : ''}</span>
+                <span className={styles.rowLabel}>{s.label}</span>
+                <span className={styles.rowHint}>{s.hint ?? ''}</span>
+              </button>
+            )
+          })}
+        </div>
       </div>
     </div>
   )
