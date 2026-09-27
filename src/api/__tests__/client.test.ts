@@ -223,6 +223,15 @@ describe('fetchObserverStatus', () => {
     })
   })
 
+  it('decodes multi-byte UTF-8 across the chunk boundary', () => {
+    const message = 'x'.repeat(8190) + 'Beyoncé – 秘密基地 🎧'
+    server.use(http.get('*/observer/status', () => HttpResponse.json({ active: false, message })))
+
+    return fetchObserverStatus().then((s) => {
+      expect((s as ObserverStatusInactive).message).toBe(message)
+    })
+  })
+
   it('annotates an active 200 body with received_at', () => {
     const activeBody = {
       active: true,

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { readJson } from '@/api/client'
 import { API_BASE } from '@/config'
 
 // somewhat annoying part of the flow right now
@@ -38,7 +39,7 @@ export function useAuth(): AuthState {
           // keep loading=true so we don't accidentally render the now playing
           setState((s) => (s.loading ? s : { ...s, loading: true }))
         } else {
-          const data = (await res.json()) as {
+          const data = (await readJson(res)) as {
             required?: boolean
             url?: string
             loading?: boolean

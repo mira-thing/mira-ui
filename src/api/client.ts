@@ -66,11 +66,21 @@ export function remoteStateToStatus(rs: RemoteStateWire): ObserverStatusActive {
   }
 }
 
+// chrome 69's gc doesn't count res.json() strings, so polls piled up until a gc that never ran
+export async function readJson(res: Response): Promise<unknown> {
+  const bytes = new Uint8Array(await res.arrayBuffer())
+  let binary = ''
+  for (let i = 0; i < bytes.length; i += 8192) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 8192) as unknown as number[])
+  }
+  return JSON.parse(decodeURIComponent(escape(binary)))
+}
+
 export async function fetchObserverStatus(signal?: AbortSignal): Promise<ObserverStatus> {
   const res = await fetch(`${API_BASE}/observer/status`, { signal, cache: 'no-store' })
   if (res.status === 204) return { active: false, message: 'no session' }
   if (!res.ok) throw new Error(`observer/status ${res.status}`)
-  const body = await res.json()
+  const body = (await readJson(res)) as ObserverStatusActive | ObserverStatus
   if (body && body.active === true) {
     return { ...(body as Omit<ObserverStatusActive, 'received_at'>), received_at: Date.now() }
   }
