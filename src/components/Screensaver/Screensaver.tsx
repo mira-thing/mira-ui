@@ -24,6 +24,10 @@ function displayNow(utcOffsetMin: number | null | undefined): Date {
   return new Date(utcMs + utcOffsetMin * 60_000)
 }
 
+// chrome 69 on the device has no locale data, so toLocaleDateString ignores the format options
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
 const POWER_KEY_CODE = 'KeyM'
 const ART_FADE_MS = 900
 
@@ -97,11 +101,7 @@ function ScreensaverImpl({ artUrl, utcOffsetMin, trackName, trackArtist, onClose
   let hours = now.getHours() % 12
   if (hours === 0) hours = 12
   const ampm = now.getHours() < 12 ? 'AM' : 'PM'
-  const date = now.toLocaleDateString(undefined, {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  })
+  const date = `${DAYS[now.getDay()]}, ${MONTHS[now.getMonth()]} ${now.getDate()}`
   const playing = Boolean(trackName)
   const thumbUrl = artUrl || shownArt
 
@@ -121,12 +121,12 @@ function ScreensaverImpl({ artUrl, utcOffsetMin, trackName, trackArtist, onClose
         <div className={styles.plain} aria-hidden />
       )}
       <div className={styles.scrim} aria-hidden />
-      <div className={styles.content}>
+      <div className={`${styles.content} ${playing ? styles.withPill : ''}`}>
+        <div className={styles.date}>{date}</div>
         <div className={styles.clock}>
           {hours}:{pad2(now.getMinutes())}
           <span className={styles.ampm}>{ampm}</span>
         </div>
-        <div className={styles.date}>{date}</div>
       </div>
       {playing && trackName ? (
         <div className={styles.nowPlayingDock}>

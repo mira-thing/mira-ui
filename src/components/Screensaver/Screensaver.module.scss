@@ -63,6 +63,12 @@
   @include flex-gap-y($s-3);
 }
 
+// centre the clock in the space the pill leaves
+.withPill {
+  padding-bottom: 112px;
+  box-sizing: border-box;
+}
+
 .clock {
   font-size: 128px;
   font-weight: $fw-semibold;
@@ -82,7 +88,7 @@
 }
 
 .date {
-  font-size: $fs-2xl;
+  font-size: $fs-3xl;
   font-weight: $fw-medium;
   color: $text-secondary;
   text-shadow: 0 2px 16px rgba(0, 0, 0, 0.5);
@@ -92,7 +98,7 @@
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 34px;
+  bottom: 26px;
   display: flex;
   justify-content: center;
   padding: 0 24px;
@@ -100,25 +106,30 @@
 }
 
 .nowPlaying {
+  border: 1px solid rgba(255, 255, 255, 0.143);
+  border-top-color: rgba(255, 255, 255, 0.26);
+  border-bottom-color: rgba(255, 255, 255, 0.083);
+  background:
+    linear-gradient(158deg, rgba(255, 255, 255, 0.067), rgba(255, 255, 255, 0.011) 70%),
+    linear-gradient(180deg, rgba(3, 5, 9, 0.12), rgba(3, 5, 9, 0.3));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.091),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+    0 3px 6px rgba(0, 0, 0, 0.39),
+    0 12px 26px rgba(0, 0, 0, 0.33);
   display: flex;
   flex-direction: row;
   align-items: center;
-  width: 400px;
-  height: 64px;
+  width: 420px;
+  height: 92px;
   box-sizing: border-box;
-  background: rgba(18, 18, 20, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 20px;
-  padding: 7px 20px 7px 7px;
-  box-shadow:
-    0 12px 36px rgba(0, 0, 0, 0.65),
-    0 2px 8px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 10px 24px 10px 10px;
   animation: nowPlayingIn 600ms $ease-standard 280ms both;
 }
 
 .noThumb {
-  padding-left: 20px;
+  padding-left: 24px;
 }
 
 @keyframes nowPlayingIn {
@@ -133,11 +144,11 @@
 }
 
 .thumb {
-  width: 48px;
-  height: 48px;
+  width: 72px;
+  height: 72px;
   flex-shrink: 0;
-  margin-right: 12px;
-  border-radius: 13px;
+  margin-right: 16px;
+  border-radius: 10px;
   background-color: $surface-elev;
   background-size: cover;
   background-position: center;
@@ -151,19 +162,18 @@
   min-width: 0;
   flex: 1;
   overflow: hidden;
-  @include flex-gap-y(2px);
+  @include flex-gap-y(4px);
 }
 
 .nowPlayingTrack {
-  font-size: 16px;
-  font-weight: $fw-bold;
+  font-size: 22px;
+  font-weight: $fw-semibold;
   color: $text-primary;
-  letter-spacing: 0.01em;
-  line-height: 1.25;
+  line-height: 1.2;
 }
 
 .nowPlayingArtist {
-  font-size: 13px;
+  font-size: 17px;
   font-weight: $fw-regular;
   color: $text-secondary;
   line-height: 1.25;
