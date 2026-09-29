@@ -3,15 +3,15 @@ import { describe, expect, it, vi } from 'vitest'
 import { Screensaver } from '../Screensaver'
 
 describe('Screensaver', () => {
-  it('shows the clock and date with date placed below', () => {
+  it('shows the clock with the date above it', () => {
     const { container } = render(<Screensaver onClose={vi.fn()} utcOffsetMin={0} />)
     const clockEl = container.querySelector('[class*="clock"]')
     const dateEl = container.querySelector('[class*="date"]')
     expect(clockEl).toBeInTheDocument()
     expect(dateEl).toBeInTheDocument()
     expect(clockEl?.textContent).toMatch(/\d{1,2}:\d{2}/)
-    // Confirm clock comes before date in the DOM order
-    expect(clockEl?.compareDocumentPosition(dateEl!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(dateEl?.compareDocumentPosition(clockEl!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(dateEl?.textContent).toMatch(/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat), [A-Z][a-z]{2} \d{1,2}$/)
   })
 
   it('dismisses on tap release, not on press, so the tap cannot land on the ui below', () => {

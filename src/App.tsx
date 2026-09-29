@@ -335,8 +335,10 @@ function AppContent() {
   if (overlays.isOpen('screensaver') || forced === 'screensaver') {
     screensaverArt = savableStatus?.track_image || lastArtUrl
   }
-  const screensaverTrack = savableStatus?.track_name ?? null
-  const screensaverArtist = savableStatus?.track_artist ?? null
+  // an idle screensaver closes the moment music starts, so only a manual one gets the pill
+  const screensaverPill = overlays.screensaverBy === 'manual'
+  const screensaverTrack = screensaverPill ? (savableStatus?.track_name ?? null) : null
+  const screensaverArtist = screensaverPill ? (savableStatus?.track_artist ?? null) : null
 
   const globalOverlays = (
     <OverlayHost
