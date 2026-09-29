@@ -3,7 +3,6 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { NotifyProvider } from '../NotifyProvider'
 import { useNotify } from '../notifyContext'
 import { VoiceNotifier } from '@/voice/VoiceNotifier'
-import { VolumeOverlay } from '@/components/VolumeOverlay/VolumeOverlay'
 import type { ApiEvent } from '@/api/types'
 
 const bus = vi.hoisted(() => ({ listener: null as ((event: ApiEvent) => void) | null }))
