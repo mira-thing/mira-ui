@@ -45,7 +45,11 @@ describe('useDeviceSwitch', () => {
 
       const moved = { ...activeStatus, device_id: 'kitchen', device_name: 'Kitchen' }
       rerender(params({ status: moved, notify }))
-      expect(notify).toHaveBeenCalledWith('Now playing on Kitchen', { variant: 'info' })
+      expect(notify).toHaveBeenCalledWith('Now playing on Kitchen', {
+        variant: 'info',
+        icon: 'device',
+        deviceType: moved.device_type,
+      })
     })
 
     it('says what to do when playback stops entirely', () => {
@@ -87,7 +91,11 @@ describe('useDeviceSwitch', () => {
 
       act(() => result.current(speaker))
       expect(onPicked).toHaveBeenCalledTimes(1)
-      expect(notify).toHaveBeenCalledWith('Switching to Kitchen...', { variant: 'info' })
+      expect(notify).toHaveBeenCalledWith('Switching to Kitchen...', {
+        variant: 'info',
+        icon: 'device',
+        deviceType: 'Speaker',
+      })
       await waitFor(() => expect(transfers).toEqual(['speaker-1']))
     })
 

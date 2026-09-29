@@ -177,6 +177,7 @@ export function useHardwareButtons({
   const stepVolume = useCallback(
     (dir: 1 | -1) => {
       if (volumeDisabledRef.current) {
+        if (Date.now() - lastDisabledNotifyRef.current < DISABLED_VOLUME_NOTIFY_MS) return
         showOverlay(dir > 0 ? 1 : 0.2, false, { phone: true, dir })
         void Promise.resolve(setVolume(dir, true)).catch(() => {
           setVolumeOverlay((o) => ({ ...o, visible: false }))
@@ -318,7 +319,7 @@ export function useHardwareButtons({
       if (isDJPreset(preset) && dj.inSet) {
         if (!dj.narrating) {
           dj.signal()
-          notifyEvent('Switching DJ set')
+          notifyEvent('Switching DJ set', { icon: 'dj' })
         }
         return
       }
@@ -326,7 +327,7 @@ export function useHardwareButtons({
       if (preset?.contextUri) {
         // only claim success once the play actually lands
         void Promise.resolve(playPreset(preset.contextUri))
-          .then(() => notifyEvent(`Playing from ${preset.label}`))
+          .then(() => notifyEvent(`Playing from ${preset.label}`, { icon: 'playlist' }))
           .catch(() => notifyEvent(`Couldn't play ${preset.label}`, { variant: 'error' }))
       }
       // unassigned slots (2-4 until saved) just do nothing

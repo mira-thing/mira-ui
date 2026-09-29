@@ -1,30 +1,34 @@
 .banner {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  top: 12px;
+  left: 50%;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  transform: translateX(-50%);
   z-index: $z-menu;
 
   display: flex;
   align-items: center;
   justify-content: center;
   @include flex-gap-x($s-3);
-  min-height: 48px;
+  min-height: 54px;
   padding: $s-3 $s-5;
 
-  background: $surface-elev;
-  border-radius: 0 0 $r-lg $r-lg;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+  @include floating-glass;
 
   animation: reconnectSlideIn $dur-base $ease-standard both;
 }
 
+.lowered {
+  top: 78px;
+}
+
 @keyframes reconnectSlideIn {
   from {
-    transform: translateY(-100%);
+    transform: translate(-50%, calc(-100% - 24px));
   }
   to {
-    transform: translateY(0);
+    transform: translate(-50%, 0);
   }
 }
 
@@ -33,7 +37,7 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: $accent;
+  background: $text-primary;
   animation: reconnectPulse 1.6s ease-in-out infinite;
 }
 
@@ -52,6 +56,7 @@
   font-weight: $fw-semibold;
   color: $text-primary;
   text-align: center;
+  max-width: 460px;
 }
 
 @media (prefers-reduced-motion: reduce) {

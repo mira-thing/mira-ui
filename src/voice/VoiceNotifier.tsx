@@ -31,13 +31,17 @@ export function VoiceNotifier() {
       const { state, text } = (evt.data ?? {}) as VoiceEventData
       switch (state) {
         case 'listening':
-          notify('Listening...', { variant: 'info', durationMs: LONG_MS })
+          notify('Listening...', { variant: 'info', icon: 'microphone', durationMs: LONG_MS })
           break
         case 'thinking':
-          notify(thinkingWord(), { variant: 'info', durationMs: LONG_MS })
+          notify(thinkingWord(), { variant: 'info', icon: 'thinking', durationMs: LONG_MS })
           break
         case 'playing':
-          notify(text ? `Playing ${text}` : 'Playing', { variant: 'success', durationMs: 4000 })
+          notify(text ? `Playing ${text}` : 'Playing', {
+            variant: 'success',
+            icon: 'play',
+            durationMs: 4000,
+          })
           break
         case 'done':
           notify(text || 'Done', { variant: 'success', durationMs: 3500 })

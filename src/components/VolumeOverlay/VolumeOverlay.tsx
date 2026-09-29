@@ -1,3 +1,5 @@
+import { useEffect } from 'react'
+import { useOverlayActivity } from '@/notify/notifyContext'
 import type { VolumeOverlayState } from '@/hooks/useHardwareButtons'
 import styles from './VolumeOverlay.module.scss'
 
@@ -40,6 +42,11 @@ function LockIcon() {
 
 export function VolumeOverlay({ state }: { state: VolumeOverlayState }) {
   const clamped = Math.max(0, Math.min(1, state.value))
+  const { setVolumeVisible } = useOverlayActivity()
+  useEffect(() => {
+    setVolumeVisible(state.visible)
+    return () => setVolumeVisible(false)
+  }, [state.visible, setVolumeVisible])
 
   // cant show the direct volume level so we show the direction
   if (state.phone) {

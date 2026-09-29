@@ -1,1 +1,1 @@
-export { TopBanner, type BannerVariant } from './TopBanner'
+export { TopBanner, type BannerVariant, type BannerIcon } from './TopBanner'

@@ -18,7 +18,7 @@ const ICON_PATHS = {
 } as const
 
 function deviceIconKey(type: string): keyof typeof ICON_PATHS {
-  switch (type) {
+  switch (type.toUpperCase()) {
     case 'SMARTPHONE':
     case 'TABLET':
       return 'phone'
@@ -30,7 +30,7 @@ function deviceIconKey(type: string): keyof typeof ICON_PATHS {
   }
 }
 
-function DeviceTypeIcon({ type, size = 22 }: { type: string; size?: number }) {
+export function DeviceTypeIcon({ type, size = 22 }: { type: string; size?: number }) {
   return (
     <svg
       width={size}
@@ -40,6 +40,7 @@ function DeviceTypeIcon({ type, size = 22 }: { type: string; size?: number }) {
       fillRule="evenodd"
       clipRule="evenodd"
       aria-hidden
+      data-device-type={deviceIconKey(type)}
     >
       <path d={ICON_PATHS[deviceIconKey(type)]} />
     </svg>

@@ -31,7 +31,11 @@ export function useDeviceSwitch({
     // change worth announcing
     if (previous !== undefined && previous !== current) {
       if (status.active) {
-        notify(`Now playing on ${status.device_name}`, { variant: 'info' })
+        notify(`Now playing on ${status.device_name}`, {
+          variant: 'info',
+          icon: 'device',
+          deviceType: status.device_type,
+        })
       } else {
         notify('Nothing is playing. Pick a device or start Spotify', { variant: 'info' })
       }
@@ -42,7 +46,11 @@ export function useDeviceSwitch({
   return useCallback(
     (device: ConnectDevice) => {
       onPicked()
-      notify(`Switching to ${device.name}...`, { variant: 'info' })
+      notify(`Switching to ${device.name}...`, {
+        variant: 'info',
+        icon: 'device',
+        deviceType: device.type,
+      })
       void transferToDevice(device.id).catch((err) => {
         console.warn('transfer failed', err)
         notify(`Couldn't switch to ${device.name}`, { variant: 'error' })
