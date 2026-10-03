@@ -161,6 +161,15 @@ describe('useOverlays', () => {
       expect(render().result.current.sponsorShown()).toBe(true)
     })
 
+    it('asks again when a reflash clears the flag after mount', () => {
+      window.localStorage.setItem('mira.sponsorShown', '1')
+      const { result } = render()
+      expect(result.current.sponsorShown()).toBe(true)
+
+      window.localStorage.removeItem('mira.sponsorShown')
+      expect(result.current.sponsorShown()).toBe(false)
+    })
+
     it('holds the update card off for a day when back dismisses it', () => {
       vi.useFakeTimers()
       vi.setSystemTime(1_000_000)

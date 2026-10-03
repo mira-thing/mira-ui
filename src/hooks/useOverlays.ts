@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 
-const SPONSOR_SHOWN_KEY = 'mira.sponsorShown'
+export const SPONSOR_SHOWN_KEY = 'mira.sponsorShown'
 const UPDATE_REMIND_MS = 24 * 60 * 60 * 1000
 
 export type OverlayId =
@@ -115,17 +115,15 @@ export function useOverlays({ forcedOpen, onClosed }: UseOverlaysParams = {}): O
   const [screensaverBy, setScreensaverBy] = useState<ScreensaverBy>('manual')
 
   const sponsorShownRef = useRef(false)
-  useEffect(() => {
+  const sponsorShown = useCallback(() => {
+    if (sponsorShownRef.current) return true
     try {
-      sponsorShownRef.current = window.localStorage.getItem(SPONSOR_SHOWN_KEY) === '1'
+      return window.localStorage.getItem(SPONSOR_SHOWN_KEY) === '1'
     } catch {
       // no storage: treat it as shown rather than nagging every boot
-      sponsorShownRef.current = true
+      return true
     }
   }, [])
-  // hoisted out of the memo below, which recomputes on every open and close:
-  // these two are stable so a consumer can put them in a dep array
-  const sponsorShown = useCallback(() => sponsorShownRef.current, [])
 
   const updateRemindAtRef = useRef(0)
   const updateRemindAt = useCallback(() => updateRemindAtRef.current, [])
