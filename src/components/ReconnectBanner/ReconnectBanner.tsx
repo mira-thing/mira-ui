@@ -1,6 +1,7 @@
 import { memo, useEffect, useState } from 'react'
 import type { Carriers } from '@/hooks/useBluetooth'
 import styles from './ReconnectBanner.module.scss'
+import { useOverlayActivity } from '@/notify/notifyContext'
 
 export type ReconnectReason = 'offline' | 'ws' | 'dealer'
 
@@ -15,6 +16,7 @@ const PROLONGED_MS = 25000
 // persistent top banner shown while the player holds the last now-playing
 function ReconnectBannerImpl({ reason, carriers }: Props) {
   const [prolonged, setProlonged] = useState(false)
+  const { volumeVisible, notificationVisible } = useOverlayActivity()
 
   useEffect(() => {
     const t = window.setTimeout(() => setProlonged(true), PROLONGED_MS)
@@ -36,8 +38,13 @@ function ReconnectBannerImpl({ reason, carriers }: Props) {
     }
   }
 
+  if (notificationVisible) return null
   return (
-    <div className={styles.banner} role="status" aria-live="polite">
+    <div
+      className={`${styles.banner} ${volumeVisible ? styles.lowered : ''}`}
+      role="status"
+      aria-live="polite"
+    >
       <span className={styles.pulseDot} aria-hidden />
       <span className={styles.message}>{message}</span>
     </div>

@@ -124,3 +124,35 @@ describe('useHardwareButtons preset buttons', () => {
     )
   })
 })
+
+describe('useHardwareButtons volume on a device that cannot take it', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  const turn = () =>
+    act(() => {
+      window.dispatchEvent(new WheelEvent('wheel', { deltaX: 1 }))
+      vi.advanceTimersByTime(60)
+    })
+
+  it('flashes the overlay once, then holds still while the knob keeps spinning', async () => {
+    const setVolume = vi.fn(() => Promise.reject(new Error('no volume control')))
+    const p = params({ status: { ...activeStatus, volume_disabled: true }, setVolume })
+    const { result } = renderHook(() => useHardwareButtons(p))
+
+    turn()
+    expect(result.current.volumeOverlay.visible).toBe(true)
+    await act(async () => {})
+    expect(result.current.volumeOverlay.visible).toBe(false)
+
+    for (let i = 0; i < 5; i++) turn()
+    expect(result.current.volumeOverlay.visible).toBe(false)
+    expect(setVolume).toHaveBeenCalledTimes(1)
+    expect(p.notify).toHaveBeenCalledTimes(1)
+
+    act(() => vi.advanceTimersByTime(4000))
+    turn()
+    expect(result.current.volumeOverlay.visible).toBe(true)
+    expect(setVolume).toHaveBeenCalledTimes(2)
+  })
+})

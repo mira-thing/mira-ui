@@ -59,7 +59,7 @@ function BluetoothMenuImpl({ online, onClose }: Props) {
       if (evt.type !== 'bluetooth/paired' || !pairModeRef.current) return
       const p = evt.data as DevicePairedPayload
       const label = p?.device?.alias || p?.device?.name || p?.device?.address
-      notify(label ? `Paired ${label}` : 'Paired', { variant: 'success' })
+      notify(label ? `Paired ${label}` : 'Paired', { variant: 'success', icon: 'bluetooth' })
       setPairMode(false)
       if (onlineRef.current === true) {
         bt.setDiscoverable(false).catch(() => {})
@@ -100,7 +100,7 @@ function BluetoothMenuImpl({ online, onClose }: Props) {
     setBusy(d.address)
     bt.forgetDevice(d.address)
       .then(() => {
-        notify(`Removed ${deviceLabel(d)}`, { variant: 'info' })
+        notify(`Removed ${deviceLabel(d)}`, { variant: 'info', icon: 'bluetooth' })
         refresh()
       })
       .catch(() => notify(`Couldn't remove ${deviceLabel(d)}`, { variant: 'error' }))
@@ -119,7 +119,7 @@ function BluetoothMenuImpl({ online, onClose }: Props) {
   const onConnect = (d: KnownBluetoothDevice) => {
     setArmedForget(null)
     if (isSettled(d)) return
-    notify(`Connecting to ${deviceLabel(d)}...`, { variant: 'info' })
+    notify(`Connecting to ${deviceLabel(d)}...`, { variant: 'info', icon: 'bluetooth' })
     bt.connectKnownDevice(d.address).catch(() =>
       notify(`Couldn't connect to ${deviceLabel(d)}`, { variant: 'error' }),
     )
