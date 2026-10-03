@@ -52,6 +52,18 @@ describe('useSponsorGate', () => {
     expect(onShow).not.toHaveBeenCalled()
   })
 
+  it('still asks when a reflash clears the flag after playback started', () => {
+    // the first active status can come over the socket before the poll carries the flash id
+    let shown = true
+    const onShow = vi.fn()
+    renderHook(() => useSponsorGate(params({ shown: () => shown, onShow })))
+
+    advance(2000)
+    shown = false
+    advance(SPONSOR_AFTER_PLAY_MS)
+    expect(onShow).toHaveBeenCalledTimes(1)
+  })
+
   it('drops the ask if it was shown while the timer was running', () => {
     // the power menu can open it by hand mid-countdown
     let shown = false

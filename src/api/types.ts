@@ -10,6 +10,7 @@ export interface ObserverStatusInactive {
   latest_highlights?: string[]
   update_available?: boolean
   update_mandatory?: boolean
+  flash_id?: string
 }
 
 // first-run library indexing progress ('setup_progress' event + status field)
@@ -82,6 +83,7 @@ export interface ObserverStatusActive {
   latest_highlights?: string[]
   update_available?: boolean
   update_mandatory?: boolean
+  flash_id?: string
 }
 
 export type ObserverStatus = ObserverStatusActive | ObserverStatusInactive

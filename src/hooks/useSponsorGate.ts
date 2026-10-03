@@ -26,7 +26,7 @@ export function useSponsorGate({ status, shown, onShow }: UseSponsorGateParams):
   const show = useEffectEvent(() => onShow())
 
   useEffect(() => {
-    if (!playing || settingUp || isShown()) return
+    if (!playing || settingUp) return
     const t = window.setTimeout(() => {
       if (!isShown()) show()
     }, SPONSOR_AFTER_PLAY_MS)
