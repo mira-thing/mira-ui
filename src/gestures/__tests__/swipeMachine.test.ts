@@ -24,7 +24,7 @@ describe('swipeMachine', () => {
     const { actions, state } = run([
       { type: 'start', x: 200, y: 100, touches: 1 },
       { type: 'move', x: 200, y: 100, touches: 1 },
-      { type: 'move', x: 130, y: 102, touches: 1 },
+      { type: 'move', x: 60, y: 102, touches: 1 },
       { type: 'end', touches: 0 },
     ])
     expect(actions).toEqual(['next'])
@@ -34,7 +34,8 @@ describe('swipeMachine', () => {
   it('1-finger swipe right -> prev', () => {
     const { actions } = run([
       { type: 'start', x: 100, y: 100, touches: 1 },
-      { type: 'move', x: 175, y: 105, touches: 1 },
+      { type: 'move', x: 240, y: 105, touches: 1 },
+      { type: 'end', touches: 0 },
     ])
     expect(actions).toEqual(['prev'])
   })
@@ -164,9 +165,31 @@ describe('swipeMachine', () => {
       { type: 'start', x: 200, y: 100, touches: 1 },
       { type: 'move', x: 130, y: 100, touches: 1 },
       { type: 'start', x: 200, y: 100, touches: 1 },
-      { type: 'move', x: 130, y: 100, touches: 1 },
+      { type: 'move', x: 60, y: 100, touches: 1 },
+      { type: 'end', touches: 0 },
     ])
-    expect(actions).toEqual(['next', 'next'])
+    expect(actions).toEqual(['next'])
+  })
+
+  it.each([-129, -70, 70, 129])('does not skip for a small horizontal drag of %ipx', (dx) => {
+    expect(
+      run([
+        { type: 'start', x: 300, y: 100, touches: 1 },
+        { type: 'move', x: 300 + dx, y: 102, touches: 1 },
+        { type: 'end', touches: 0 },
+      ]).actions,
+    ).toEqual([])
+  })
+
+  it('previews without skipping until release and cancels a drag returned near its origin', () => {
+    const started = run([
+      { type: 'start', x: 200, y: 100, touches: 1 },
+      { type: 'move', x: 110, y: 102, touches: 1 },
+    ])
+    expect(started.actions).toEqual([])
+    expect(started.state).toMatchObject({ mode: 'horizontal' })
+    const back = classify(started.state, { type: 'move', x: 190, y: 102, touches: 1 })
+    expect(classify(back.next, { type: 'end', touches: 0 }).action).toBeUndefined()
   })
 })
 

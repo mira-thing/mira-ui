@@ -71,7 +71,6 @@ export function PlayerPage({
   const heroArtSize = heroArtSizeFor(settings.uiScalePct)
   const uiScale = useUiScale()
   const appRef = useRef<HTMLDivElement>(null)
-  const stageRef = useRef<HTMLDivElement | null>(null)
   usePanelPaintCache(appRef, String(artSize), uiScale)
 
   const onSeek = useCallback(
@@ -112,11 +111,15 @@ export function PlayerPage({
     !overlays.isOpen('settings') &&
     !pairing
   const scene = useTrackScene(status, controls.transitioning, controls.trackTransition)
-  useSwipeGestures(stageRef, {
+  const stageRef = useSwipeGestures<HTMLDivElement>({
     onNext: controls.onNext,
     onPrev: controls.onPrevTrack,
     onToggleView: toggleLyrics,
     enabled: swipeEnabled,
+    onDrag: scene.drag,
+    onDragEnd: scene.release,
+    canNext: !status.disallow_next,
+    canPrev: !status.disallow_prev,
   })
 
   // presentTrack substitutes the DJ while it talks

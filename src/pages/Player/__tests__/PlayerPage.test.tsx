@@ -74,7 +74,7 @@ function swipeLeft(stage: Element) {
     stage.dispatchEvent(ev)
   }
   send('touchstart', at(200))
-  send('touchmove', at(130))
+  send('touchmove', at(50))
   send('touchend', [])
 }
 

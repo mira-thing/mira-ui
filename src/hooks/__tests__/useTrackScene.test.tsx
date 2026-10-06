@@ -12,6 +12,27 @@ beforeEach(() => {
 })
 afterEach(() => vi.useRealTimers())
 
+function sceneElements() {
+  const root = document.createElement('div')
+  const view = document.createElement('div')
+  view.dataset.trackActive = 'true'
+  const elements = [document.createElement('div'), document.createElement('div')]
+  elements.forEach((el) => {
+    el.dataset.trackMotion = ''
+    view.appendChild(el)
+  })
+  root.appendChild(view)
+  const animate = vi.fn((_frames: unknown, options: KeyframeAnimationOptions) => {
+    const animation = { onfinish: null as (() => void) | null, cancel: () => clearTimeout(timer) }
+    const timer = setTimeout(() => animation.onfinish?.(), Number(options.duration))
+    return animation as unknown as Animation
+  })
+  elements.forEach((el) => {
+    el.animate = animate
+  })
+  return { root, elements, animate }
+}
+
 it('holds the outgoing track until artwork is ready', async () => {
   const ready: ((image: HTMLImageElement | null) => void)[] = []
   vi.mocked(loadArtwork).mockImplementation(() => new Promise((resolve) => ready.push(resolve)))
@@ -43,3 +64,31 @@ it('shows each confirmed track during a burst, dimmed until the last', async () 
   expect(result.current.status?.track_id).toBe('c')
   expect(result.current.pending).toBe(false)
 })
+
+it.each([true, false])(
+  'settles both cover and text immediately on release, pending=%s',
+  async (pending) => {
+    const { result, rerender } = renderHook(({ waiting }) => useTrackScene(track('a'), waiting), {
+      initialProps: { waiting: false },
+    })
+    const { root, elements, animate } = sceneElements()
+    result.current.ref.current = root
+    act(() => {
+      result.current.drag(-180)
+      vi.advanceTimersByTime(20)
+    })
+    expect(elements[0].style.transform).toBe(elements[1].style.transform)
+    expect(elements[0].style.transform).not.toBe('translateX(0px)')
+    act(() => result.current.release())
+    rerender({ waiting: pending })
+    expect(result.current.pending).toBe(pending)
+    await act(async () => vi.advanceTimersByTimeAsync(220))
+    elements.forEach((el) => expect(el.style.transform).toBe('translateX(0px)'))
+    expect(animate).toHaveBeenCalledTimes(2) // one settle per element
+    expect(root.style.transform).toBe('')
+    expect(root.style.opacity).toBe('')
+    rerender({ waiting: false }) // a timeout clears the dim without moving
+    expect(result.current.pending).toBe(false)
+    expect(animate).toHaveBeenCalledTimes(2)
+  },
+)

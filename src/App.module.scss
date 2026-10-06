@@ -34,6 +34,7 @@
 .trackScene {
   position: absolute;
   @include inset-0;
+  touch-action: none;
 }
 
 .viewActive {

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { ObserverStatusActive } from '@/api/types'
 import { loadArtwork } from './useColorExtract'
 import type { TrackTransition } from './usePlayerControls'
+import { getUiScale } from '@/uiScale'
 
 // only the cover and metadata move
 export function useTrackScene(
@@ -14,9 +15,11 @@ export function useTrackScene(
   const current = useRef(status)
   const displayedRef = useRef(displayed)
   const dragX = useRef(0)
+  const dragFrame = useRef(0)
   const cancelMotion = useRef<(() => void) | null>(null)
   const settling = useRef(Promise.resolve())
   const reduced = useRef<MediaQueryList | null>(null)
+  const gestureAcknowledged = useRef(false)
   const [localPending, setLocalPending] = useState(transitioning)
   useLayoutEffect(() => {
     current.current = status
@@ -41,51 +44,78 @@ export function useTrackScene(
     [],
   )
 
-  const release = useCallback(() => {
-    cancelMotion.current?.()
-    const distance = dragX.current
-    dragX.current = 0
-    const elements = motionNodes()
-    const reset = () =>
-      elements.forEach((el) => {
-        el.style.transform = 'translateX(0px)'
-        el.style.willChange = ''
-      })
-    if (!distance || reduced.current?.matches || !elements[0]?.animate) {
-      reset()
-      settling.current = Promise.resolve()
-      return
-    }
-    settling.current = new Promise<void>((resolve) => {
-      const animations = elements.map((el) => {
-        el.style.willChange = 'transform'
-        return el.animate(
-          [{ transform: `translateX(${distance}px)` }, { transform: 'translateX(0px)' }],
-          { duration: 220, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)', fill: 'forwards' },
-        )
-      })
-      let finished = false
-      const finish = () => {
-        if (finished) return
-        finished = true
-        clearTimeout(timer)
+  const release = useCallback(
+    (committed?: boolean) => {
+      gestureAcknowledged.current = committed === true
+      cancelAnimationFrame(dragFrame.current)
+      dragFrame.current = 0
+      cancelMotion.current?.()
+      const distance = dragX.current
+      dragX.current = 0
+      const elements = motionNodes()
+      const reset = () =>
+        elements.forEach((el) => {
+          el.style.transform = 'translateX(0px)'
+          el.style.willChange = ''
+        })
+      if (!distance || reduced.current?.matches || !elements[0]?.animate) {
         reset()
-        animations.forEach((animation) => animation.cancel())
-        cancelMotion.current = null
-        resolve()
+        settling.current = Promise.resolve()
+        return
       }
-      const timer = window.setTimeout(finish, 320)
-      animations[0].onfinish = finish
-      cancelMotion.current = finish
-    })
-  }, [motionNodes])
+      settling.current = new Promise<void>((resolve) => {
+        const animations = elements.map((el) => {
+          el.style.willChange = 'transform'
+          return el.animate(
+            [{ transform: `translateX(${distance}px)` }, { transform: 'translateX(0px)' }],
+            { duration: 220, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)', fill: 'forwards' },
+          )
+        })
+        let finished = false
+        const finish = () => {
+          if (finished) return
+          finished = true
+          clearTimeout(timer)
+          reset()
+          animations.forEach((animation) => animation.cancel())
+          cancelMotion.current = null
+          resolve()
+        }
+        const timer = window.setTimeout(finish, 320)
+        animations[0].onfinish = finish
+        cancelMotion.current = finish
+      })
+    },
+    [motionNodes],
+  )
 
   useEffect(() => {
     if (!request) return
+    if (gestureAcknowledged.current) {
+      gestureAcknowledged.current = false
+      return
+    }
     cancelMotion.current?.()
     dragX.current = request.direction * 7
     release()
   }, [request, release])
+
+  const drag = useCallback(
+    (distance: number) => {
+      cancelMotion.current?.()
+      if (reduced.current?.matches) return
+      dragX.current = 12 * Math.tanh(distance / getUiScale() / 100)
+      if (dragFrame.current) return
+      dragFrame.current = requestAnimationFrame(() => {
+        dragFrame.current = 0
+        motionNodes().forEach((el) => {
+          el.style.willChange = 'transform'
+          el.style.transform = `translateX(${dragX.current}px)`
+        })
+      })
+    },
+    [motionNodes],
+  )
 
   const identity = status ? `${status.track_id}\n${status.track_image}` : undefined
   useEffect(() => {
@@ -115,7 +145,13 @@ export function useTrackScene(
     }
   }, [identity])
 
-  useEffect(() => () => cancelMotion.current?.(), [])
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(dragFrame.current)
+      cancelMotion.current?.()
+    },
+    [],
+  )
 
   return {
     status:
@@ -128,5 +164,7 @@ export function useTrackScene(
       transitioning ||
       !!(localPending && status && displayed && status.track_id !== displayed.track_id),
     ref: node,
+    drag,
+    release,
   }
 }

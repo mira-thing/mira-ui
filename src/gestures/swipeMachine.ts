@@ -3,7 +3,7 @@
 //   two-finger up/down swipe   - toggle lyrics/album view
 
 // 1 finger horizontal distance to commit a track skip
-export const SWIPE_MIN_PX = 50
+export const SWIPE_MIN_PX = 130
 // 2 finger accumulated vertical distance to commit a view toggle
 export const TWO_FINGER_MIN_PX = 24
 // horizontal travel must beat vertical by this factor to count as a swipe
@@ -56,8 +56,9 @@ export type SwipeState =
       kind: 'tracking'
       startX: number
       startY: number
+      lastX: number
       maxTouches: number
-      mode: 'undecided' | 'vscroll' | 'committed'
+      mode: 'undecided' | 'vscroll' | 'horizontal' | 'committed'
       // two finger vertical accumulator
       lastCount: number
       lastY: number
@@ -84,6 +85,7 @@ function sample(state: SwipeState, x: number, y: number, touches: number): Swipe
         kind: 'tracking',
         startX: x,
         startY: y,
+        lastX: x,
         maxTouches: touches,
         mode: 'undecided',
         lastCount: touches,
@@ -105,7 +107,7 @@ function sample(state: SwipeState, x: number, y: number, touches: number): Swipe
     accumY += y - state.lastY
   }
 
-  const base: SwipeState = { ...state, maxTouches, lastCount: touches, lastY: y, accumY }
+  const base: SwipeState = { ...state, maxTouches, lastCount: touches, lastX: x, lastY: y, accumY }
 
   // two fingers only the vertical view toggle path is live
   if (maxTouches >= 2) {
@@ -129,8 +131,8 @@ function sample(state: SwipeState, x: number, y: number, touches: number): Swipe
     return { next: { ...base, mode: 'vscroll' } }
   }
   // committed horizontal swipe
-  if (adx >= SWIPE_MIN_PX && adx > AXIS_RATIO * ady) {
-    return { next: { ...base, mode: 'committed' }, action: dx < 0 ? 'next' : 'prev' }
+  if (adx > AXIS_DECIDE_PX && adx > AXIS_RATIO * ady) {
+    return { next: { ...base, mode: 'horizontal' } }
   }
   return { next: base }
 }
@@ -147,6 +149,13 @@ export function classify(state: SwipeState, event: SwipeEvent): SwipeResult {
     case 'end':
       // wait until every finger is up before resetting
       if (event.touches > 0) return { next: state }
+      if (state.kind === 'tracking' && state.maxTouches === 1 && state.mode === 'horizontal') {
+        const dx = state.lastX - state.startX
+        return {
+          next: INITIAL_SWIPE_STATE,
+          action: Math.abs(dx) >= SWIPE_MIN_PX ? (dx < 0 ? 'next' : 'prev') : undefined,
+        }
+      }
       return { next: INITIAL_SWIPE_STATE }
   }
 }
