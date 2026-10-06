@@ -44,20 +44,23 @@ export function SeekForward15Icon({ size = 18 }: { size?: number }) {
   return <PathIcon16 size={size} paths={[SEEK_FWD_ARC, SEEK_FWD_15]} />
 }
 
-export function PrevIcon({ size = 28 }: { size?: number }) {
+function SkipIcon({ size, previous = false }: { size: number; previous?: boolean }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M6 5h2v14H6zM20 5l-12 7 12 7z" />
+      <g transform={previous ? 'translate(24 0) scale(-1 1)' : undefined}>
+        <path d="M6.1 5.6C5.48 5.19 4.7 5.63 4.7 6.35v11.3c0 .72.78 1.16 1.4.75l8.8-5.55c.63-.4.63-1.3 0-1.7Z" />
+        <rect x="17" y="5" width="2.4" height="14" rx="1.2" />
+      </g>
     </svg>
   )
 }
 
+export function PrevIcon({ size = 28 }: { size?: number }) {
+  return <SkipIcon size={size} previous />
+}
+
 export function NextIcon({ size = 28 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M16 5h2v14h-2zM4 5l12 7-12 7z" />
-    </svg>
-  )
+  return <SkipIcon size={size} />
 }
 
 export function ShuffleIcon({ size = 18 }: { size?: number }) {

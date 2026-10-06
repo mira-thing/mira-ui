@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { ProgressBar } from '../ProgressBar'
 import { activeStatus } from '../../../__tests__/fixtures/observer'
 import { NarrationContext } from '@/hooks/useDJNarration'
@@ -37,6 +37,23 @@ function stubPointerCapture(el: HTMLElement) {
   el.setPointerCapture = () => undefined
   el.releasePointerCapture = () => undefined
 }
+
+const animateDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'animate')
+const animate = vi.fn(() => ({ cancel: vi.fn() }))
+
+beforeEach(() => {
+  vi.useFakeTimers()
+  vi.setSystemTime(activeStatus.received_at)
+  animate.mockClear()
+  Object.defineProperty(Element.prototype, 'animate', { configurable: true, value: animate })
+})
+
+afterEach(() => {
+  cleanup()
+  vi.useRealTimers()
+  if (animateDescriptor) Object.defineProperty(Element.prototype, 'animate', animateDescriptor)
+  else Reflect.deleteProperty(Element.prototype, 'animate')
+})
 
 describe('ProgressBar DOM event wiring', () => {
   it('routes pointerdown pointerup into a seek call at the tapped position', () => {
@@ -133,5 +150,33 @@ describe('ProgressBar DOM event wiring', () => {
     // no provider at all: the context default must mean "not narrating"
     render(<ProgressBar status={activeStatus} onSeek={onSeek} />)
     expect(screen.getByRole('slider')).toHaveAttribute('aria-disabled', 'false')
+  })
+
+  it('holds dragged and pending positions until acknowledged, then resumes interpolation', () => {
+    const onSeek = vi.fn()
+    const { container, rerender } = render(<ProgressBar status={activeStatus} onSeek={onSeek} />)
+    const slider = screen.getByRole('slider')
+    mockBarRect(slider, 800)
+    stubPointerCapture(slider)
+    const fill = slider.querySelector(':scope > div > div > div') as HTMLElement
+    fireEvent.pointerDown(slider, { clientX: 400, pointerId: 1 })
+    fireEvent.pointerMove(slider, { clientX: 560, pointerId: 1 })
+    expect(fill.style.transform).toBe('scaleX(0.7)')
+    expect(vi.getTimerCount()).toBe(0)
+    fireEvent.pointerUp(slider, { clientX: 560, pointerId: 1 })
+    act(() => vi.advanceTimersByTime(1000))
+    expect(onSeek).toHaveBeenCalledWith(126_000)
+    expect(container.querySelector('span')?.textContent).toBe('2:06')
+    expect(fill.style.transform).toBe('scaleX(0.7)')
+    expect(animate).toHaveBeenCalledTimes(2)
+    rerender(
+      <ProgressBar
+        status={{ ...activeStatus, position: 126_000, received_at: Date.now() }}
+        onSeek={onSeek}
+      />,
+    )
+    expect(animate).toHaveBeenCalledTimes(4)
+    act(() => vi.advanceTimersByTime(1000))
+    expect(container.querySelector('span')?.textContent).toBe('2:07')
   })
 })

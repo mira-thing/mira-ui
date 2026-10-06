@@ -75,7 +75,7 @@
 }
 
 .toggleOn {
-  color: $accent;
+  color: $text-primary;
 
   &::after {
     content: '';
@@ -86,6 +86,6 @@
     width: 4px;
     height: 4px;
     border-radius: 50%;
-    background: $accent;
+    background: currentColor;
   }
 }

@@ -7,14 +7,17 @@
 }
 
 .appPlaying {
+  --panel-radius: #{$r-panel};
   display: grid;
   grid-template-rows: minmax(0, 1fr) $bottom-bar-h;
-  padding: $pad-y $pad-x 28px;
-  gap: $s-3;
+  padding: $pad-y $pad-x $s-3;
+  row-gap: $s-3;
+  background: #0f0f10;
 }
 
 .stage {
   position: relative;
+  z-index: $z-content;
   min-height: 0;
   min-width: 0;
   animation: fadeIn $dur-slow $ease-standard both;
@@ -30,19 +33,26 @@
 
 .viewActive {
   opacity: 1;
+  visibility: visible;
   transform: translateY(0);
 }
 
 .viewInactive {
+  --player-marquee-state: paused;
   opacity: 0;
+  visibility: hidden;
   transform: translateY(14px);
   pointer-events: none;
+  transition:
+    opacity $dur-slow $ease-standard,
+    transform $dur-slow $ease-emphasized,
+    visibility 0s $dur-slow;
 }
 
 .top {
   display: grid;
-  grid-template-columns: var(--art-size, #{$art-size}) minmax(0, 1fr);
-  gap: $col-gap;
+  grid-template-columns: calc(var(--art-size, #{$art-size}) + 34px) minmax(0, 1fr);
+  column-gap: $s-3;
   min-height: 0;
   min-width: 0;
   width: 100%;
@@ -51,12 +61,16 @@
 }
 
 .left {
+  position: relative;
   @include column;
-  align-items: stretch;
+  align-items: flex-start;
   justify-content: flex-start;
-  width: var(--art-size, #{$art-size});
+  width: auto;
   min-height: 0;
   @include flex-gap-y($s-3);
+  padding: $s-4;
+  border-radius: $r-panel;
+  @include glass-panel;
 }
 
 .right {
@@ -88,11 +102,10 @@
   height: $bottom-bar-h;
   @include column;
   justify-content: center;
-  padding: 0 $pad-x;
-  margin: 0 (-$pad-x);
-  border-top: 1px solid $divider;
+  padding: $s-2 $s-5;
+  border-radius: $r-panel;
+  @include glass-panel($face: 0.095);
   z-index: $z-bottom-bar;
-  @include flex-gap-y($s-2);
 }
 
 .transitioning {

@@ -6,11 +6,12 @@ interface Props {
   trackName: string
   artist: string
   large?: boolean
+  compact?: boolean
 }
 
-function TrackInfoImpl({ trackName, artist, large = false }: Props) {
+function TrackInfoImpl({ trackName, artist, large = false, compact = false }: Props) {
   return (
-    <div className={`${styles.info} ${large ? styles.large : ''}`}>
+    <div className={`${styles.info} ${large ? styles.large : ''} ${compact ? styles.compact : ''}`}>
       <Marquee text={trackName || 'Unknown track'} className={styles.title} />
       <Marquee text={artist || 'Failed to fetch'} className={styles.artist} />
     </div>

@@ -1,5 +1,5 @@
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { darkBg, useColorExtract, type RGB } from '@/hooks/useColorExtract'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useArtworkSurface } from '@/components/AmbientGround'
 import { useActiveLine } from '@/hooks/useActiveLine'
 import { useLyricStarts, useLyrics } from '@/hooks/useLyrics'
 import { useNarration } from '@/hooks/useDJNarration'
@@ -127,24 +127,31 @@ const LyricLine = memo(function LyricLine({
   )
 })
 
-// the shell shared by the loading, empty and instrumental states
-function LyricsState({
+function LyricsPanel({
   children,
   style,
   ref,
+  state = true,
 }: {
   children: React.ReactNode
   style?: React.CSSProperties
   ref?: React.Ref<HTMLDivElement>
+  state?: boolean
 }) {
   return (
-    <div className={`${styles.lyrics} ${styles.state}`} style={style} ref={ref}>
-      <div className={styles.stateText}>{children}</div>
+    <div
+      className={`${styles.lyrics}${state ? ` ${styles.state}` : ''}`}
+      style={style}
+      ref={ref}
+      data-glass-panel=""
+    >
+      {state ? <div className={styles.stateText}>{children}</div> : children}
     </div>
   )
 }
 
 function LyricsImpl({ status, onSeek, active = true }: Props) {
+  const surfaceStyle = useArtworkSurface(0, 0.15)
   const isPodcast = status.track_uri.startsWith('spotify:episode:')
   // status points at the next song while the DJ speaks
   const { narrating } = useNarration()
@@ -164,7 +171,6 @@ function LyricsImpl({ status, onSeek, active = true }: Props) {
     karaoke: karaokeLyrics,
   })
 
-  const color: RGB = useColorExtract(narrating ? '' : status.track_image)
   const starts = useLyricStarts(lyrics)
   const synced = lyrics?.syncType === 'LINE_SYNCED'
   const activeIdx = useActiveLine(status, synced ? starts : [], active, lyricOffsetMs)
@@ -185,14 +191,6 @@ function LyricsImpl({ status, onSeek, active = true }: Props) {
   const dragStartY = useRef(0)
   const dragStartOffset = useRef(0)
   const dragging = useRef(false)
-
-  const bgStyle = useMemo(() => {
-    const bg = darkBg(color)
-    return {
-      '--lyrics-tint': bg,
-      '--lyrics-bg-solid': bg,
-    } as React.CSSProperties
-  }, [color])
 
   const applyOffset = (instant = false) => {
     const list = listRef.current
@@ -310,12 +308,24 @@ function LyricsImpl({ status, onSeek, active = true }: Props) {
     }
   }
 
-  const onLineTap = (idx: number, startMs: number) => {
-    userActiveAt.current = 0
-    window.clearTimeout(snapBackTimer.current)
-    setSeekHint(idx)
-    onSeek?.(startMs)
-  }
+  const onLineTap = useCallback(
+    (idx: number, startMs: number) => {
+      userActiveAt.current = 0
+      window.clearTimeout(snapBackTimer.current)
+      setSeekHint(idx)
+      onSeek?.(startMs)
+    },
+    [onSeek],
+  )
+
+  const canSeek = synced && !status.disallow_seek && !!onSeek
+  const lineClicks = useMemo(
+    () =>
+      starts.map((startMs, i) =>
+        canSeek && startMs >= 0 ? () => onLineTap(i, startMs) : undefined,
+      ),
+    [starts, canSeek, onLineTap],
+  )
 
   const onWheel: React.WheelEventHandler<HTMLDivElement> = (e) => {
     e.preventDefault()
@@ -329,38 +339,38 @@ function LyricsImpl({ status, onSeek, active = true }: Props) {
   // the DJ has no lyrics, and useLyrics keeps the previous track's when disabled
   if (narrating) {
     return (
-      <LyricsState style={bgStyle} ref={containerRef}>
+      <LyricsPanel style={surfaceStyle} ref={containerRef}>
         No lyrics available
-      </LyricsState>
+      </LyricsPanel>
     )
   }
 
   if (loading) {
     return (
-      <LyricsState style={bgStyle} ref={containerRef}>
+      <LyricsPanel style={surfaceStyle} ref={containerRef}>
         {isPodcast ? 'Loading transcript...' : 'Loading lyrics...'}
-      </LyricsState>
+      </LyricsPanel>
     )
   }
 
   if (error || !lyrics || lyrics.lines.length === 0) {
     return (
-      <LyricsState style={bgStyle} ref={containerRef}>
+      <LyricsPanel style={surfaceStyle} ref={containerRef}>
         {isPodcast ? 'No transcript available' : 'No lyrics available'}
-      </LyricsState>
+      </LyricsPanel>
     )
   }
 
   if (isInstrumental(lyrics.lines)) {
     return (
-      <LyricsState style={bgStyle} ref={containerRef}>
+      <LyricsPanel style={surfaceStyle} ref={containerRef}>
         ♪ Instrumental
-      </LyricsState>
+      </LyricsPanel>
     )
   }
 
   return (
-    <div className={styles.lyrics} style={bgStyle} ref={containerRef}>
+    <LyricsPanel style={surfaceStyle} ref={containerRef} state={false}>
       {!synced ? (
         <div className={styles.unsyncedPill} aria-label="lyrics are not time-synced">
           unsynced
@@ -385,12 +395,14 @@ function LyricsImpl({ status, onSeek, active = true }: Props) {
                 : Math.abs(i - effIdx) === 1 && effIdx >= 0
                   ? 'adjacent'
                   : 'far'
-            const startMs = synced ? starts[i] : undefined
-            const onClick =
-              !status.disallow_seek && onSeek && typeof startMs === 'number' && startMs >= 0
-                ? () => onLineTap(i, startMs)
-                : undefined
-            if (karaokeLyrics && i === effIdx && line.syllables && line.syllables.length > 0) {
+            const onClick = lineClicks[i]
+            if (
+              active &&
+              karaokeLyrics &&
+              i === effIdx &&
+              line.syllables &&
+              line.syllables.length > 0
+            ) {
               return (
                 <KaraokeLine key={i} syllables={line.syllables} status={status} onClick={onClick} />
               )
@@ -402,7 +414,7 @@ function LyricsImpl({ status, onSeek, active = true }: Props) {
           <div className={styles.padBottom} aria-hidden />
         </div>
       </div>
-    </div>
+    </LyricsPanel>
   )
 }
 

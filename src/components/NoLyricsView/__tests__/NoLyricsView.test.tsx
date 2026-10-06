@@ -1,20 +1,20 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { NoLyricsView } from '../NoLyricsView'
 import { activeStatus } from '../../../__tests__/fixtures/observer'
-import { NarrationContext, type DJNarration } from '@/hooks/useDJNarration'
+import { presentTrack, type DJNarration } from '@/hooks/useDJNarration'
 import type { ObserverStatusActive } from '@/api/types'
 
 // what App provides while the DJ is speaking
 const talking: DJNarration = { narrating: true, title: 'Up next', artist: 'DJ X' }
 
-function whileTalking(node: React.ReactNode) {
-  return <NarrationContext.Provider value={talking}>{node}</NarrationContext.Provider>
-}
+const quiet: DJNarration = { narrating: false, title: '', artist: '' }
+
+vi.mock('@/components/AmbientGround', () => ({ useArtworkSurface: vi.fn(() => ({})) }))
 
 describe('NoLyricsView', () => {
   it('shows the real track when the DJ is not talking', () => {
-    render(<NoLyricsView status={activeStatus} />)
+    render(<NoLyricsView {...presentTrack(activeStatus, quiet)} />)
     expect(screen.getByText('Test Song')).toBeInTheDocument()
     expect(screen.getByText('Test Artist')).toBeInTheDocument()
     expect(screen.queryByRole('img', { name: 'DJ' })).toBeNull()
@@ -28,7 +28,7 @@ describe('NoLyricsView', () => {
       track_artist: 'Cautious Clay',
       track_image: 'https://x/next.jpg',
     }
-    render(whileTalking(<NoLyricsView status={nextSong} />))
+    render(<NoLyricsView {...presentTrack(nextSong, talking)} />)
 
     expect(screen.getByText('Up next')).toBeInTheDocument()
     expect(screen.getByText('DJ X')).toBeInTheDocument()
@@ -42,7 +42,7 @@ describe('NoLyricsView', () => {
       ...activeStatus,
       track_image: 'https://x/next.jpg',
     }
-    const { container } = render(whileTalking(<NoLyricsView status={nextSong} />))
+    const { container } = render(<NoLyricsView {...presentTrack(nextSong, talking)} />)
     expect(container.querySelector('img[src="https://x/next.jpg"]')).toBeNull()
   })
 })

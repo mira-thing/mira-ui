@@ -31,6 +31,11 @@ if (typeof globalThis.localStorage === 'undefined') {
   }
 }
 
+// jsdom has no element.animate()
+if (typeof Element !== 'undefined' && !Element.prototype.animate) {
+  Element.prototype.animate = () => ({ cancel() {} }) as unknown as Animation
+}
+
 // onUnhandledRequest: 'error' surfaces fetches we forgot to mock
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
 

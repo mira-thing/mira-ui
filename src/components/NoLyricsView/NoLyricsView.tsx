@@ -1,53 +1,24 @@
 import { memo } from 'react'
 import { AlbumArt } from '@/components/AlbumArt'
+
+import { useArtworkSurface } from '@/components/AmbientGround'
 import { Marquee } from '@/components/TrackInfo/Marquee'
-import { presentTrack, useNarration } from '@/hooks/useDJNarration'
-import { useArtLuminance } from '@/hooks/useColorExtract'
-import type { ObserverStatusActive } from '@/api/types'
+import type { TrackPresentation } from '@/hooks/useDJNarration'
 import styles from './NoLyricsView.module.scss'
 
-interface Props {
-  status: ObserverStatusActive
-  active?: boolean
-  // shrinks with the display size so the 130% glow stays inside the stage row
+interface Props extends TrackPresentation {
   artSize?: number
 }
 
 const ART_SIZE = 220
-const GLOW_BASE = 0.75
-const GLOW_CEILING = 0.34
 
-function glowOpacity(luminance: number): number {
-  return Math.min(GLOW_BASE, GLOW_CEILING / Math.max(luminance, 0.001))
-}
-
-function NoLyricsViewImpl({ status, active = true, artSize = ART_SIZE }: Props) {
-  const narration = useNarration()
-  const { title, artist, art, djFallback } = presentTrack(status, narration)
-  const luminance = useArtLuminance(art)
-  const glowStyle = art
-    ? ({
-        '--art': `url("${art}")`,
-        '--glow-opacity': String(glowOpacity(luminance)),
-      } as React.CSSProperties)
-    : undefined
+function NoLyricsViewImpl({ title, artist, art, djFallback, artSize = ART_SIZE }: Props) {
+  const surfaceStyle = useArtworkSurface(0, 0.22)
 
   return (
-    <div className={styles.wrap}>
+    <div className={styles.wrap} style={surfaceStyle} data-glass-panel="">
       <div className={styles.art}>
-        {art ? (
-          <div
-            className={`${styles.glow} ${active ? '' : styles.paused}`}
-            style={glowStyle}
-            aria-hidden
-          >
-            <span className={`${styles.orb} ${styles.orbA}`} />
-            <span className={`${styles.orb} ${styles.orbB}`} />
-          </div>
-        ) : null}
-        <div className={styles.cover}>
-          <AlbumArt src={art} size={artSize} djFallback={djFallback} />
-        </div>
+        <AlbumArt src={art} size={artSize} djFallback={djFallback} />
       </div>
       <div className={styles.meta}>
         <Marquee text={title || 'Unknown track'} className={styles.title} />
