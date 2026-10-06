@@ -20,6 +20,29 @@ function makeMocks() {
 
 const T0 = 1_716_390_000_000
 
+it('does not cancel a newer skip when an older command fails late', async () => {
+  const mocks = makeMocks()
+  let reject!: (error: Error) => void
+  mocks.next.mockImplementationOnce(
+    () =>
+      new Promise((_, fail) => {
+        reject = fail
+      }),
+  )
+  const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  try {
+    const { result } = renderHook(() => usePlayerControls({ status: activeStatus, ...mocks }))
+    act(() => result.current.onNext())
+    act(() => result.current.onPrevTrack())
+    const latest = result.current.trackTransition
+    await act(async () => reject(new Error('old skip failed')))
+    expect(result.current.trackTransition).toBe(latest)
+    expect(result.current.transitioning).toBe(true)
+  } finally {
+    warning.mockRestore()
+  }
+})
+
 beforeEach(() => {
   vi.useFakeTimers()
   vi.setSystemTime(T0)
@@ -325,6 +348,42 @@ describe('usePlayerControls repeat / shuffle cycling', () => {
 })
 
 describe('usePlayerControls track-transition dim', () => {
+  it('orders rapid mixed skips and keeps feedback pending through intermediate tracks', async () => {
+    const mocks = makeMocks()
+    let acknowledge!: () => void
+    mocks.next.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          acknowledge = resolve
+        }),
+    )
+    const { result, rerender } = renderHook(
+      ({ status }) => usePlayerControls({ status, ...mocks }),
+      {
+        initialProps: { status: activeStatus },
+      },
+    )
+    act(() => result.current.onNext())
+    const first = result.current.trackTransition
+    act(() => result.current.onNext())
+    expect(result.current.trackTransition).not.toBe(first)
+    act(() => result.current.onPrevTrack())
+    expect(mocks.next).toHaveBeenCalledTimes(1)
+    expect(mocks.prev).not.toHaveBeenCalled()
+    rerender({ status: { ...activeStatus, track_id: 'b' } })
+    expect(result.current.transitioning).toBe(true)
+    expect(mocks.next).toHaveBeenCalledTimes(1) // and waits for the http ack
+    await act(async () => acknowledge())
+    expect(mocks.next).toHaveBeenCalledTimes(2)
+    expect(mocks.prev).not.toHaveBeenCalled()
+    await act(async () => rerender({ status: { ...activeStatus, track_id: 'c' } }))
+    expect(mocks.prev).toHaveBeenCalledTimes(1)
+    expect(result.current.transitioning).toBe(true)
+    await act(async () => rerender({ status: { ...activeStatus, track_id: 'b' } }))
+    expect(result.current.transitioning).toBe(false)
+    expect(result.current.trackTransition).toBeNull()
+  })
+
   it('marks transitioning during a next click and clears when the track id changes', () => {
     const mocks = makeMocks()
     const initial: ObserverStatusActive = {

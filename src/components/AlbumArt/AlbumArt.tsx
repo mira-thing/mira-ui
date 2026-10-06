@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react'
 import { DJIcon } from '@/components/Controls/icons'
 import styles from './AlbumArt.module.scss'
+import { loadArtwork } from '@/hooks/useColorExtract'
 
 interface Props {
   src: string | undefined
@@ -8,11 +9,12 @@ interface Props {
   alt?: string
   // show the DJ mark instead of an empty box
   djFallback?: boolean
+  pending?: boolean
 }
 
 const FADE_MS = 220
 
-function AlbumArtImpl({ src, size = 200, alt = '', djFallback = false }: Props) {
+function AlbumArtImpl({ src, size = 200, alt = '', djFallback = false, pending = false }: Props) {
   const [front, setFront] = useState<string | undefined>(src)
   const [back, setBack] = useState<string | undefined>(undefined)
   const [showFront, setShowFront] = useState(true)
@@ -21,21 +23,27 @@ function AlbumArtImpl({ src, size = 200, alt = '', djFallback = false }: Props) 
 
   useEffect(() => {
     if (src === lastRef.current) return
-    lastRef.current = src
-
-    if (showFront) {
-      setBack(src)
-      setShowFront(false)
-    } else {
-      setFront(src)
-      setShowFront(true)
+    let cancelled = false
+    void loadArtwork(src).then((img) => {
+      if (cancelled) return
+      lastRef.current = src
+      const ready = img ? src : undefined
+      if (showFront) {
+        setBack(ready)
+        setShowFront(false)
+      } else {
+        setFront(ready)
+        setShowFront(true)
+      }
+      window.clearTimeout(cleanupRef.current)
+      cleanupRef.current = window.setTimeout(() => {
+        if (showFront) setFront(undefined)
+        else setBack(undefined)
+      }, FADE_MS + 60)
+    })
+    return () => {
+      cancelled = true
     }
-
-    window.clearTimeout(cleanupRef.current)
-    cleanupRef.current = window.setTimeout(() => {
-      if (showFront) setFront(undefined)
-      else setBack(undefined)
-    }, FADE_MS + 60)
   }, [src, showFront])
 
   useEffect(() => () => window.clearTimeout(cleanupRef.current), [])
@@ -52,7 +60,12 @@ function AlbumArtImpl({ src, size = 200, alt = '', djFallback = false }: Props) 
   )
 
   return (
-    <div className={styles.art} style={sizePx}>
+    <div
+      className={`${styles.art} ${pending ? styles.pending : ''}`}
+      style={sizePx}
+      data-track-motion=""
+      data-track-pending={pending}
+    >
       <div
         className={`${styles.layer} ${showFront ? styles.show : styles.hide}`}
         aria-hidden={!showFront}
@@ -65,6 +78,9 @@ function AlbumArtImpl({ src, size = 200, alt = '', djFallback = false }: Props) 
             crossOrigin="anonymous"
             referrerPolicy="no-referrer"
             draggable={false}
+            onError={(e) => {
+              e.currentTarget.style.visibility = 'hidden'
+            }}
           />
         ) : (
           empty
@@ -82,6 +98,9 @@ function AlbumArtImpl({ src, size = 200, alt = '', djFallback = false }: Props) 
             crossOrigin="anonymous"
             referrerPolicy="no-referrer"
             draggable={false}
+            onError={(e) => {
+              e.currentTarget.style.visibility = 'hidden'
+            }}
           />
         ) : (
           empty

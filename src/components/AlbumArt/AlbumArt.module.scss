@@ -20,6 +20,27 @@
   }
 }
 
+// small compositor fade
+.art::after {
+  content: '';
+  @include absolute-fill;
+  background: rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  transition: opacity 150ms $ease-standard;
+  pointer-events: none;
+}
+
+.pending::after {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .art::after,
+  .layer {
+    transition: none;
+  }
+}
+
 .show {
   opacity: 1;
 }

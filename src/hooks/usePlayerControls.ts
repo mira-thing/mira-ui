@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ObserverStatusActive } from '@/api/types'
 import type { RepeatMode } from '@/components/Menu'
 
@@ -11,9 +11,15 @@ interface OptimisticValue<T> {
   at: number
 }
 
-interface TrackTransition {
+export interface TrackTransition {
   fromTrackId: string
   at: number
+  direction: -1 | 1
+}
+
+interface SkipRequest {
+  command: () => Promise<void> | void
+  failed: (err: unknown) => void
 }
 
 export interface UsePlayerControlsParams {
@@ -34,6 +40,7 @@ export interface UsePlayerControlsResult {
   shuffle: boolean
   repeat: RepeatMode
   transitioning: boolean
+  trackTransition: TrackTransition | null
   onPlayPause: () => void
   onPrev: () => void
   onPrevTrack: () => void // straight to prev track (swipe gestures)
@@ -51,6 +58,81 @@ export function usePlayerControls(params: UsePlayerControlsParams): UsePlayerCon
   const [optimisticShuffle, setOptimisticShuffle] = useState<OptimisticValue<boolean> | null>(null)
   const [optimisticRepeat, setOptimisticRepeat] = useState<OptimisticValue<RepeatMode> | null>(null)
   const [trackTransition, setTrackTransition] = useState<TrackTransition | null>(null)
+  const [skipPending, setSkipPending] = useState(false)
+  const skips = useRef<SkipRequest[]>([])
+  const activeSkip = useRef<{
+    from: string
+    confirm: () => void
+    cancel: () => void
+  } | null>(null)
+  const statusRef = useRef(status)
+  const mounted = useRef(true)
+  useLayoutEffect(() => {
+    statusRef.current = status
+  })
+
+  // one command in flight at a time
+  const runSkip = useCallback(function runSkip() {
+    const job = skips.current[0]
+    if (!mounted.current || !job || activeSkip.current) return
+    let acknowledged = false
+    let confirmed = false
+    let timer = 0
+    const finish = () => {
+      if (!mounted.current || activeSkip.current !== active) return
+      window.clearTimeout(timer)
+      activeSkip.current = null
+      skips.current.shift()
+      setSkipPending(skips.current.length > 0)
+      if (skips.current.length) runSkip()
+      else setTrackTransition(null)
+    }
+    const active = {
+      from: statusRef.current?.track_id ?? '',
+      confirm: () => {
+        confirmed = true
+        if (skips.current.length === 1) setSkipPending(false)
+        if (acknowledged) finish()
+      },
+      cancel: () => window.clearTimeout(timer),
+    }
+    activeSkip.current = active
+    timer = window.setTimeout(() => {
+      if (activeSkip.current !== active) return
+      skips.current = []
+      finish()
+      job.failed(new Error('Skip response timed out'))
+    }, 8000)
+    void (async () => {
+      try {
+        await job.command()
+        if (!mounted.current || activeSkip.current !== active) return
+        acknowledged = true
+        window.clearTimeout(timer)
+        if (confirmed) finish()
+        else timer = window.setTimeout(finish, TRANSITION_TIMEOUT_MS + 50)
+      } catch (err) {
+        if (!mounted.current || activeSkip.current !== active) return
+        finish()
+        job.failed(err)
+      }
+    })()
+  }, [])
+
+  useEffect(() => {
+    const active = activeSkip.current
+    if (active && status && status.track_id !== active.from) active.confirm()
+  }, [status?.track_id, status])
+
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+      activeSkip.current?.cancel()
+      activeSkip.current = null
+      skips.current = []
+    }
+  }, [])
 
   const lastPrevAtRef = useRef(0)
 
@@ -71,12 +153,6 @@ export function usePlayerControls(params: UsePlayerControlsParams): UsePlayerCon
     const t = window.setTimeout(() => setOptimisticRepeat(null), OPTIMISTIC_SAFETY_TIMEOUT_MS)
     return () => window.clearTimeout(t)
   }, [optimisticRepeat])
-
-  useEffect(() => {
-    if (!trackTransition) return
-    const t = window.setTimeout(() => setTrackTransition(null), TRANSITION_TIMEOUT_MS + 50)
-    return () => window.clearTimeout(t)
-  }, [trackTransition])
 
   const pauseFromStatus = status?.is_paused ?? false
   const optimisticPauseActive = optimisticPause != null && pauseFromStatus !== optimisticPause.value
@@ -100,8 +176,7 @@ export function usePlayerControls(params: UsePlayerControlsParams): UsePlayerCon
   const repeat =
     optimisticRepeatActive && optimisticRepeat ? optimisticRepeat.value : repeatFromStatus
 
-  const transitioning =
-    trackTransition != null && status != null && status.track_id === trackTransition.fromTrackId
+  const transitioning = skipPending && status != null
 
   const reportCommandError = useCallback(
     (message: string, err: unknown) => {
@@ -121,38 +196,44 @@ export function usePlayerControls(params: UsePlayerControlsParams): UsePlayerCon
     })
   }, [isPaused, pause, play, reportCommandError])
 
+  const skip = useCallback(
+    (direction: -1 | 1) => {
+      setTrackTransition({
+        fromTrackId: statusRef.current?.track_id ?? '',
+        at: Date.now(),
+        direction,
+      })
+      setSkipPending(true)
+      skips.current.push({
+        command: direction === -1 ? next : prev,
+        failed: (err) =>
+          reportCommandError(direction === -1 ? 'Next failed' : 'Previous failed', err),
+      })
+      runSkip()
+    },
+    [next, prev, reportCommandError, runSkip],
+  )
+
   const onPrev = useCallback(() => {
     const now = Date.now()
     const recent = now - lastPrevAtRef.current < PREV_DOUBLE_TAP_MS
     lastPrevAtRef.current = now
     if (recent) {
       // second press within window > actual prev
-      setTrackTransition({ fromTrackId: status?.track_id ?? '', at: now })
-      void Promise.resolve(prev()).catch((err) => {
-        setTrackTransition(null)
-        reportCommandError('Previous failed', err)
-      })
+      skip(1)
     } else {
       // first press > rewind to start of current track
       void Promise.resolve(seek(0)).catch((err) => reportCommandError('Seek failed', err))
     }
-  }, [prev, reportCommandError, seek, status?.track_id])
+  }, [skip, reportCommandError, seek])
 
   const onPrevTrack = useCallback(() => {
-    setTrackTransition({ fromTrackId: status?.track_id ?? '', at: Date.now() })
-    void Promise.resolve(prev()).catch((err) => {
-      setTrackTransition(null)
-      reportCommandError('Previous failed', err)
-    })
-  }, [prev, reportCommandError, status?.track_id])
+    skip(1)
+  }, [skip])
 
   const onNext = useCallback(() => {
-    setTrackTransition({ fromTrackId: status?.track_id ?? '', at: Date.now() })
-    void Promise.resolve(next()).catch((err) => {
-      setTrackTransition(null)
-      reportCommandError('Next failed', err)
-    })
-  }, [next, reportCommandError, status?.track_id])
+    skip(-1)
+  }, [skip])
 
   const onToggleShuffle = useCallback(() => {
     const nextShuffle = !shuffle
@@ -186,6 +267,7 @@ export function usePlayerControls(params: UsePlayerControlsParams): UsePlayerCon
     shuffle,
     repeat,
     transitioning,
+    trackTransition,
     onPlayPause,
     onPrev,
     onPrevTrack,
