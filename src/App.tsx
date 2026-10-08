@@ -26,6 +26,7 @@ import { useDiscoverableWhilePairing } from '@/hooks/useDiscoverableWhilePairing
 import { useDeviceSwitch } from '@/hooks/useDeviceSwitch'
 import { useHardwareButtons } from '@/hooks/useHardwareButtons'
 import { useIdleScreensaver } from '@/hooks/useIdleScreensaver'
+import { useFlashReset } from '@/hooks/useFlashReset'
 import { useLastArtUrl } from '@/hooks/useLastArtUrl'
 import { isDJContext, useDJNarration } from '@/hooks/useDJNarration'
 import { useNotify } from '@/notify/notifyContext'
@@ -234,6 +235,7 @@ function AppContent() {
   const lastArtUrl = useLastArtUrl(realStatus)
   const utcOffsetMin = useUtcOffset(realStatus)
 
+  useFlashReset(realStatus)
   useSponsorGate({ status: realStatus, shown: overlays.sponsorShown, onShow: openSponsor })
 
   const { choose: chooseConsent } = useCheckinConsent({
