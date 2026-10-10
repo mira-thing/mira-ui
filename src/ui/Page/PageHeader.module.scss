@@ -1,0 +1,30 @@
+.header {
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  padding: 0 $s-3 $s-3;
+  @include flex-gap-x($s-3);
+}
+
+.text {
+  flex: 1 1 auto;
+  min-width: 0;
+  @include column;
+}
+
+.title {
+  color: $text-primary;
+  @include type(title);
+  @include truncate;
+}
+
+.subtitle {
+  color: $text-secondary;
+  @include type(label);
+  @include truncate;
+}
+
+.trailing {
+  flex: 0 0 auto;
+  @include flex-center;
+}

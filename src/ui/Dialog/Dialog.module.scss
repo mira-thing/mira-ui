@@ -1,0 +1,66 @@
+.scrim {
+  @include scrim;
+  z-index: $z-menu;
+  animation: dialogFadeIn $dur-base $ease-standard both;
+}
+
+@keyframes dialogFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.card {
+  max-width: calc(100% - #{$s-6});
+  max-height: calc(100% - #{$s-7});
+  overflow-y: auto;
+  padding: $s-6;
+  color: $text-primary;
+  @include hide-scrollbar;
+  @include column;
+  @include flex-gap-y($s-4);
+  animation: dialogSlideIn $dur-slow $ease-emphasized both;
+}
+
+@keyframes dialogSlideIn {
+  from {
+    transform: translateY(12px) scale(0.98);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.sm {
+  width: 420px;
+}
+
+.md {
+  width: 480px;
+}
+
+.lg {
+  width: 560px;
+}
+
+.solid {
+  background: $bg;
+  border-radius: $r-2xl;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+}
+
+// doubled so it outranks .floating's radius whichever stylesheet loads last
+.card.glass {
+  --surface-radius: #{$r-2xl};
+  border-radius: $r-2xl;
+}
+
+.title {
+  @include type(title);
+  letter-spacing: -0.02em;
+}

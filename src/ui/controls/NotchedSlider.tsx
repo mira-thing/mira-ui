@@ -2,7 +2,7 @@ import { memo, useRef } from 'react'
 import { getUiScale } from '@/uiScale'
 import styles from './NotchedSlider.module.scss'
 
-interface Props {
+export interface NotchedSliderProps {
   ariaLabel: string
   value: number
   min: number
@@ -35,7 +35,7 @@ function NotchedSliderImpl({
   format,
   disabled,
   defaultValue,
-}: Props) {
+}: NotchedSliderProps) {
   const barRef = useRef<HTMLDivElement | null>(null)
   const dragging = useRef(false)
   // the value prop is still the pre-drag one inside the pointerup handler

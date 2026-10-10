@@ -90,6 +90,7 @@ const SCREENS: ScreenDef[] = [
   { id: 'screensaver', label: 'Screensaver', hint: 'Clock over ambient art (double power press)' },
   { id: 'consent', label: 'Consent card', hint: 'First-boot telemetry choice, right after setup' },
   { id: 'update-card', label: 'Update card', hint: 'New release nag on the idle screen' },
+  { id: 'ui-kit', label: 'UI kit', hint: 'Framework primitives' },
 ]
 
 export function DevOverlay() {

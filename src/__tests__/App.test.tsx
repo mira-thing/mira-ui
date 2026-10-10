@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import App from '../App'
 import { DevScreenContext, type DevForcedScreen } from '@/dev/devContext'
@@ -134,6 +134,27 @@ describe('App', () => {
 
       expect((await screen.findAllByText('DJ X')).length).toBeGreaterThan(0)
       expect(screen.queryByText('Reka')).not.toBeInTheDocument()
+    })
+
+    it('renders a forced ui-kit as a page in the shell, over the covered player', async () => {
+      const { container } = renderForced('ui-kit')
+
+      const heading = await screen.findByRole('heading', { name: 'UI kit' })
+      const shell = container.querySelector<HTMLElement>('.shell')!
+      expect(shell.contains(heading)).toBe(true)
+      expect(shell.querySelector('.appPlaying')!.closest('.page')).toHaveClass('pageCovered')
+    })
+
+    it('leaves a forced ui-kit for the player on back, once its dialog is closed', async () => {
+      const { setForced } = renderForced('ui-kit')
+      fireEvent.click(await screen.findByRole('button', { name: 'Glass' }))
+
+      hw.back()
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(setForced).not.toHaveBeenCalled()
+
+      hw.back()
+      expect(setForced).toHaveBeenCalledWith('playing-lyrics')
     })
 
     it('leaves back a no-op on the bare player', async () => {
