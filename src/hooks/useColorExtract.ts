@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react'
 export type RGB = [number, number, number]
 
 // the art is reduced to a 5-bit histogram
-const DEFAULT: RGB = [70, 75, 95]
 const SAMPLE = 32
 const SAMPLE_TAPS = 4
 const SAMPLE_GRID = SAMPLE * SAMPLE_TAPS
@@ -29,9 +28,6 @@ interface Sample {
   rgb: RGB
   palette: RGB[]
 }
-
-const DEFAULT_PALETTE: RGB[] = [DEFAULT, [48, 55, 68], [34, 37, 45]]
-const DEFAULT_SAMPLE: Sample = { rgb: DEFAULT, palette: DEFAULT_PALETTE }
 
 function remember(url: string, sample: Sample) {
   if (!cache.has(url) && cache.size >= CACHE_MAX) {
@@ -187,7 +183,7 @@ function extractAccent(data: ArrayLike<number>): RGB | null {
 
     let winner = -1
     let bestScore = -1
-    let accent: RGB = DEFAULT
+    let accent: RGB = [0, 0, 0]
     for (let f = 0; f <= BINS; f++) {
       if (famWeight[f] === 0) continue
       const rgb: RGB = [
@@ -351,53 +347,51 @@ export function prepareArtwork(url: string | undefined): Promise<void> {
   return work
 }
 
-function useSample(url: string | undefined): Sample {
-  const [sample, setSample] = useState<Sample>(() =>
-    url ? (cache.get(url) ?? DEFAULT_SAMPLE) : DEFAULT_SAMPLE,
-  )
+export interface ArtworkColors {
+  /** null when there is no art, or its colours could not be read */
+  palette: RGB[] | null
+  /** the art is still being sampled; `palette` is null until it settles */
+  pending: boolean
+}
+
+const NO_COLORS: ArtworkColors = { palette: null, pending: false }
+const SAMPLING: ArtworkColors = { palette: null, pending: true }
+
+/** The art's palette, never another url's: a new url reads as pending until it is sampled. */
+export function useArtworkColors(url: string | undefined): ArtworkColors {
+  // a fresh object per attempt, so a retry that settles the same url still re-renders
+  const [settled, setSettled] = useState<{ url: string } | null>(null)
+  // each visit to a url samples afresh, so a miss from an earlier visit cannot read as settled
+  const [visited, setVisited] = useState(url)
+  if (url !== visited) {
+    setVisited(url)
+    setSettled(null)
+  }
 
   useEffect(() => {
-    if (!url) {
-      return
-    }
-
-    const cached = cache.get(url)
-    if (cached) {
-      setSample(cached)
-      return
-    }
-
+    if (!url || cache.has(url)) return
     let cancelled = false
-    const apply = (next: Sample) =>
-      setSample((prev) =>
-        prev.rgb[0] === next.rgb[0] &&
-        prev.rgb[1] === next.rgb[1] &&
-        prev.rgb[2] === next.rgb[2] &&
-        prev.palette === next.palette
-          ? prev
-          : next,
-      )
-
     const timer = window.setTimeout(
       () =>
         void prepareArtwork(url).then(() => {
-          if (cancelled) return
-          apply(cache.get(url) ?? DEFAULT_SAMPLE)
+          if (!cancelled) setSettled({ url })
         }),
       300,
     )
-
     return () => {
       cancelled = true
       window.clearTimeout(timer)
     }
   }, [url])
 
-  return url ? (cache.get(url) ?? sample) : sample
+  if (!url) return NO_COLORS
+  const cached = cache.get(url)
+  if (cached) return { palette: cached.palette, pending: false }
+  return settled?.url === url ? NO_COLORS : SAMPLING
 }
 
-export function useDominantColors(url: string | undefined): RGB[] {
-  return useSample(url).palette
+export function useDominantColors(url: string | undefined): RGB[] | null {
+  return useArtworkColors(url).palette
 }
 
 function rgbToHsl(r: number, g: number, b: number): [number, number, number] {

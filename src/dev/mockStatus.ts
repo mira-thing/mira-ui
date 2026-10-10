@@ -1,10 +1,16 @@
 import type { ObserverStatusActive } from '@/api/types'
+import { DJ_PLAYLIST_URI, type DJNarration } from '@/hooks/useDJNarration'
+
+export type MockStatusKind = 'track' | 'no-art' | 'dj'
+
+// what useDJNarration reports while the DJ talks over the mock DJ set
+export const MOCK_NARRATION: DJNarration = { narrating: true, title: 'Up next', artist: 'DJ X' }
 
 // mock playback state used by the dev screen switcher
-export function makeMockStatus(): ObserverStatusActive {
+export function makeMockStatus(kind: MockStatusKind = 'track'): ObserverStatusActive {
   const env = import.meta.env
   const trackId = env.VITE_MOCK_TRACK_ID ?? ''
-  return {
+  const status: ObserverStatusActive = {
     active: true,
     device_id: 'dev-mock',
     device_name: 'Dev Mock',
@@ -30,4 +36,14 @@ export function makeMockStatus(): ObserverStatusActive {
     raw_metadata: null,
     received_at: Date.now(),
   }
+  if (kind === 'no-art') return { ...status, track_image: '' }
+  if (kind === 'dj') {
+    return {
+      ...status,
+      context_uri: DJ_PLAYLIST_URI,
+      context_name: 'DJ',
+      raw_metadata: { agentic_product_type: 'dj' },
+    }
+  }
+  return status
 }

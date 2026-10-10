@@ -66,6 +66,8 @@ const SCREENS: ScreenDef[] = [
   { id: 'idle', label: 'Idle (no playback)' },
   { id: 'playing-lyrics', label: 'Playing: lyrics' },
   { id: 'playing-no-lyrics', label: 'Playing: no lyrics' },
+  { id: 'playing-no-art', label: 'Playing: no art', hint: 'Idle theme over the player' },
+  { id: 'dj-narrating', label: 'DJ talking', hint: 'Holds the album theme under the DJ' },
   { id: 'pairing', label: 'Pairing dialog', hint: 'Over the player view' },
   { id: 'menu', label: 'Menu open', hint: 'Bottom-sheet over player' },
   { id: 'power-menu', label: 'Power menu', hint: 'Sleep/Restart/Reset (tap Reset for confirm)' },

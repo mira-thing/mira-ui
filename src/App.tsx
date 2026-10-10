@@ -19,7 +19,7 @@ import { createRouteBack, RouteBackContext } from '@/app/routeBack'
 import { resolveRoute } from '@/app/routes'
 import { usePages, type PageId } from '@/app/usePages'
 import { forcedPageOf, useDevScreen } from '@/dev/devContext'
-import { makeMockStatus } from '@/dev/mockStatus'
+import { makeMockStatus, MOCK_NARRATION, type MockStatusKind } from '@/dev/mockStatus'
 import { useAuth } from '@/hooks/useAuth'
 import { useConnectDevices } from '@/hooks/useConnectDevices'
 import { useCheckinConsent } from '@/hooks/useCheckinConsent'
@@ -32,7 +32,7 @@ import { useHardwareButtons } from '@/hooks/useHardwareButtons'
 import { useIdleScreensaver } from '@/hooks/useIdleScreensaver'
 import { useFlashReset } from '@/hooks/useFlashReset'
 import { useLastArtUrl } from '@/hooks/useLastArtUrl'
-import { isDJContext, useDJNarration } from '@/hooks/useDJNarration'
+import { isDJContext, presentTrack, useDJNarration } from '@/hooks/useDJNarration'
 import { useNotify } from '@/notify/notifyContext'
 import { useObserver } from '@/hooks/useObserver'
 import { useOfflineScreen } from '@/hooks/useOfflineScreen'
@@ -43,8 +43,10 @@ import { AuthPage } from '@/pages/Auth/AuthPage'
 import { BootPage } from '@/pages/Boot/BootPage'
 import { OfflinePage } from '@/pages/Offline/OfflinePage'
 import { PlayerPage } from '@/pages/Player/PlayerPage'
+import { artSizeFor } from '@/pages/Player/playerLayout'
 import { usePlayerControls } from '@/hooks/usePlayerControls'
 import { usePrefetch } from '@/hooks/usePrefetch'
+import { useTrackScene } from '@/hooks/useTrackScene'
 import { resolveDropReason, useHeldStatus } from '@/hooks/useReconnect'
 import { useSponsorGate } from '@/hooks/useSponsorGate'
 import { useUpdateNotice } from '@/hooks/useUpdateNotice'
@@ -156,12 +158,16 @@ function AppContent() {
   const LOAD_STUCK_MS = 30000
   const loadStuck = useDelayedFlag(true, LOAD_STUCK_MS)
 
-  const mockStatus = useMemo<ObserverStatusActive>(() => makeMockStatus(), [])
+  const mockKind: MockStatusKind =
+    forced === 'playing-no-art' ? 'no-art' : forced === 'dj-narrating' ? 'dj' : 'track'
+  const mockStatus = useMemo<ObserverStatusActive>(() => makeMockStatus(mockKind), [mockKind])
   const forcedPage = forcedPageOf(forced)
 
   const status =
     forced === 'playing-lyrics' ||
     forced === 'playing-no-lyrics' ||
+    forced === 'playing-no-art' ||
+    forced === 'dj-narrating' ||
     forced === 'pairing' ||
     forced === 'menu' ||
     forced === 'power-menu' ||
@@ -310,10 +316,12 @@ function AppContent() {
   })
 
   const savableStatus = status && status.active ? status : reconnecting ? heldStatus : null
+  const scene = useTrackScene(savableStatus, controls.transitioning, controls.trackTransition)
   // resolved here so the hook stays unconditional
   const isDJ = isDJContext(savableStatus)
   // owns the DJ hold
-  const narration = useDJNarration(savableStatus, seenNarration)
+  const liveNarration = useDJNarration(savableStatus, seenNarration)
+  const narration = forced === 'dj-narrating' ? MOCK_NARRATION : liveNarration
   const statusActive = status?.active === true
   const onPlayPauseActive = controls.onPlayPause
   const resumeLast = useCallback(() => {
@@ -645,6 +653,9 @@ function AppContent() {
     const bannerReason: ReconnectReason | null =
       forced === 'reconnect-banner' ? 'offline' : reconnecting ? dropReason : null
 
+    // the theme follows what the player presents, so the DJ keeps the album's colours
+    const shown = presentTrack(scene.status ?? playerStatus, narration)
+
     const renderPage = (id: PageId) => {
       switch (id) {
         case 'player':
@@ -653,6 +664,7 @@ function AppContent() {
               status={playerStatus}
               live={statusActive}
               controls={controls}
+              scene={scene}
               narration={narration}
               showLyrics={showLyrics}
               bannerReason={bannerReason}
@@ -675,6 +687,8 @@ function AppContent() {
           onBack={pages.pop}
           renderPage={renderPage}
           overlays={globalOverlays}
+          theme={{ art: shown.art, narrating: shown.djFallback }}
+          paintKey={String(artSizeFor(settings.uiScalePct))}
         />
       </RouteBackContext.Provider>
     )

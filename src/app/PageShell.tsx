@@ -1,4 +1,8 @@
-import { useEffect, useState, type ReactNode, type TransitionEvent } from 'react'
+import { useEffect, useRef, useState, type ReactNode, type TransitionEvent } from 'react'
+import { usePanelPaintCache } from '@/components/AmbientGround'
+import type { ThemeInput } from '@/theme/theme'
+import { ThemeProvider } from '@/theme/ThemeProvider'
+import { useUiScale } from '@/uiScale'
 import { PageActiveContext } from './pageActive'
 import { useRouteBack } from './routeBack'
 import type { PageEntry, PageId } from './usePages'
@@ -21,11 +25,16 @@ export interface PageShellProps<Id extends string = PageId> {
   renderPage: (id: Id) => ReactNode
   /** drawn over every page, inside the shell's own container */
   overlays?: ReactNode
+  /** what the shell's theme follows; idle without art */
+  theme?: ThemeInput
+  /** re-rasterises the glass panels when it changes; the page id is deliberately not in it */
+  paintKey?: string
 }
 
 /**
  * Renders the current page, plus the one it replaced while that one animates out, plus the
  * root, which never unmounts. An entering page mounts inactive and turns active a frame later.
+ * Its root is the themed root: the ambient ground and the glass paint cache span every page.
  */
 export function PageShell<Id extends string = PageId>({
   root,
@@ -35,7 +44,12 @@ export function PageShell<Id extends string = PageId>({
   onBack,
   renderPage,
   overlays,
+  theme,
+  paintKey = '',
 }: PageShellProps<Id>) {
+  const rootRef = useRef<HTMLDivElement>(null)
+  const uiScale = useUiScale()
+  usePanelPaintCache(rootRef, paintKey, uiScale)
   useRouteBack(() => forcedPage === null && (onBack?.() ?? false))
   const shown = forcedPage === null ? current : { id: forcedPage, key: FORCED_KEY }
   const [enteredKey, setEnteredKey] = useState(shown.key)
@@ -72,7 +86,7 @@ export function PageShell<Id extends string = PageId>({
   const mounted = [root, ...above.sort((a, b) => a.key - b.key)]
 
   return (
-    <div className={styles.shell}>
+    <ThemeProvider {...theme} ref={rootRef} className={styles.shell}>
       {mounted.map((entry) => {
         const isCurrent = entry.key === shown.key
         const isLeaving = entry.key === leavingKey
@@ -97,6 +111,6 @@ export function PageShell<Id extends string = PageId>({
         )
       })}
       {overlays}
-    </div>
+    </ThemeProvider>
   )
 }

@@ -5,8 +5,6 @@
   flex-direction: row;
   align-items: center;
   padding: $surface-pad;
-  border-radius: $r-surface;
-  @include glass-panel;
 }
 
 .art {

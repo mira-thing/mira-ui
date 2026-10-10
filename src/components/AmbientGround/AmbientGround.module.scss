@@ -8,7 +8,6 @@
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
-  background: linear-gradient(135deg, #1a1c21 0%, #0d0e12 38%, #08080a 68%, #050608 100%);
 }
 
 .layer {
@@ -127,6 +126,18 @@
   background-repeat: no-repeat;
   background-size: 100% 100%;
   border-radius: 50%;
+}
+
+.idle {
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.28)),
+    radial-gradient(
+      circle at 50% 62%,
+      rgba($idle-glow, 0.08) 0%,
+      rgba($idle-glow, 0.03) 26%,
+      #000 62%
+    ),
+    #000;
 }
 
 .vignette {

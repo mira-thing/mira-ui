@@ -1,7 +1,6 @@
-import { useContext, useLayoutEffect, useRef } from 'react'
-import { backgroundDepthColor } from '@/hooks/useColorExtract'
+import { useLayoutEffect, useRef } from 'react'
+import { depthFill, useTheme } from '@/theme/theme'
 import { useUiScale } from '@/uiScale'
-import { ArtworkPaletteContext } from './artworkTheme'
 import styles from './AmbientGround.module.scss'
 
 function roundedRect(x: number, y: number, w: number, h: number, r: number): string {
@@ -20,8 +19,7 @@ export function BackgroundDepth({
   const paths = useRef({ lyrics: '', art: '' })
   const activeLayout = useRef(showLyrics)
   const scale = useUiScale()
-  const palette = useContext(ArtworkPaletteContext)
-  const tint = backgroundDepthColor(palette[0] ?? [45, 50, 61])
+  const theme = useTheme()
 
   useLayoutEffect(() => {
     const svg = svgRef.current
@@ -33,7 +31,7 @@ export function BackgroundDepth({
       if (!host || !svg || !path) return
       const w = host.clientWidth
       const h = host.clientHeight
-      const radius = parseFloat(getComputedStyle(host).getPropertyValue('--panel-radius')) || 18
+      const radius = parseFloat(getComputedStyle(host).getPropertyValue('--surface-radius')) || 18
       const holes = Array.from(host.querySelectorAll<HTMLElement>('[data-depth-panel]')).map(
         (panel) => {
           let x = 0
@@ -76,7 +74,7 @@ export function BackgroundDepth({
     <svg
       ref={svgRef}
       className={styles.depthShade}
-      style={{ fill: `rgb(${tint.join(', ')})` }}
+      style={{ fill: depthFill(theme) }}
       aria-hidden="true"
       focusable="false"
     >

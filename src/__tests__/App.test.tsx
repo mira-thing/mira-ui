@@ -175,6 +175,20 @@ describe('App', () => {
       },
     )
 
+    it('themes the shell idle for a track with no art', async () => {
+      const { container } = renderForced('playing-no-art')
+      await screen.findAllByText('Reka')
+
+      expect(container.querySelector<HTMLElement>('.shell')?.dataset.theme).toBe('idle')
+    })
+
+    it('presents the DJ over a DJ set while it talks', async () => {
+      renderForced('dj-narrating')
+
+      expect((await screen.findAllByText('DJ X')).length).toBeGreaterThan(0)
+      expect(screen.queryByText('Reka')).not.toBeInTheDocument()
+    })
+
     it('leaves back a no-op on the bare player', async () => {
       const { setForced } = renderForced('playing-lyrics')
       await screen.findAllByText('Reka')
