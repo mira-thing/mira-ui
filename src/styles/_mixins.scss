@@ -1,3 +1,4 @@
+@use 'sass:map';
 @use 'variables' as *;
 
 @mixin flex-center {
@@ -65,6 +66,36 @@
   }
 }
 
+@mixin press($scale: $press-scale) {
+  &:active {
+    transform: scale($scale);
+  }
+}
+
+// keyed on a class because chrome 69 drops any rule whose selector has :focus-visible
+@mixin focus-ring($color: $text-primary, $width: 2px) {
+  &.focused {
+    box-shadow: 0 0 0 $width $color;
+  }
+}
+
+@mixin scrim {
+  @include absolute-fill;
+  @include flex-center;
+  background: $scrim;
+}
+
+@mixin type($role) {
+  @if not map.has-key($type-roles, $role) {
+    @error 'unknown type role: #{$role}';
+  }
+  $spec: map.get($type-roles, $role);
+  font-size: map.get($spec, size);
+  font-weight: map.get($spec, weight);
+  letter-spacing: map.get($spec, tracking);
+  text-transform: map.get($spec, case);
+}
+
 @mixin hide-scrollbar {
   scrollbar-width: none;
   &::-webkit-scrollbar {
@@ -85,7 +116,7 @@
 }
 
 @mixin glass-panel($top: 0.23, $face: 0.115, $lift: 0.3) {
-  border: 1px solid rgba(255, 255, 255, $top * 0.55);
+  border: $surface-border solid rgba(255, 255, 255, $top * 0.55);
   border-top-color: rgba(255, 255, 255, $top);
   border-bottom-color: rgba(255, 255, 255, $top * 0.32);
   $base-paint:
@@ -122,10 +153,10 @@
     &::before {
       content: '';
       position: absolute;
-      top: -55px;
-      right: -55px;
-      bottom: -55px;
-      left: -55px;
+      top: -($glass-pad + $surface-border);
+      right: -($glass-pad + $surface-border);
+      bottom: -($glass-pad + $surface-border);
+      left: -($glass-pad + $surface-border);
       background-image: var(--glass-paint);
       background-size: 100% 100%;
       pointer-events: none;
@@ -137,6 +168,6 @@
 @mixin floating-glass {
   @include glass-panel($top: 0.3, $face: 0.16, $lift: 0.24);
   background-color: rgba(17, 19, 25, 0.94);
-  border-radius: $r-panel;
+  border-radius: $r-surface;
   color: $text-primary;
 }

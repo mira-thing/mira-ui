@@ -3,7 +3,7 @@
   @include inset-0;
   z-index: $z-menu;
   @include flex-center;
-  background: rgba(0, 0, 0, 0.62);
+  background: $scrim;
   animation: btFadeIn $dur-base $ease-standard both;
 }
 
@@ -147,12 +147,12 @@
   border-radius: $r-pill;
 
   &:hover {
-    color: #e25b5b;
+    color: $c-danger;
   }
 }
 
 .forgetArmed {
-  color: #e25b5b;
+  color: $c-danger;
   background: rgba(226, 91, 91, 0.14);
   padding: 0 $s-3;
 }

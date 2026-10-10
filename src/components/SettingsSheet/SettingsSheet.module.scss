@@ -3,7 +3,7 @@
   z-index: $z-menu;
   pointer-events: none;
   @include flex-center;
-  background: rgba(0, 0, 0, 0.62);
+  background: $scrim;
   opacity: 0;
   transition: opacity $dur-base $ease-standard;
 }

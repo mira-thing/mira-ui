@@ -28,8 +28,9 @@ import { useOverlayState } from '@/overlays/overlayContext'
 import type { ObserverStatusActive } from '@/api/types'
 import type { NotifyFn } from '@/notify/notifyContext'
 import { getSettings, updateSettings, useSettings } from '@/settings'
-import { artSizeFor, heroArtSizeFor, useUiScale } from '@/uiScale'
+import { useUiScale } from '@/uiScale'
 import styles from '@/App.module.scss'
+import { artSizeFor, heroArtSizeFor } from './playerLayout'
 
 const SKIP_MS = 15000
 

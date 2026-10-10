@@ -9,8 +9,7 @@
 
 .open {
   pointer-events: auto;
-  // match the pairing dialog backdrop
-  background: rgba(0, 0, 0, 0.62);
+  background: $scrim;
 
   .panel {
     transform: none;
@@ -75,7 +74,7 @@
 }
 
 .danger {
-  color: #e25b5b;
+  color: $c-danger;
 }
 
 .support {
@@ -141,6 +140,6 @@
 }
 
 .confirmDanger {
-  background: #c43d3d;
+  background: $c-danger-strong;
   color: $text-primary;
 }

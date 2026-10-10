@@ -122,7 +122,7 @@
 
 .rowDestructive {
   .rowLabel {
-    color: #e25b5b;
+    color: $c-danger;
   }
 }
 
@@ -175,6 +175,6 @@
 }
 
 .confirmBtnDanger {
-  background: #c43d3d;
+  background: $c-danger-strong;
   color: $text-primary;
 }

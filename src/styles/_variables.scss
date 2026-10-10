@@ -30,6 +30,12 @@ $lyric-unsynced: rgba(255, 255, 255, 0.6);
 $accent: #1ed760;
 $accent-dim: rgba(30, 215, 96, 0.32);
 
+$c-danger: #e25b5b;
+$c-danger-strong: #c43d3d;
+
+$scrim: rgba(0, 0, 0, 0.62);
+$idle-glow: rgb(30, 215, 96);
+
 // Spotify DJ presentation. Separate from $accent, which drives toggle-on states
 $dj-green: #65d68c;
 $dj-blue: #285ca2;
@@ -53,8 +59,15 @@ $r-lg: 16px;
 $r-xl: 20px;
 $r-2xl: 28px;
 $r-pill: 999px;
-$r-panel: 18px;
+$r-surface: 18px;
+$r-card: 24px;
 $r-art: 10px;
+
+// mirrored in theme/metrics.ts for the paint cache and the art-size maths
+$surface-pad: 16px;
+$surface-border: 1px;
+$surface-inset: 2 * ($surface-pad + $surface-border);
+$glass-pad: 54px;
 
 // fonts
 $font-system:
@@ -89,6 +102,39 @@ $fw-medium: 500;
 $fw-semibold: 600;
 $fw-bold: 700;
 
+$type-roles: (
+  display: (
+    size: 42px,
+    weight: $fw-bold,
+  ),
+  title-lg: (
+    size: $fs-3xl,
+  ),
+  title: (
+    size: 24px,
+    weight: $fw-bold,
+  ),
+  body-lg: (
+    size: $fs-xl,
+    weight: $fw-medium,
+  ),
+  body: (
+    size: $fs-lg,
+  ),
+  label: (
+    size: $fs-md,
+  ),
+  caption: (
+    size: $fs-sm,
+  ),
+  overline: (
+    size: $fs-xs,
+    weight: $fw-medium,
+    tracking: 0.08em,
+    case: uppercase,
+  ),
+);
+
 $touch-min: 44px;
 
 $ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -96,6 +142,7 @@ $ease-emphasized: cubic-bezier(0.3, 0, 0, 1);
 $dur-fast: 120ms;
 $dur-base: 200ms;
 $dur-slow: 300ms;
+$press-scale: 0.96;
 
 $z-content: 1;
 $z-bottom-bar: 5;

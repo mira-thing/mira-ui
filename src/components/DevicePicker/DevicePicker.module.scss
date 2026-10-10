@@ -19,7 +19,7 @@
   @include inset-0;
   z-index: $z-menu;
   @include flex-center;
-  background: rgba(0, 0, 0, 0.62);
+  background: $scrim;
   animation: deviceFadeIn $dur-base $ease-standard both;
 }
 
