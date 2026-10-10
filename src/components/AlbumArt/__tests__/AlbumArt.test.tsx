@@ -20,6 +20,19 @@ describe('AlbumArt', () => {
     expect(shown()).toBe('/c.jpg')
     expect(container.querySelector('img[src="/a.jpg"]')).not.toBeNull() // outgoing fade layer
   })
+  it('dims the old cover while waiting and still tries a cover whose preload failed', async () => {
+    let settle!: (image: HTMLImageElement | null) => void
+    vi.mocked(loadArtwork).mockImplementation(() => new Promise((resolve) => (settle = resolve)))
+    const { container, rerender } = render(<AlbumArt src="/a.jpg" />)
+    const art = container.firstElementChild as HTMLElement
+    const shown = () => container.querySelector('[aria-hidden="false"] img')?.getAttribute('src')
+    rerender(<AlbumArt src="/b.jpg" />)
+    expect(shown()).toBe('/a.jpg')
+    expect(art.className).toMatch(/pending/)
+    await act(async () => settle(null))
+    expect(shown()).toBe('/b.jpg')
+    expect(art.className).not.toMatch(/pending/)
+  })
   it('shows the DJ mark instead of an empty box when djFallback is set', () => {
     render(<AlbumArt src="" djFallback={true} />)
     // both crossfade layers render the fallback, so the mark is present twice

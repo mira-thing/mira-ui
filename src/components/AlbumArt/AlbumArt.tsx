@@ -18,21 +18,22 @@ function AlbumArtImpl({ src, size = 200, alt = '', djFallback = false, pending =
   const [front, setFront] = useState<string | undefined>(src)
   const [back, setBack] = useState<string | undefined>(undefined)
   const [showFront, setShowFront] = useState(true)
-  const lastRef = useRef<string | undefined>(src)
+  // the old cover stays up and dimmed
+  const [shown, setShown] = useState(src)
   const cleanupRef = useRef(0)
 
   useEffect(() => {
-    if (src === lastRef.current) return
+    if (src === shown) return
     let cancelled = false
-    void loadArtwork(src).then((img) => {
+    // a failed preload still hands the url to the <img> for a second try
+    void loadArtwork(src).then(() => {
       if (cancelled) return
-      lastRef.current = src
-      const ready = img ? src : undefined
+      setShown(src)
       if (showFront) {
-        setBack(ready)
+        setBack(src)
         setShowFront(false)
       } else {
-        setFront(ready)
+        setFront(src)
         setShowFront(true)
       }
       window.clearTimeout(cleanupRef.current)
@@ -44,7 +45,7 @@ function AlbumArtImpl({ src, size = 200, alt = '', djFallback = false, pending =
     return () => {
       cancelled = true
     }
-  }, [src, showFront])
+  }, [src, shown, showFront])
 
   useEffect(() => () => window.clearTimeout(cleanupRef.current), [])
 
@@ -61,7 +62,7 @@ function AlbumArtImpl({ src, size = 200, alt = '', djFallback = false, pending =
 
   return (
     <div
-      className={`${styles.art} ${pending ? styles.pending : ''}`}
+      className={`${styles.art} ${pending || src !== shown ? styles.pending : ''}`}
       style={sizePx}
       data-track-motion=""
       data-track-pending={pending}
@@ -72,6 +73,7 @@ function AlbumArtImpl({ src, size = 200, alt = '', djFallback = false, pending =
       >
         {front ? (
           <img
+            key={front}
             src={front}
             alt={alt}
             decoding="async"
@@ -92,6 +94,7 @@ function AlbumArtImpl({ src, size = 200, alt = '', djFallback = false, pending =
       >
         {back ? (
           <img
+            key={back}
             src={back}
             alt={alt}
             decoding="async"

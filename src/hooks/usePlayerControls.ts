@@ -99,9 +99,9 @@ export function usePlayerControls(params: UsePlayerControlsParams): UsePlayerCon
     activeSkip.current = active
     timer = window.setTimeout(() => {
       if (activeSkip.current !== active) return
-      skips.current = []
+      if (!confirmed) skips.current = []
       finish()
-      job.failed(new Error('Skip response timed out'))
+      if (!confirmed) job.failed(new Error('Skip response timed out'))
     }, 8000)
     void (async () => {
       try {

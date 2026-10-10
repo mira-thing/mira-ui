@@ -348,6 +348,22 @@ describe('usePlayerControls repeat / shuffle cycling', () => {
 })
 
 describe('usePlayerControls track-transition dim', () => {
+  it('does not report a confirmed skip as timed out when its reply is slow', async () => {
+    const mocks = makeMocks()
+    mocks.next.mockImplementationOnce(() => new Promise<void>(() => {}))
+    const onCommandError = vi.fn()
+    const { result, rerender } = renderHook(
+      ({ status }) => usePlayerControls({ status, ...mocks, onCommandError }),
+      { initialProps: { status: activeStatus } },
+    )
+    act(() => result.current.onNext())
+    act(() => result.current.onPrevTrack())
+    rerender({ status: { ...activeStatus, track_id: 'b' } })
+    await act(async () => vi.advanceTimersByTime(8000))
+    expect(onCommandError).not.toHaveBeenCalled()
+    expect(mocks.prev).toHaveBeenCalledTimes(1)
+  })
+
   it('orders rapid mixed skips and keeps feedback pending through intermediate tracks', async () => {
     const mocks = makeMocks()
     let acknowledge!: () => void
