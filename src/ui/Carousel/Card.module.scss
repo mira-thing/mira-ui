@@ -1,0 +1,27 @@
+.card {
+  width: 100%;
+  height: 100%;
+  padding: $s-5;
+  color: $text-primary;
+  @include column;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.text {
+  align-self: stretch;
+  min-width: 0;
+  @include column;
+  @include flex-gap-y($s-1);
+}
+
+.title {
+  @include type(title);
+  @include truncate;
+}
+
+.subtitle {
+  color: $text-secondary;
+  @include type(body-lg);
+  @include truncate;
+}

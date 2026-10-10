@@ -1,0 +1,143 @@
+// the containing block for the dialogs' scrims
+.root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  color: $text-primary;
+}
+
+.section {
+  padding-bottom: $s-6;
+}
+
+.sectionHeader {
+  height: auto;
+  padding-top: $s-2;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  @include flex-gap-x($s-3);
+}
+
+// wraps, so spacing comes from each item's own margins rather than a flex gap
+.wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 0 $s-3;
+
+  > * {
+    margin: 0 $s-3 $s-3 0;
+  }
+}
+
+.segmented {
+  display: flex;
+  align-items: center;
+  @include flex-gap-x($s-1);
+}
+
+.segmentedLabel {
+  margin-right: $s-1;
+  color: $text-tertiary;
+  @include type(overline);
+}
+
+.carousel {
+  height: 300px;
+}
+
+.note {
+  padding: 0 $s-3;
+  color: $text-secondary;
+  @include type(label);
+}
+
+.swatch {
+  width: 140px;
+  height: 90px;
+  padding: $s-3;
+  @include type(label);
+}
+
+.figure {
+  @include column;
+  align-items: center;
+  color: $text-tertiary;
+  @include type(caption);
+  @include flex-gap-y($s-1);
+}
+
+.trackText {
+  padding: $s-2;
+  border: 1px dashed $divider;
+}
+
+.mini {
+  width: 200px;
+}
+
+.panel {
+  width: 232px;
+}
+
+.hero {
+  width: 420px;
+}
+
+.list {
+  height: 300px;
+}
+
+.emptyBox {
+  width: 340px;
+  height: 220px;
+  border: 1px dashed $divider;
+  border-radius: $r-row;
+}
+
+.controls {
+  max-width: 540px;
+  padding: 0 $s-3;
+  @include column;
+  @include flex-gap-y($s-4);
+}
+
+.icons {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  grid-gap: $s-2;
+  padding: 0 $s-3;
+}
+
+.iconCell {
+  @include column;
+  align-items: center;
+  padding: $s-2 0;
+  color: $text-secondary;
+  @include type(caption);
+  @include flex-gap-y($s-1);
+
+  span {
+    max-width: 100%;
+    @include truncate;
+  }
+}
+
+.dialogText {
+  color: $text-secondary;
+  @include type(body);
+}
+
+.compare {
+  @include absolute-fill;
+  z-index: $z-menu;
+  display: flex;
+}
+
+.half {
+  position: relative;
+  flex: 1 1 50%;
+}

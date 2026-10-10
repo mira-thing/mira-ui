@@ -1,0 +1,34 @@
+$track-w: 52px;
+$track-h: 32px;
+$thumb-gap: 3px;
+$thumb: $track-h - 2 * $thumb-gap;
+
+.switch {
+  flex: 0 0 auto;
+  width: $track-w;
+  height: $track-h;
+  border-radius: $r-pill;
+  background: rgba(255, 255, 255, 0.16);
+  transition: background-color $dur-base $ease-standard;
+  @include touch-target;
+}
+
+.thumb {
+  position: absolute;
+  top: $thumb-gap;
+  left: $thumb-gap;
+  width: $thumb;
+  height: $thumb;
+  border-radius: 50%;
+  background: $text-primary;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  transition: transform $dur-base $ease-standard;
+}
+
+.on {
+  background: $accent;
+
+  .thumb {
+    transform: translateX($track-w - $thumb - 2 * $thumb-gap);
+  }
+}
