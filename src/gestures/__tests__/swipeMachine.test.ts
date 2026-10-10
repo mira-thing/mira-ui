@@ -191,6 +191,16 @@ describe('swipeMachine', () => {
     const back = classify(started.state, { type: 'move', x: 190, y: 102, touches: 1 })
     expect(classify(back.next, { type: 'end', touches: 0 }).action).toBeUndefined()
   })
+
+  it('does not skip a drag that starts sideways and ends mostly down', () => {
+    const { actions } = run([
+      { type: 'start', x: 300, y: 100, touches: 1 },
+      { type: 'move', x: 280, y: 102, touches: 1 },
+      { type: 'move', x: 150, y: 300, touches: 1 },
+      { type: 'end', touches: 0 },
+    ])
+    expect(actions).toEqual([])
+  })
 })
 
 describe('createPhantomFilter', () => {

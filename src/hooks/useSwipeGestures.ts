@@ -6,6 +6,7 @@ import {
   type SwipeAction,
   type SwipeState,
   type TouchPoint,
+  skipFor,
 } from '@/gestures/swipeMachine'
 
 // prevent accidental seeks
@@ -16,7 +17,7 @@ interface Params {
   onPrev: () => void
   onToggleView: () => void
   enabled: boolean
-  onDrag?: (distance: number) => void
+  onDrag?: (distance: number, armed: boolean) => void
   onDragEnd?: (committed: boolean) => void
   canNext?: boolean
   canPrev?: boolean
@@ -97,7 +98,10 @@ export function useSwipeGestures<T extends HTMLElement>({
       if (state.kind === 'tracking' && state.maxTouches === 1 && state.mode === 'horizontal') {
         horizontal = true
         suppressClickUntil = Date.now() + CLICK_SUPPRESS_MS
-        handlersRef.current.onDrag?.(state.lastX - state.startX)
+        const h = handlersRef.current
+        const dx = state.lastX - state.startX
+        const skip = skipFor(dx, state.lastY - state.startY)
+        h.onDrag?.(dx, skip === 'next' ? h.canNext : skip === 'prev' ? h.canPrev : false)
       }
       if (multiTouch || horizontal) e.stopPropagation()
       fire(r.action)

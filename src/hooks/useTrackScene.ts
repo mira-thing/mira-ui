@@ -4,6 +4,8 @@ import { loadArtwork } from './useColorExtract'
 import type { TrackTransition } from './usePlayerControls'
 import { getUiScale } from '@/uiScale'
 
+const ARMED_OPACITY = 0.6
+
 // only the cover and metadata move
 export function useTrackScene(
   status: ObserverStatusActive | null,
@@ -16,6 +18,7 @@ export function useTrackScene(
   const displayedRef = useRef(displayed)
   const dragX = useRef(0)
   const dragFrame = useRef(0)
+  const armed = useRef(false)
   const cancelMotion = useRef<(() => void) | null>(null)
   const settling = useRef(Promise.resolve())
   const reduced = useRef<MediaQueryList | null>(null)
@@ -51,11 +54,14 @@ export function useTrackScene(
       dragFrame.current = 0
       cancelMotion.current?.()
       const distance = dragX.current
+      const opacity = armed.current ? ARMED_OPACITY : 1
       dragX.current = 0
+      armed.current = false
       const elements = motionNodes()
       const reset = () =>
         elements.forEach((el) => {
           el.style.transform = 'translateX(0px)'
+          el.style.opacity = ''
           el.style.willChange = ''
         })
       if (!distance || reduced.current?.matches || !elements[0]?.animate) {
@@ -67,7 +73,10 @@ export function useTrackScene(
         const animations = elements.map((el) => {
           el.style.willChange = 'transform'
           return el.animate(
-            [{ transform: `translateX(${distance}px)` }, { transform: 'translateX(0px)' }],
+            [
+              { transform: `translateX(${distance}px)`, opacity },
+              { transform: 'translateX(0px)', opacity: 1 },
+            ],
             { duration: 220, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)', fill: 'forwards' },
           )
         })
@@ -101,16 +110,20 @@ export function useTrackScene(
   }, [request, release])
 
   const drag = useCallback(
-    (distance: number) => {
+    (distance: number, willSkip = false) => {
       cancelMotion.current?.()
       if (reduced.current?.matches) return
-      dragX.current = 12 * Math.tanh(distance / getUiScale() / 100)
+      // a step and a dim once letting go would skip, so cancelling is easy to judge
+      armed.current = willSkip
+      dragX.current =
+        12 * Math.tanh(distance / getUiScale() / 100) + (willSkip ? Math.sign(distance) * 6 : 0)
       if (dragFrame.current) return
       dragFrame.current = requestAnimationFrame(() => {
         dragFrame.current = 0
         motionNodes().forEach((el) => {
           el.style.willChange = 'transform'
           el.style.transform = `translateX(${dragX.current}px)`
+          el.style.opacity = armed.current ? String(ARMED_OPACITY) : ''
         })
       })
     },

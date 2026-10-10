@@ -28,7 +28,7 @@ it('previews a horizontal drag, commits on release, and never skips on cancellat
     fireEvent.touchMove(el, { touches: points(100), changedTouches: points(100) })
   }
   move()
-  expect(drag).toHaveBeenLastCalledWith(-150)
+  expect(drag).toHaveBeenLastCalledWith(-150, true)
   expect(next).not.toHaveBeenCalled()
   fireEvent.touchCancel(el, { touches: [], changedTouches: points(100) })
   expect(released).toHaveBeenLastCalledWith(false)
@@ -38,6 +38,7 @@ it('previews a horizontal drag, commits on release, and never skips on cancellat
   expect(next).toHaveBeenCalledTimes(1)
   rerender(<Player allowed={false} />)
   move()
+  expect(drag).toHaveBeenLastCalledWith(-150, false)
   fireEvent.touchEnd(el, { touches: [], changedTouches: points(100) })
   expect(next).toHaveBeenCalledTimes(1)
   expect(released).toHaveBeenLastCalledWith(false)

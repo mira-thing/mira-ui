@@ -130,11 +130,16 @@ function sample(state: SwipeState, x: number, y: number, touches: number): Swipe
   if (ady > AXIS_DECIDE_PX && ady > adx) {
     return { next: { ...base, mode: 'vscroll' } }
   }
-  // committed horizontal swipe
+  // lock to a horizontal drag, the skip is decided on release
   if (adx > AXIS_DECIDE_PX && adx > AXIS_RATIO * ady) {
     return { next: { ...base, mode: 'horizontal' } }
   }
   return { next: base }
+}
+
+export function skipFor(dx: number, dy: number): 'next' | 'prev' | undefined {
+  if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) <= AXIS_RATIO * Math.abs(dy)) return undefined
+  return dx < 0 ? 'next' : 'prev'
 }
 
 export function classify(state: SwipeState, event: SwipeEvent): SwipeResult {
@@ -150,10 +155,9 @@ export function classify(state: SwipeState, event: SwipeEvent): SwipeResult {
       // wait until every finger is up before resetting
       if (event.touches > 0) return { next: state }
       if (state.kind === 'tracking' && state.maxTouches === 1 && state.mode === 'horizontal') {
-        const dx = state.lastX - state.startX
         return {
           next: INITIAL_SWIPE_STATE,
-          action: Math.abs(dx) >= SWIPE_MIN_PX ? (dx < 0 ? 'next' : 'prev') : undefined,
+          action: skipFor(state.lastX - state.startX, state.lastY - state.startY),
         }
       }
       return { next: INITIAL_SWIPE_STATE }
