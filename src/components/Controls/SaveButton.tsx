@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { SaveFilledIcon, SaveOutlineIcon } from './icons'
+import { Icon } from '@/ui/icons'
 import styles from './SaveButton.module.scss'
 
 interface Props {
@@ -62,10 +62,10 @@ function SaveButtonImpl({ saved, onToggle, disabled = false }: Props) {
     >
       <span className={styles.icons}>
         <span className={styles.outline}>
-          <SaveOutlineIcon size={36} />
+          <Icon name="saveOutline" size={36} />
         </span>
         <span className={styles.filled}>
-          <SaveFilledIcon size={36} />
+          <Icon name="saveFilled" size={36} />
         </span>
       </span>
       {burst > 0 ? (

@@ -1,7 +1,7 @@
 import { memo } from 'react'
-import { PlayIcon } from '@/components/Controls/icons'
 import { DevicePicker } from '@/components/DevicePicker'
 import type { ConnectDevice } from '@/api/types'
+import { Icon } from '@/ui/icons'
 import styles from './IdleScreen.module.scss'
 
 interface Props {
@@ -19,7 +19,7 @@ function IdleScreenImpl({ connected, devices, onSelectDevice }: Props) {
   return (
     <div className={styles.idle}>
       <div className={styles.icon} aria-hidden>
-        <PlayIcon size={64} />
+        <Icon name="playFilled" size={64} />
       </div>
       <div className={styles.title}>Nothing playing</div>
       <div className={styles.hint}>{subtitle}</div>

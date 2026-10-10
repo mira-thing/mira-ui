@@ -11,6 +11,7 @@ import {
   VOLUME_STEP_MAX,
   VOLUME_STEP_MIN,
 } from '@/settings'
+import { Icon } from '@/ui/icons'
 import { NotchedSlider } from './NotchedSlider'
 import styles from './SettingsSheet.module.scss'
 
@@ -61,7 +62,11 @@ function SettingsSheetImpl({ open, onClose, phoneVolume = false }: Props) {
 
         {/* first on purpose: at the largest display size the panel scrolls, and this is
             the one control that has to stay reachable to get back down */}
-        <SettingRow icon={<DisplaySizeIcon />} label="Display size" value={`${shownScale}%`}>
+        <SettingRow
+          icon={<Icon name="displaySize" size={20} />}
+          label="Display size"
+          value={`${shownScale}%`}
+        >
           <NotchedSlider
             ariaLabel="Display size"
             value={shownScale}
@@ -82,7 +87,11 @@ function SettingsSheetImpl({ open, onClose, phoneVolume = false }: Props) {
           />
         </SettingRow>
 
-        <SettingRow icon={<LyricsIcon />} label="Lyric sync" value={fmtOffset(lyricOffsetMs)}>
+        <SettingRow
+          icon={<Icon name="lyrics" size={20} />}
+          label="Lyric sync"
+          value={fmtOffset(lyricOffsetMs)}
+        >
           <NotchedSlider
             ariaLabel="Lyric sync offset"
             value={lyricOffsetMs}
@@ -96,7 +105,7 @@ function SettingsSheetImpl({ open, onClose, phoneVolume = false }: Props) {
         </SettingRow>
 
         <SettingRow
-          icon={<SpeakerIcon />}
+          icon={<Icon name="speaker" size={20} />}
           label="Volume per turn"
           value={phoneVolume ? 'Set by phone' : `${volumeStepPct}%`}
         >
@@ -122,7 +131,7 @@ function SettingsSheetImpl({ open, onClose, phoneVolume = false }: Props) {
             className={`${styles.chip} ${styles.chipBtn} ${autoBrightness ? styles.chipOn : ''}`}
             onClick={() => updateSettings({ autoBrightness: !autoBrightness })}
           >
-            <SunIcon />
+            <Icon name="sun" size={20} />
           </button>
           <div className={styles.rowMain}>
             <div className={styles.rowHead}>
@@ -170,70 +179,6 @@ function SettingRow({ icon, label, value, children }: RowProps) {
         {children}
       </div>
     </div>
-  )
-}
-
-function LyricsIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M9 18V6l10-2v10"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="6.5" cy="18" r="2.5" fill="currentColor" />
-      <circle cx="16.5" cy="16" r="2.5" fill="currentColor" />
-    </svg>
-  )
-}
-
-function SpeakerIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M4 9.5v5h3.2L12 18.7V5.3L7.2 9.5H4z"
-        fill="currentColor"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  )
-}
-
-function SunIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="2" />
-      <path
-        d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  )
-}
-
-function DisplaySizeIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="2.5" y="4.5" width="19" height="15" rx="2.5" stroke="currentColor" strokeWidth="2" />
-      <path
-        d="M8.5 15V9.8m0 0H6.9m1.6 0h1.6M15.5 15V8.2m0 0h-2.1m2.1 0h2.1"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </svg>
   )
 }
 

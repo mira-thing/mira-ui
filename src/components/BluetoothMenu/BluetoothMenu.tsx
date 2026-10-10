@@ -5,6 +5,7 @@ import type { DevicePairedPayload, KnownBluetoothDevice } from '@/api/types'
 import { BT_DEVICE_NAME } from '@/brand'
 import { useKnownDevices } from '@/hooks/useKnownDevices'
 import { useNotify } from '@/notify/notifyContext'
+import { Icon } from '@/ui/icons'
 import styles from './BluetoothMenu.module.scss'
 
 interface Props {
@@ -154,7 +155,7 @@ function BluetoothMenuImpl({ online, onClose }: Props) {
                   aria-pressed={d.starred}
                   onClick={() => onToggleStar(d)}
                 >
-                  <StarIcon filled={d.starred} />
+                  <Icon name={d.starred ? 'starFilled' : 'star'} size={22} />
                 </button>
 
                 <div
@@ -185,7 +186,7 @@ function BluetoothMenuImpl({ online, onClose }: Props) {
                   {armedForget === d.address ? (
                     <span className={styles.forgetConfirm}>Remove?</span>
                   ) : (
-                    <TrashIcon />
+                    <Icon name="trash" size={20} />
                   )}
                 </button>
               </li>
@@ -200,7 +201,7 @@ function BluetoothMenuImpl({ online, onClose }: Props) {
           </div>
         ) : (
           <button type="button" className={styles.pairBtn} onClick={onPairNew}>
-            <PlusIcon />
+            <Icon name="plus" size={20} />
             <span>Pair new device</span>
           </button>
         )}
@@ -211,42 +212,6 @@ function BluetoothMenuImpl({ online, onClose }: Props) {
 
 function deviceLabel(d: KnownBluetoothDevice): string {
   return d.name || d.address
-}
-
-function StarIcon({ filled }: { filled: boolean }) {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
-      <path
-        d="M12 2.5l2.9 6.05 6.6.72-4.9 4.49 1.34 6.52L12 17l-5.94 3.28 1.34-6.52-4.9-4.49 6.6-.72L12 2.5z"
-        fill={filled ? 'currentColor' : 'none'}
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function TrashIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M6 7h12M9 7V5h6v2M7 7l1 12h8l1-12"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function PlusIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  )
 }
 
 export const BluetoothMenu = memo(BluetoothMenuImpl)
