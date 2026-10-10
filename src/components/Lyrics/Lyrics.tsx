@@ -1,10 +1,10 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { usePageActive } from '@/app/pageActive'
-import { useArtworkSurface } from '@/components/AmbientGround'
 import { useActiveLine } from '@/hooks/useActiveLine'
 import { useLyricStarts, useLyrics } from '@/hooks/useLyrics'
 import { useNarration } from '@/hooks/useDJNarration'
 import { useSettings } from '@/settings'
+import { Surface } from '@/ui/Surface'
 import { getUiScaleY, useUiScale } from '@/uiScale'
 import type { LyricsWord, ObserverStatusActive } from '@/api/types'
 import styles from './Lyrics.module.scss'
@@ -133,29 +133,26 @@ const LyricLine = memo(function LyricLine({
 
 function LyricsPanel({
   children,
-  style,
   ref,
   state = true,
 }: {
   children: React.ReactNode
-  style?: React.CSSProperties
-  ref?: React.Ref<HTMLDivElement>
+  ref?: React.Ref<HTMLElement>
   state?: boolean
 }) {
   return (
-    <div
+    <Surface
+      variant="panel"
+      tint={0.15}
       className={`${styles.lyrics}${state ? ` ${styles.state}` : ''}`}
-      style={style}
       ref={ref}
-      data-glass-panel=""
     >
       {state ? <div className={styles.stateText}>{children}</div> : children}
-    </div>
+    </Surface>
   )
 }
 
 function LyricsImpl({ status, onSeek, active = true }: Props) {
-  const surfaceStyle = useArtworkSurface(0, 0.15)
   const isPodcast = status.track_uri.startsWith('spotify:episode:')
   // status points at the next song while the DJ speaks
   const { narrating } = useNarration()
@@ -342,16 +339,12 @@ function LyricsImpl({ status, onSeek, active = true }: Props) {
 
   // the DJ has no lyrics, and useLyrics keeps the previous track's when disabled
   if (narrating) {
-    return (
-      <LyricsPanel style={surfaceStyle} ref={containerRef}>
-        No lyrics available
-      </LyricsPanel>
-    )
+    return <LyricsPanel ref={containerRef}>No lyrics available</LyricsPanel>
   }
 
   if (loading) {
     return (
-      <LyricsPanel style={surfaceStyle} ref={containerRef}>
+      <LyricsPanel ref={containerRef}>
         {isPodcast ? 'Loading transcript...' : 'Loading lyrics...'}
       </LyricsPanel>
     )
@@ -359,22 +352,18 @@ function LyricsImpl({ status, onSeek, active = true }: Props) {
 
   if (error || !lyrics || lyrics.lines.length === 0) {
     return (
-      <LyricsPanel style={surfaceStyle} ref={containerRef}>
+      <LyricsPanel ref={containerRef}>
         {isPodcast ? 'No transcript available' : 'No lyrics available'}
       </LyricsPanel>
     )
   }
 
   if (isInstrumental(lyrics.lines)) {
-    return (
-      <LyricsPanel style={surfaceStyle} ref={containerRef}>
-        ♪ Instrumental
-      </LyricsPanel>
-    )
+    return <LyricsPanel ref={containerRef}>♪ Instrumental</LyricsPanel>
   }
 
   return (
-    <LyricsPanel style={surfaceStyle} ref={containerRef} state={false}>
+    <LyricsPanel ref={containerRef} state={false}>
       {!synced ? (
         <div className={styles.unsyncedPill} aria-label="lyrics are not time-synced">
           unsynced

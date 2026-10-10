@@ -11,6 +11,8 @@ $bottom-bar-h: 144px;
 
 // system colors
 $bg: #121212;
+// the themed shell's base, under the ambient ground
+$c-ground: linear-gradient(135deg, #1a1c21 0%, #0d0e12 38%, #08080a 68%, #050608 100%);
 $surface: #181818;
 $surface-elev: #1f1f22;
 $divider: rgba(255, 255, 255, 0.08);

@@ -71,6 +71,15 @@ describe('PageShell', () => {
     expect(root.contains(layer('home'))).toBe(true)
   })
 
+  it('is the themed root, with the ambient ground under the pages', () => {
+    const { container } = render(shell())
+
+    const root = container.firstElementChild as HTMLElement
+    expect(root.dataset.theme).toBe('idle')
+    expect(root.style.getPropertyValue('--theme-depth')).toBe('0, 0, 0')
+    expect(root.firstElementChild).toHaveClass('ground')
+  })
+
   it('holds the root plus at most the entering and the outgoing page', () => {
     const { rerender } = render(shell())
 
