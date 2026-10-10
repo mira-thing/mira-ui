@@ -17,6 +17,7 @@ function controls(over: Partial<UsePlayerControlsResult> = {}): UsePlayerControl
     shuffle: false,
     repeat: 'off',
     transitioning: false,
+    trackTransition: null,
     onPlayPause: vi.fn(),
     onPrev: vi.fn(),
     onPrevTrack: vi.fn(),

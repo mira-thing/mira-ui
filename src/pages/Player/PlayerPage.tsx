@@ -21,6 +21,7 @@ import {
 } from '@/hooks/useDJNarration'
 import { useSavedTrack } from '@/hooks/useSavedTrack'
 import { useSwipeGestures } from '@/hooks/useSwipeGestures'
+import { useTrackScene } from '@/hooks/useTrackScene'
 import type { UsePlayerControlsResult } from '@/hooks/usePlayerControls'
 import type { Carriers, PairingPrompt } from '@/hooks/useBluetooth'
 import { useOverlayState } from '@/overlays/overlayContext'
@@ -110,6 +111,7 @@ export function PlayerPage({
     !overlays.isOpen('btMenu') &&
     !overlays.isOpen('settings') &&
     !pairing
+  const scene = useTrackScene(status, controls.transitioning, controls.trackTransition)
   useSwipeGestures(stageRef, {
     onNext: controls.onNext,
     onPrev: controls.onPrevTrack,
@@ -118,7 +120,8 @@ export function PlayerPage({
   })
 
   // presentTrack substitutes the DJ while it talks
-  const shown = presentTrack(status, narration)
+  const sceneStatus = scene.status ?? status
+  const shown = presentTrack(sceneStatus, narration)
 
   return (
     // provided once for all consumers
@@ -134,31 +137,41 @@ export function PlayerPage({
           <BackgroundDepth layoutKey={String(artSize)} showLyrics={showLyrics} />
           {bannerReason ? <ReconnectBanner reason={bannerReason} carriers={carriers} /> : null}
           <div className={styles.stage} ref={stageRef}>
-            <div
-              className={`${styles.viewLayer} ${showLyrics ? styles.viewActive : styles.viewInactive}`}
-            >
-              <div className={styles.top}>
-                <ArtworkSurface
-                  data-depth-panel="lyrics"
-                  className={`${styles.left} ${controls.transitioning ? styles.transitioning : ''}`}
-                  strength={0.2}
-                >
-                  <AlbumArt src={shown.art} size={artSize} djFallback={shown.djFallback} />
-                  <TrackInfo trackName={shown.title} artist={shown.artist} compact />
-                </ArtworkSurface>
-                <div className={styles.right} data-depth-panel="lyrics">
-                  <Lyrics status={status} onSeek={onSeek} active={showLyrics} />
+            <div className={styles.trackScene} ref={scene.ref}>
+              <div
+                className={`${styles.viewLayer} ${showLyrics ? styles.viewActive : styles.viewInactive}`}
+                data-track-active={showLyrics}
+              >
+                <div className={styles.top}>
+                  <ArtworkSurface data-depth-panel="lyrics" className={styles.left} strength={0.2}>
+                    <AlbumArt
+                      src={shown.art}
+                      size={artSize}
+                      djFallback={shown.djFallback}
+                      pending={scene.pending}
+                    />
+                    <TrackInfo trackName={shown.title} artist={shown.artist} compact />
+                  </ArtworkSurface>
+                  <div className={styles.right} data-depth-panel="lyrics">
+                    <Lyrics
+                      status={sceneStatus}
+                      onSeek={
+                        !controls.transitioning && sceneStatus.track_id === status.track_id
+                          ? onSeek
+                          : undefined
+                      }
+                      active={showLyrics}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-            <div
-              className={`${styles.viewLayer} ${!showLyrics ? styles.viewActive : styles.viewInactive}`}
-            >
               <div
-                className={`${styles.topNoLyrics} ${controls.transitioning ? styles.transitioning : ''}`}
-                data-depth-panel="art"
+                className={`${styles.viewLayer} ${!showLyrics ? styles.viewActive : styles.viewInactive}`}
+                data-track-active={!showLyrics}
               >
-                <NoLyricsView {...shown} artSize={heroArtSize} />
+                <div className={styles.topNoLyrics} data-depth-panel="art">
+                  <NoLyricsView {...shown} artSize={heroArtSize} pending={scene.pending} />
+                </div>
               </div>
             </div>
           </div>

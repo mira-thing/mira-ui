@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { fetchLyrics } from '@/api/client'
 import { isNarrationUri } from '@/hooks/useDJNarration'
 import { primeLyricsCache } from '@/hooks/useLyrics'
+import { loadArtwork, prepareArtwork } from '@/hooks/useColorExtract'
 import type { ObserverStatus, QueueTrack } from '@/api/types'
 
 const PREFETCH_NEXT = 5
@@ -24,6 +25,8 @@ function markSeen(uri: string) {
 
 function prefetchImage(url: string) {
   const img = new window.Image()
+  img.crossOrigin = 'anonymous'
+  img.referrerPolicy = 'no-referrer'
   img.src = url
 }
 
@@ -56,6 +59,25 @@ function runPrefetch(status: ObserverStatus) {
 }
 
 export function usePrefetch(status: ObserverStatus | null) {
+  const nextArt = status?.active ? status.next_tracks?.[0]?.image_url : undefined
+  useEffect(() => {
+    if (!nextArt) return
+    // fetch the cover now
+    void loadArtwork(nextArt)
+    let idle = 0
+    const timer = window.setTimeout(() => {
+      if (window.requestIdleCallback) {
+        idle = window.requestIdleCallback(() => void prepareArtwork(nextArt), { timeout: 2000 })
+      } else {
+        void prepareArtwork(nextArt)
+      }
+    }, 1800)
+    return () => {
+      window.clearTimeout(timer)
+      if (idle) window.cancelIdleCallback(idle)
+    }
+  }, [nextArt])
+
   const statusRef = useRef(status)
   useEffect(() => {
     statusRef.current = status

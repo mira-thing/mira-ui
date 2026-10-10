@@ -3,6 +3,7 @@ import { renderHook } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { usePrefetch } from '../usePrefetch'
 import { __resetLyricsCache } from '../useLyrics'
+import { loadArtwork, prepareArtwork } from '../useColorExtract'
 import { server } from '../../__tests__/msw-server'
 import { activeStatus } from '../../__tests__/fixtures/observer'
 import type { ObserverStatusActive, QueueTrack } from '@/api/types'
@@ -10,8 +11,15 @@ import type { ObserverStatusActive, QueueTrack } from '@/api/types'
 // PREFETCH_DELAY_MS is 5s
 const PAST_DELAY = 6000
 
+vi.mock('../useColorExtract', () => ({
+  prepareArtwork: vi.fn().mockResolvedValue(undefined),
+  loadArtwork: vi.fn().mockResolvedValue(null),
+}))
+
 beforeEach(() => {
   __resetLyricsCache()
+  vi.mocked(prepareArtwork).mockClear()
+  vi.mocked(loadArtwork).mockClear()
   vi.useFakeTimers()
 })
 afterEach(() => {
