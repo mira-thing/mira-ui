@@ -1,52 +1,80 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, render, screen } from '@testing-library/react'
-import { AlbumArt } from '../AlbumArt'
+import { Artwork } from '../Artwork'
 import { loadArtwork } from '@/hooks/useColorExtract'
 
 vi.mock('@/hooks/useColorExtract', () => ({ loadArtwork: vi.fn() }))
 
-describe('AlbumArt', () => {
+describe('Artwork', () => {
+  beforeEach(() => {
+    vi.mocked(loadArtwork).mockResolvedValue(null)
+  })
+
   it('keeps the image until its replacement loads and ignores old covers', async () => {
     const ready: ((image: HTMLImageElement | null) => void)[] = []
     vi.mocked(loadArtwork).mockImplementation(() => new Promise((resolve) => ready.push(resolve)))
-    const { container, rerender } = render(<AlbumArt src="/a.jpg" />)
+    const { container, rerender } = render(<Artwork src="/a.jpg" />)
     const shown = () => container.querySelector('[aria-hidden="false"] img')?.getAttribute('src')
-    rerender(<AlbumArt src="/b.jpg" />)
+    rerender(<Artwork src="/b.jpg" />)
     expect(shown()).toBe('/a.jpg')
-    rerender(<AlbumArt src="/c.jpg" />)
+    rerender(<Artwork src="/c.jpg" />)
     await act(async () => ready[0](new Image()))
     expect(shown()).toBe('/a.jpg')
     await act(async () => ready[1](new Image()))
     expect(shown()).toBe('/c.jpg')
     expect(container.querySelector('img[src="/a.jpg"]')).not.toBeNull() // outgoing fade layer
   })
+
   it('dims the old cover while waiting and still tries a cover whose preload failed', async () => {
     let settle!: (image: HTMLImageElement | null) => void
     vi.mocked(loadArtwork).mockImplementation(() => new Promise((resolve) => (settle = resolve)))
-    const { container, rerender } = render(<AlbumArt src="/a.jpg" />)
+    const { container, rerender } = render(<Artwork src="/a.jpg" />)
     const art = container.firstElementChild as HTMLElement
     const shown = () => container.querySelector('[aria-hidden="false"] img')?.getAttribute('src')
-    rerender(<AlbumArt src="/b.jpg" />)
+    rerender(<Artwork src="/b.jpg" />)
     expect(shown()).toBe('/a.jpg')
     expect(art.className).toMatch(/pending/)
     await act(async () => settle(null))
     expect(shown()).toBe('/b.jpg')
     expect(art.className).not.toMatch(/pending/)
   })
-  it('shows the DJ mark instead of an empty box when djFallback is set', () => {
-    render(<AlbumArt src="" djFallback={true} />)
+
+  it('shows the DJ mark instead of an empty box when the fallback is dj', () => {
+    render(<Artwork src="" fallback="dj" />)
     // both crossfade layers render the fallback, so the mark is present twice
     expect(screen.getAllByRole('img', { name: 'DJ' }).length).toBeGreaterThan(0)
   })
 
   it('does not show the DJ mark by default', () => {
-    render(<AlbumArt src="" />)
+    render(<Artwork src="" />)
     expect(screen.queryByRole('img', { name: 'DJ' })).toBeNull()
   })
 
-  it('renders the artwork when a src is given, even with djFallback set', () => {
+  it('renders the artwork when a src is given, even with a fallback set', () => {
     // narration suppresses src at the call site, so a src here means real artwork
-    const { container } = render(<AlbumArt src="https://x/art.jpg" alt="cover" djFallback={true} />)
+    const { container } = render(<Artwork src="https://x/art.jpg" alt="cover" fallback="dj" />)
     expect(container.querySelector('img[src="https://x/art.jpg"]')).not.toBeNull()
+  })
+
+  it('shows the liked and playlist fallbacks', () => {
+    render(<Artwork src="" fallback="liked" crossfade={false} />)
+    render(<Artwork src="" fallback="playlist" crossfade={false} />)
+    expect(screen.getByRole('img', { name: 'Liked Songs' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Playlist' })).toBeInTheDocument()
+  })
+
+  it('mounts one layer without crossfade and swaps the image in place', () => {
+    const { container, rerender } = render(<Artwork src="https://x/a.jpg" crossfade={false} />)
+    expect(container.querySelectorAll('img')).toHaveLength(1)
+    rerender(<Artwork src="https://x/b.jpg" crossfade={false} />)
+    const imgs = container.querySelectorAll('img')
+    expect(imgs).toHaveLength(1)
+    expect(imgs[0].getAttribute('src')).toBe('https://x/b.jpg')
+  })
+
+  it('mounts two layers by default', async () => {
+    const { container, rerender } = render(<Artwork src="https://x/a.jpg" />)
+    await act(async () => rerender(<Artwork src="https://x/b.jpg" />))
+    expect(container.querySelectorAll('img')).toHaveLength(2)
   })
 })

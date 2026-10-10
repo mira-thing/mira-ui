@@ -1,5 +1,4 @@
 import { useCallback } from 'react'
-import { AlbumArt } from '@/components/AlbumArt'
 import { BackgroundDepth } from '@/components/AmbientGround'
 import { Controls } from '@/components/Controls'
 import { Lyrics } from '@/components/Lyrics'
@@ -7,7 +6,6 @@ import { Menu } from '@/components/Menu'
 import { NoLyricsView } from '@/components/NoLyricsView'
 import { ProgressBar } from '@/components/ProgressBar'
 import { ReconnectBanner, type ReconnectReason } from '@/components/ReconnectBanner'
-import { TrackInfo } from '@/components/TrackInfo'
 import {
   isDJContext,
   NarrationContext,
@@ -23,7 +21,9 @@ import { useOverlayState } from '@/overlays/overlayContext'
 import type { ObserverStatusActive } from '@/api/types'
 import type { NotifyFn } from '@/notify/notifyContext'
 import { getSettings, updateSettings, useSettings } from '@/settings'
+import { Artwork } from '@/ui/Artwork'
 import { Surface } from '@/ui/Surface'
+import { TrackText } from '@/ui/TrackText'
 import styles from '@/App.module.scss'
 import { artSizeFor, heroArtSizeFor } from './playerLayout'
 
@@ -137,13 +137,13 @@ export function PlayerPage({
             >
               <div className={styles.top}>
                 <Surface variant="panel" depth="lyrics" className={styles.left}>
-                  <AlbumArt
+                  <Artwork
                     src={shown.art}
                     size={artSize}
-                    djFallback={shown.djFallback}
+                    fallback={shown.djFallback ? 'dj' : 'none'}
                     pending={scene.pending}
                   />
-                  <TrackInfo trackName={shown.title} artist={shown.artist} compact />
+                  <TrackText title={shown.title} artist={shown.artist} size="panel" />
                 </Surface>
                 <div className={styles.right} data-depth-panel="lyrics">
                   <Lyrics

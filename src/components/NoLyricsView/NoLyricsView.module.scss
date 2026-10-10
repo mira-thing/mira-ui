@@ -15,26 +15,5 @@
   flex: 0 1 auto;
   width: 440px;
   max-width: 100%;
-  min-width: 0;
-  @include column;
   margin-left: 34px;
-  text-align: left;
-
-  > * + * {
-    margin-top: $s-2;
-  }
-}
-
-.title {
-  font-size: 42px;
-  font-weight: $fw-bold;
-  line-height: 1.08;
-  letter-spacing: -0.03em;
-  color: $text-primary;
-}
-
-.artist {
-  font-size: 24px;
-  font-weight: $fw-medium;
-  color: $text-secondary;
 }

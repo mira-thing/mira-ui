@@ -1,61 +1,11 @@
 import { memo } from 'react'
-import type { ReactNode } from 'react'
 import { SaveButton } from './SaveButton'
-import { PlayPauseIcon } from './PlayPauseIcon'
 import { useNarration } from '@/hooks/useDJNarration'
+import { IconButton, PlayPauseButton } from '@/ui/Button'
 import { Icon } from '@/ui/icons'
 import styles from './Controls.module.scss'
 
 import type { RepeatMode } from '@/hooks/usePlayerControls'
-
-const SIZE_CLASS = { xs: styles.btnXs, sm: styles.btnSm, lg: styles.btnLg }
-
-interface ControlButtonProps {
-  size: keyof typeof SIZE_CLASS
-  label: string
-  children: ReactNode
-  onPress?: () => void
-  // left undefined by controls that are never disabled or never a toggle, so they render
-  // without the attribute at all
-  disabled?: boolean
-  pressed?: boolean
-  // lit up, which repeat needs to keep separate from pressed: it reports pressed while
-  // disabled for a DJ set, but must not look lit
-  active?: boolean
-}
-
-function ControlButton({
-  size,
-  label,
-  children,
-  onPress,
-  disabled,
-  pressed,
-  active,
-}: ControlButtonProps) {
-  const className = [
-    styles.btn,
-    SIZE_CLASS[size],
-    active && styles.toggleOn,
-    disabled && styles.btnDisabled,
-  ]
-    .filter(Boolean)
-    .join(' ')
-
-  return (
-    <button
-      type="button"
-      className={className}
-      aria-label={label}
-      aria-pressed={pressed}
-      aria-disabled={disabled}
-      disabled={disabled}
-      onClick={disabled ? undefined : onPress}
-    >
-      {children}
-    </button>
-  )
-}
 
 interface Props {
   isPaused: boolean
@@ -118,60 +68,61 @@ function ControlsImpl({
 
       <div className={styles.center}>
         {isPodcast ? (
-          <ControlButton size="xs" label="Rewind 15 seconds" onPress={onRewind15}>
-            <Icon name="seekBack15" size={32} />
-          </ControlButton>
+          <IconButton size="xs" label="Rewind 15 seconds" icon="seekBack15" onPress={onRewind15} />
         ) : isDJ ? (
           // momentary action, not a toggle. Jumping mid-line cuts the speech short
-          <ControlButton size="xs" label="Switch DJ set" disabled={narrating} onPress={onDJSignal}>
-            <Icon name="dj" size={32} />
-          </ControlButton>
+          <IconButton
+            size="xs"
+            label="Switch DJ set"
+            icon="dj"
+            disabled={narrating}
+            onPress={onDJSignal}
+          />
         ) : (
-          <ControlButton
+          <IconButton
             size="xs"
             label="Shuffle"
+            icon="shuffle"
             pressed={shuffle}
             active={shuffle}
             onPress={onToggleShuffle}
-          >
-            <Icon name="shuffle" size={32} />
-          </ControlButton>
+          />
         )}
 
-        <ControlButton size="sm" label="Previous" disabled={disallowPrev} onPress={onPrev}>
-          <Icon name="prev" size={43} />
-        </ControlButton>
+        <IconButton
+          size="sm"
+          label="Previous"
+          icon="prev"
+          disabled={disallowPrev}
+          onPress={onPrev}
+        />
 
-        <ControlButton size="lg" label={isPaused ? 'Play' : 'Pause'} onPress={onPlayPause}>
-          <PlayPauseIcon isPaused={isPaused} />
-        </ControlButton>
+        <PlayPauseButton size="lg" isPaused={isPaused} onPress={onPlayPause} />
 
-        <ControlButton size="sm" label="Next" disabled={disallowNext} onPress={onNext}>
-          <Icon name="next" size={43} />
-        </ControlButton>
+        <IconButton size="sm" label="Next" icon="next" disabled={disallowNext} onPress={onNext} />
 
         {isPodcast ? (
-          <ControlButton size="xs" label="Forward 15 seconds" onPress={onForward15}>
-            <Icon name="seekForward15" size={32} />
-          </ControlButton>
+          <IconButton
+            size="xs"
+            label="Forward 15 seconds"
+            icon="seekForward15"
+            onPress={onForward15}
+          />
         ) : (
-          <ControlButton
+          <IconButton
             size="xs"
             label={`Repeat ${repeat}`}
+            icon={repeat === 'track' ? 'repeatOne' : 'repeat'}
             pressed={repeatActive}
             active={repeatActive && !repeatDisabled}
             disabled={repeatDisabled}
             onPress={onCycleRepeat}
-          >
-            <Icon name={repeat === 'track' ? 'repeatOne' : 'repeat'} size={32} />
-          </ControlButton>
+          />
         )}
       </div>
 
       <div className={styles.right}>
-        <ControlButton size="xs" label="More" onPress={onMore}>
-          <Icon name="more" size={28} />
-        </ControlButton>
+        <IconButton size="xs" label="More" icon={<Icon name="more" size={28} />} onPress={onMore} />
       </div>
     </div>
   )
