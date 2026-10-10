@@ -1,6 +1,6 @@
 .overlay {
   @include absolute-fill;
-  background: rgba(0, 0, 0, 0.62);
+  background: $scrim;
   @include flex-center;
   z-index: $z-menu;
   animation: updateFadeIn $dur-base $ease-standard both;

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ObserverStatusActive } from '@/api/types'
-import type { RepeatMode } from '@/components/Menu'
+
+export type RepeatMode = 'off' | 'context' | 'track'
 
 const PREV_DOUBLE_TAP_MS = 1500
 const TRANSITION_TIMEOUT_MS = 1200

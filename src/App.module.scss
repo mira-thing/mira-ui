@@ -7,7 +7,7 @@
 }
 
 .appPlaying {
-  --panel-radius: #{$r-panel};
+  --panel-radius: #{$r-surface};
   display: grid;
   grid-template-rows: minmax(0, 1fr) $bottom-bar-h;
   padding: $pad-y $pad-x $s-3;
@@ -57,7 +57,7 @@
 
 .top {
   display: grid;
-  grid-template-columns: calc(var(--art-size, #{$art-size}) + 34px) minmax(0, 1fr);
+  grid-template-columns: calc(var(--art-size, #{$art-size}) + #{$surface-inset}) minmax(0, 1fr);
   column-gap: $s-3;
   min-height: 0;
   min-width: 0;
@@ -74,8 +74,8 @@
   width: auto;
   min-height: 0;
   @include flex-gap-y($s-3);
-  padding: $s-4;
-  border-radius: $r-panel;
+  padding: $surface-pad;
+  border-radius: $r-surface;
   @include glass-panel;
 }
 
@@ -109,7 +109,7 @@
   @include column;
   justify-content: center;
   padding: $s-2 $s-5;
-  border-radius: $r-panel;
+  border-radius: $r-surface;
   @include glass-panel($face: 0.095);
   z-index: $z-bottom-bar;
 }

@@ -16,7 +16,7 @@ import { PlayPauseIcon } from './PlayPauseIcon'
 import { useNarration } from '@/hooks/useDJNarration'
 import styles from './Controls.module.scss'
 
-import type { RepeatMode } from '@/components/Menu'
+import type { RepeatMode } from '@/hooks/usePlayerControls'
 
 const SIZE_CLASS = { xs: styles.btnXs, sm: styles.btnSm, lg: styles.btnLg }
 
