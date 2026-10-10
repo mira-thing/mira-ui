@@ -5,6 +5,7 @@ import { Lyrics } from '../Lyrics'
 import { __resetLyricsCache } from '../../../hooks/useLyrics'
 import { server } from '../../../__tests__/msw-server'
 import { activeStatus } from '../../../__tests__/fixtures/observer'
+import { PageActiveContext } from '@/app/pageActive'
 import { NarrationContext } from '@/hooks/useDJNarration'
 
 beforeEach(() => {
@@ -215,5 +216,44 @@ describe('lyrics rendered DOM', () => {
 
     expect(screen.getByText(/no lyrics available/i)).toBeInTheDocument()
     expect(screen.queryByText('Stale line from the last song')).toBeNull()
+  })
+})
+
+describe('karaoke line', () => {
+  it('runs its frame loop only while its page is active', async () => {
+    server.use(
+      http.get('*/lyrics/abc', () =>
+        HttpResponse.json({
+          syncType: 'LINE_SYNCED',
+          lines: [
+            {
+              startTimeMs: '0',
+              words: 'Sung line',
+              syllables: [
+                { startTimeMs: '0', word: 'Sung ' },
+                { startTimeMs: '2000', word: 'line' },
+              ],
+            },
+            { startTimeMs: '50000', words: 'Later line' },
+          ],
+        }),
+      ),
+    )
+    const raf = vi.spyOn(window, 'requestAnimationFrame')
+    const status = { ...TRACK_STATUS, position: 1000, is_playing: false, is_paused: true }
+    const page = (active: boolean) => (
+      <PageActiveContext.Provider value={active}>
+        <Lyrics status={status} />
+      </PageActiveContext.Provider>
+    )
+
+    const { rerender } = render(page(false))
+    // the active line splits into syllables once it is the karaoke line
+    await waitFor(() => expect(screen.getByText('line')).toBeInTheDocument())
+    expect(raf).not.toHaveBeenCalled()
+
+    rerender(page(true))
+    expect(raf).toHaveBeenCalled()
+    raf.mockRestore()
   })
 })

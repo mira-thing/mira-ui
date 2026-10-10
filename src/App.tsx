@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AuthScreen } from '@/components/AuthScreen'
 import { BootSplash } from '@/components/BootSplash'
 import { CheckinConsent } from '@/components/CheckinConsent'
@@ -14,8 +14,11 @@ import { SponsorScreen } from '@/components/SponsorScreen'
 import { UpdateCard } from '@/components/UpdateCard'
 import { DebugScreen } from '@/components/DebugScreen'
 import { InputRouter } from '@/input/InputRouter'
+import { PageShell } from '@/app/PageShell'
+import { createRouteBack, RouteBackContext } from '@/app/routeBack'
 import { resolveRoute } from '@/app/routes'
-import { useDevScreen } from '@/dev/devContext'
+import { usePages, type PageId } from '@/app/usePages'
+import { forcedPageOf, useDevScreen } from '@/dev/devContext'
 import { makeMockStatus } from '@/dev/mockStatus'
 import { useAuth } from '@/hooks/useAuth'
 import { useConnectDevices } from '@/hooks/useConnectDevices'
@@ -73,7 +76,12 @@ export default function App() {
   // closing a forced menu has to drop the override too, or it springs back
   const onOverlayClosed = useCallback(
     (id: OverlayId) => {
-      if ((id === 'menu' && forced === 'menu') || (id === 'powerMenu' && forced === 'power-menu')) {
+      if (
+        (id === 'menu' && forced === 'menu') ||
+        (id === 'powerMenu' && forced === 'power-menu') ||
+        (id === 'btMenu' && forced === 'bluetooth-menu') ||
+        (id === 'settings' && forced === 'settings')
+      ) {
         setForced('playing-lyrics')
       }
     },
@@ -149,6 +157,7 @@ function AppContent() {
   const loadStuck = useDelayedFlag(true, LOAD_STUCK_MS)
 
   const mockStatus = useMemo<ObserverStatusActive>(() => makeMockStatus(), [])
+  const forcedPage = forcedPageOf(forced)
 
   const status =
     forced === 'playing-lyrics' ||
@@ -158,7 +167,8 @@ function AppContent() {
     forced === 'power-menu' ||
     forced === 'bluetooth-menu' ||
     forced === 'reconnect-banner' ||
-    forced === 'settings'
+    forced === 'settings' ||
+    forcedPage !== null
       ? mockStatus
       : realStatus
 
@@ -268,6 +278,9 @@ function AppContent() {
     onDismiss: closeUpdateCard,
   })
 
+  const pages = usePages()
+  const [routeBack] = useState(createRouteBack)
+
   // hardware back button
   const goBack = useCallback(() => {
     if (overlays.goBack(overlayBusy)) return
@@ -280,8 +293,8 @@ function AppContent() {
       offline.setSetupOverride(false)
       return
     }
-    // nothing to go back to
-  }, [overlays, overlayBusy, offline])
+    if (routeBack.run()) return
+  }, [overlays, overlayBusy, offline, routeBack])
 
   const controls = usePlayerControls({
     status: status && status.active ? status : null,
@@ -378,12 +391,12 @@ function AppContent() {
 
   return (
     <>
-      {renderPage()}
+      {renderRoute()}
       {screensaver}
     </>
   )
 
-  function renderPage() {
+  function renderRoute() {
     if (forced === 'connection-chooser') {
       return (
         <div className={styles.app}>
@@ -632,21 +645,38 @@ function AppContent() {
     const bannerReason: ReconnectReason | null =
       forced === 'reconnect-banner' ? 'offline' : reconnecting ? dropReason : null
 
+    const renderPage = (id: PageId) => {
+      switch (id) {
+        case 'player':
+          return (
+            <PlayerPage
+              status={playerStatus}
+              live={statusActive}
+              controls={controls}
+              narration={narration}
+              showLyrics={showLyrics}
+              bannerReason={bannerReason}
+              carriers={carriers}
+              pairing={pairing}
+              seek={seek}
+              notify={notify}
+            />
+          )
+      }
+    }
+
     return (
-      <PlayerPage
-        status={playerStatus}
-        live={statusActive}
-        controls={controls}
-        narration={narration}
-        showLyrics={showLyrics}
-        bannerReason={bannerReason}
-        carriers={carriers}
-        pairing={pairing}
-        seek={seek}
-        notify={notify}
-      >
-        {globalOverlays}
-      </PlayerPage>
+      <RouteBackContext.Provider value={routeBack}>
+        <PageShell
+          root={pages.root}
+          current={pages.current}
+          previous={pages.previous}
+          forcedPage={forcedPage}
+          onBack={pages.pop}
+          renderPage={renderPage}
+          overlays={globalOverlays}
+        />
+      </RouteBackContext.Provider>
     )
   }
 }

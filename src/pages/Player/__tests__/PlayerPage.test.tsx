@@ -55,14 +55,18 @@ function Harness({ children }: { children: ReactNode }) {
   return <OverlayContext.Provider value={overlays}>{children}</OverlayContext.Provider>
 }
 
-function renderPage(p: PlayerPageProps = props(), children?: ReactNode) {
+function renderPage(p: PlayerPageProps = props()) {
   // setup.ts runs msw with onUnhandledRequest: 'error', and neither call the
   // player makes is in the default handler set
   server.use(
     http.get('*/player/saved', () => HttpResponse.json({ saved: false })),
     http.get('*/lyrics/*', () => HttpResponse.json({ lines: [] })),
   )
-  return render(<Harness>{<PlayerPage {...p}>{children}</PlayerPage>}</Harness>)
+  return render(
+    <Harness>
+      <PlayerPage {...p} />
+    </Harness>,
+  )
 }
 
 // one horizontal finger travel, far enough past SWIPE_MIN_PX to read as "next"
@@ -121,13 +125,6 @@ describe('PlayerPage', () => {
   it('stays quiet with no drop to report', () => {
     renderPage(props({ bannerReason: null }))
     expect(screen.queryByText(/reconnecting/i)).not.toBeInTheDocument()
-  })
-
-  it('renders the overlay host inside the player container, not beside it', () => {
-    const { container } = renderPage(props(), <div data-testid="overlay-host" />)
-
-    const app = container.querySelector('.app')
-    expect(app?.querySelector('[data-testid="overlay-host"]')).toBeInTheDocument()
   })
 
   it('opens the menu from More', async () => {
