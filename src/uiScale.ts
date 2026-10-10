@@ -20,7 +20,9 @@ import {
 const BASE_W = 800
 const BASE_H = 480
 
-// the album art is the only fixed height block
+// the album art is the only fixed height block in the player column, so it gives way first
+//   stage row = h - (pad-y 12 + pad-bottom 12 + row gap 12 + bottom bar 144)
+//   .left     = panel padding 16x2 + border 1x2 (34) + art gap 12 + compact TrackInfo 52
 const STAGE_RESERVED_H = 180
 const ART_MAX = 200
 const ART_MIN = 120
@@ -28,6 +30,7 @@ const ART_RESERVED_H = STAGE_RESERVED_H + 34 + 12 + 52
 
 // 264px cover at 100%
 const HERO_ART_MAX = 264
+// the no-lyrics panel only adds its padding and border around the cover
 const HERO_RESERVED_H = STAGE_RESERVED_H + 34
 
 // whole pixels keep layout off subpixels; zoom derives from the rounded width so the

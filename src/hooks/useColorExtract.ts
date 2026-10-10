@@ -131,6 +131,9 @@ const famR = new Float64Array(BINS + 1)
 const famG = new Float64Array(BINS + 1)
 const famB = new Float64Array(BINS + 1)
 
+// vivid() can push the accent into a neighbouring bin, so the palette skips both
+let accentFamily = -1
+
 function extractAccent(data: ArrayLike<number>): RGB | null {
   let buckets = 0
   let total = 0
@@ -207,6 +210,7 @@ function extractAccent(data: ArrayLike<number>): RGB | null {
       }
     }
     if (winner < 0) return null
+    accentFamily = winner
     return winner === GRAY ? accent : vivid(accent, winner, buckets, total)
   } catch {
     return null
@@ -241,11 +245,12 @@ function vivid(accent: RGB, family: number, buckets: number, total: number): RGB
 
 function paletteFromFamilies(accent: RGB): RGB[] {
   const key = ((accent[0] >> 3) << 10) | ((accent[1] >> 3) << 5) | (accent[2] >> 3)
-  const accentFamily = famOf[key] === UNCLASSIFIED ? classify(key) : famOf[key]
+  const boostedFamily = famOf[key] === UNCLASSIFIED ? classify(key) : famOf[key]
   const candidates: { family: number; score: number; rgb: RGB }[] = []
 
   for (let family = 0; family <= BINS; family++) {
-    if (family === accentFamily || famWeight[family] === 0 || famCw[family] === 0) continue
+    if (family === accentFamily || family === boostedFamily) continue
+    if (famWeight[family] === 0 || famCw[family] === 0) continue
     const chroma = family === GRAY ? GRAY_K : famChroma[family] / famWeight[family]
     candidates.push({
       family,
@@ -377,8 +382,7 @@ function useSample(url: string | undefined): Sample {
       () =>
         void prepareArtwork(url).then(() => {
           if (cancelled) return
-          const next = cache.get(url)
-          if (next) apply(next)
+          apply(cache.get(url) ?? DEFAULT_SAMPLE)
         }),
       300,
     )
@@ -390,10 +394,6 @@ function useSample(url: string | undefined): Sample {
   }, [url])
 
   return url ? (cache.get(url) ?? sample) : sample
-}
-
-export function useColorExtract(url: string | undefined): RGB {
-  return useSample(url).rgb
 }
 
 export function useDominantColors(url: string | undefined): RGB[] {
@@ -440,17 +440,8 @@ function hslToRgb(h: number, s: number, l: number): RGB {
   ]
 }
 
-const DARK_L = 0.16
-const DARK_S_CAP = 0.62
 const SURFACE_L = 0.24
 const SURFACE_S_CAP = 0.62
-
-// saturated darkmode backdrop from the album accent colour
-export function darkBg(rgb: RGB): string {
-  const [h, s] = rgbToHsl(rgb[0], rgb[1], rgb[2])
-  const [r, g, b] = hslToRgb(h, Math.min(s, DARK_S_CAP), DARK_L)
-  return `rgb(${r}, ${g}, ${b})`
-}
 
 // each layer gets its own value
 export type GroundRole = 'base' | 'deep' | 'hot'
