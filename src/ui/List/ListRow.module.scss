@@ -1,0 +1,90 @@
+.row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  min-height: $touch-min;
+  color: $text-primary;
+  transition: transform $dur-fast $ease-standard;
+  @include press;
+  @include focus-ring;
+
+  &.focused {
+    background: rgba(255, 255, 255, 0.08);
+  }
+}
+
+.plain {
+  border-radius: $r-row;
+}
+
+.pill {
+  border-radius: $r-pill;
+}
+
+.hit {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  padding: 0 $s-3;
+  text-align: left;
+  @include flex-gap-x($s-3);
+}
+
+.leading {
+  flex: 0 0 auto;
+  @include flex-center;
+  color: $text-secondary;
+}
+
+.text {
+  flex: 1 1 auto;
+  min-width: 0;
+  @include column;
+}
+
+.title {
+  @include type(body);
+  @include truncate;
+}
+
+.subtitle {
+  color: $text-secondary;
+  @include type(caption);
+  @include truncate;
+}
+
+.value {
+  flex: 0 0 auto;
+  color: $text-secondary;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  @include type(label);
+}
+
+.trailing {
+  flex: 0 0 auto;
+  @include flex-center;
+  margin-right: $s-3;
+}
+
+.active .title {
+  color: $accent;
+}
+
+.danger {
+  .title,
+  .leading {
+    color: $c-danger;
+  }
+}
+
+.disabled {
+  @include disabled-control;
+
+  .hit {
+    cursor: default;
+  }
+}

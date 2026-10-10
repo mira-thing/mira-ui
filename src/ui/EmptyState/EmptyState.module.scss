@@ -1,0 +1,48 @@
+.empty {
+  @include column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: $text-secondary;
+}
+
+.inline {
+  padding: $s-5 $s-4;
+  @include flex-gap-y($s-1);
+
+  .title {
+    @include type(body);
+  }
+
+  .body {
+    @include type(caption);
+  }
+}
+
+.page {
+  height: 100%;
+  padding: $s-6;
+  @include flex-gap-y($s-2);
+
+  .title {
+    @include type(body-lg);
+  }
+
+  .body {
+    max-width: 420px;
+    @include type(body);
+  }
+}
+
+.icon {
+  flex: 0 0 auto;
+  color: $text-tertiary;
+}
+
+.title {
+  color: $text-primary;
+}
+
+.body {
+  color: $text-secondary;
+}
