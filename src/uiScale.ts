@@ -20,23 +20,18 @@ import {
 const BASE_W = 800
 const BASE_H = 480
 
-// the album art is the only fixed-height block in the player column and it never
-// shrinks, so it has to give way first when the logical viewport gets shorter.
-//   stage row = h - (pad-y 24 + pad-bottom 28 + row gap 12 + bottom bar 132)
-//   .left     = art + gap 12 + TrackInfo 62.8
-const STAGE_RESERVED_H = 196
+// the album art is the only fixed height block in the player column, so it gives way first
+//   stage row = h - (pad-y 12 + pad-bottom 12 + row gap 12 + bottom bar 144)
+//   .left     = panel padding 16x2 + border 1x2 (34) + art gap 12 + compact TrackInfo 52
+const STAGE_RESERVED_H = 180
 const ART_MAX = 200
 const ART_MIN = 120
-const ART_RESERVED_H = STAGE_RESERVED_H + 12 + 62.8
+const ART_RESERVED_H = STAGE_RESERVED_H + 34 + 12 + 52
 
-// the no-lyrics view instead centres the art in the stage row behind a 130% blurred
-// glow, and its stock 220 is tuned so that glow just fits at 100%
-const HERO_ART_MAX = 220
-const HERO_GLOW_RATIO = 1.3
-
-function stageHeight(pct: number): number {
-  return logicalSize(pct).h - STAGE_RESERVED_H
-}
+// 264px cover at 100%
+const HERO_ART_MAX = 264
+// the no-lyrics panel only adds its padding and border around the cover
+const HERO_RESERVED_H = STAGE_RESERVED_H + 34
 
 // whole pixels keep layout off subpixels; zoom derives from the rounded width so the
 // paint lands on exactly 800 wide, and h ceils so the bottom overshoots by <1px
@@ -53,9 +48,9 @@ export function artSizeFor(pct: number): number {
   return Math.max(ART_MIN, Math.min(ART_MAX, Math.floor(h - ART_RESERVED_H)))
 }
 
-// keeps the glow inside the stage row instead of bleeding behind the transport bar
+// keeps the cover inside the padded panel at every display-size notch
 export function heroArtSizeFor(pct: number): number {
-  return Math.max(ART_MIN, Math.min(HERO_ART_MAX, Math.floor(stageHeight(pct) / HERO_GLOW_RATIO)))
+  return Math.max(ART_MIN, Math.min(HERO_ART_MAX, Math.floor(logicalSize(pct).h - HERO_RESERVED_H)))
 }
 
 let achievedX = 1

@@ -4,8 +4,6 @@ import {
   DJIcon,
   MoreIcon,
   NextIcon,
-  PauseIcon,
-  PlayIcon,
   PrevIcon,
   RepeatIcon,
   RepeatOneIcon,
@@ -14,6 +12,7 @@ import {
   ShuffleIcon,
 } from './icons'
 import { SaveButton } from './SaveButton'
+import { PlayPauseIcon } from './PlayPauseIcon'
 import { useNarration } from '@/hooks/useDJNarration'
 import styles from './Controls.module.scss'
 
@@ -150,15 +149,15 @@ function ControlsImpl({
         )}
 
         <ControlButton size="sm" label="Previous" disabled={disallowPrev} onPress={onPrev}>
-          <PrevIcon size={40} />
+          <PrevIcon size={43} />
         </ControlButton>
 
         <ControlButton size="lg" label={isPaused ? 'Play' : 'Pause'} onPress={onPlayPause}>
-          {isPaused ? <PlayIcon size={36} /> : <PauseIcon size={36} />}
+          <PlayPauseIcon isPaused={isPaused} />
         </ControlButton>
 
         <ControlButton size="sm" label="Next" disabled={disallowNext} onPress={onNext}>
-          <NextIcon size={40} />
+          <NextIcon size={43} />
         </ControlButton>
 
         {isPodcast ? (

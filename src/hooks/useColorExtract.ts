@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 export type RGB = [number, number, number]
 
 // the art is reduced to a 5-bit histogram
 const DEFAULT: RGB = [70, 75, 95]
 const SAMPLE = 32
+const SAMPLE_TAPS = 4
+const SAMPLE_GRID = SAMPLE * SAMPLE_TAPS
 const BINS = 16
 const GRAY = BINS
 const GRAY_C = 0.04
@@ -22,13 +24,14 @@ const WARM_PENALTY = 0.5
 const CACHE_MAX = 500
 const cache = new Map<string, Sample>()
 
-// the accent colour plus how bright the artwork is overall
+// one sample feeds the accent and the ambient ground
 interface Sample {
   rgb: RGB
-  luminance: number
+  palette: RGB[]
 }
 
-const DEFAULT_SAMPLE: Sample = { rgb: DEFAULT, luminance: 0 }
+const DEFAULT_PALETTE: RGB[] = [DEFAULT, [48, 55, 68], [34, 37, 45]]
+const DEFAULT_SAMPLE: Sample = { rgb: DEFAULT, palette: DEFAULT_PALETTE }
 
 function remember(url: string, sample: Sample) {
   if (!cache.has(url) && cache.size >= CACHE_MAX) {
@@ -43,10 +46,40 @@ let sharedCtx: CanvasRenderingContext2D | null = null
 function ensureCanvas(): CanvasRenderingContext2D | null {
   if (sharedCtx) return sharedCtx
   const canvas = document.createElement('canvas')
-  canvas.width = SAMPLE
-  canvas.height = SAMPLE
+  canvas.width = SAMPLE_GRID
+  canvas.height = SAMPLE_GRID
   sharedCtx = canvas.getContext('2d', { willReadFrequently: true })
+  if (sharedCtx) sharedCtx.imageSmoothingEnabled = false
   return sharedCtx
+}
+
+const sampledPixels = new Uint8ClampedArray(SAMPLE * SAMPLE * 4)
+
+function samplePixels(data: Uint8ClampedArray): Uint8ClampedArray {
+  for (let y = 0; y < SAMPLE; y++) {
+    for (let x = 0; x < SAMPLE; x++) {
+      let r = 0
+      let g = 0
+      let b = 0
+      let alpha = 0
+      for (let dy = 0; dy < SAMPLE_TAPS; dy++) {
+        for (let dx = 0; dx < SAMPLE_TAPS; dx++) {
+          const i = ((y * SAMPLE_TAPS + dy) * SAMPLE_GRID + x * SAMPLE_TAPS + dx) * 4
+          const a = data[i + 3]
+          r += data[i] * a
+          g += data[i + 1] * a
+          b += data[i + 2] * a
+          alpha += a
+        }
+      }
+      const out = (y * SAMPLE + x) * 4
+      sampledPixels[out] = alpha ? r / alpha : 0
+      sampledPixels[out + 1] = alpha ? g / alpha : 0
+      sampledPixels[out + 2] = alpha ? b / alpha : 0
+      sampledPixels[out + 3] = alpha / (SAMPLE_TAPS * SAMPLE_TAPS)
+    }
+  }
+  return sampledPixels
 }
 
 const UNCLASSIFIED = 255
@@ -97,6 +130,9 @@ const famCw = new Float64Array(BINS + 1)
 const famR = new Float64Array(BINS + 1)
 const famG = new Float64Array(BINS + 1)
 const famB = new Float64Array(BINS + 1)
+
+// vivid() can push the accent into a neighbouring bin, so the palette skips both
+let accentFamily = -1
 
 function extractAccent(data: ArrayLike<number>): RGB | null {
   let buckets = 0
@@ -174,6 +210,7 @@ function extractAccent(data: ArrayLike<number>): RGB | null {
       }
     }
     if (winner < 0) return null
+    accentFamily = winner
     return winner === GRAY ? accent : vivid(accent, winner, buckets, total)
   } catch {
     return null
@@ -206,46 +243,123 @@ function vivid(accent: RGB, family: number, buckets: number, total: number): RGB
   return hslToRgb(h, Math.max(s, saturation), l)
 }
 
-function meanLuminance(data: ArrayLike<number>): number {
-  let sum = 0
-  let n = 0
-  for (let i = 0; i < data.length; i += 4) {
-    if (data[i + 3] < 128) continue
-    sum += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]
-    n++
+function paletteFromFamilies(accent: RGB): RGB[] {
+  const key = ((accent[0] >> 3) << 10) | ((accent[1] >> 3) << 5) | (accent[2] >> 3)
+  const boostedFamily = famOf[key] === UNCLASSIFIED ? classify(key) : famOf[key]
+  const candidates: { family: number; score: number; rgb: RGB }[] = []
+
+  for (let family = 0; family <= BINS; family++) {
+    if (family === accentFamily || family === boostedFamily) continue
+    if (famWeight[family] === 0 || famCw[family] === 0) continue
+    const chroma = family === GRAY ? GRAY_K : famChroma[family] / famWeight[family]
+    candidates.push({
+      family,
+      score: famWeight[family] * (0.08 + Math.min(chroma, 0.32)),
+      rgb: [
+        Math.round(famR[family] / famCw[family]),
+        Math.round(famG[family] / famCw[family]),
+        Math.round(famB[family] / famCw[family]),
+      ],
+    })
   }
-  return n === 0 ? 0 : sum / n / 255
+  candidates.sort((a, b) => b.score - a.score || a.family - b.family)
+
+  const palette: RGB[] = [accent]
+  for (const candidate of candidates) {
+    const distinct = palette.every((color) => {
+      const dr = color[0] - candidate.rgb[0]
+      const dg = color[1] - candidate.rgb[1]
+      const db = color[2] - candidate.rgb[2]
+      return dr * dr + dg * dg + db * db >= 28 * 28
+    })
+    if (distinct) palette.push(candidate.rgb)
+    if (palette.length === 3) break
+  }
+  return palette
 }
 
 function extract(img: HTMLImageElement): Sample | null {
   const ctx = ensureCanvas()
   if (!ctx) return null
   try {
-    ctx.clearRect(0, 0, SAMPLE, SAMPLE)
-    ctx.drawImage(img, 0, 0, SAMPLE, SAMPLE)
-    const { data } = ctx.getImageData(0, 0, SAMPLE, SAMPLE)
-    const rgb = extractAccent(data)
+    ctx.clearRect(0, 0, SAMPLE_GRID, SAMPLE_GRID)
+    ctx.drawImage(img, 0, 0, SAMPLE_GRID, SAMPLE_GRID)
+    const { data } = ctx.getImageData(0, 0, SAMPLE_GRID, SAMPLE_GRID)
+    const rgb = extractAccent(samplePixels(data))
     if (!rgb) return null
-    return { rgb, luminance: meanLuminance(data) }
+    return { rgb, palette: paletteFromFamilies(rgb) }
   } catch {
     return null
   }
+}
+
+const pendingArtwork = new Map<string, Promise<void>>()
+const loadedArtwork = new Map<string, HTMLImageElement>()
+const loadingArtwork = new Map<string, Promise<HTMLImageElement | null>>()
+
+export function loadArtwork(url: string | undefined): Promise<HTMLImageElement | null> {
+  if (!url) return Promise.resolve(null)
+  const cached = loadedArtwork.get(url)
+  if (cached) return Promise.resolve(cached)
+  const pending = loadingArtwork.get(url)
+  if (pending) return pending
+  const work = new Promise<HTMLImageElement | null>((resolve) => {
+    const img = new Image()
+    let finished = false
+    const finish = (ready: boolean) => {
+      if (finished) return
+      finished = true
+      clearTimeout(timer)
+      img.onload = img.onerror = null
+      if (ready) {
+        if (loadedArtwork.size >= 12) loadedArtwork.delete(loadedArtwork.keys().next().value!)
+        loadedArtwork.set(url, img)
+      }
+      resolve(ready ? img : null)
+    }
+    const timer = window.setTimeout(() => finish(false), 8000)
+    img.crossOrigin = 'anonymous'
+    img.decoding = 'async'
+    img.referrerPolicy = 'no-referrer'
+    img.onload = () => {
+      if (img.decode)
+        void img.decode().then(
+          () => finish(true),
+          () => finish(false),
+        )
+      else finish(true)
+    }
+    img.onerror = () => finish(false)
+    img.src = url
+  })
+  loadingArtwork.set(url, work)
+  void work.then(() => loadingArtwork.delete(url))
+  return work
+}
+
+export function prepareArtwork(url: string | undefined): Promise<void> {
+  if (!url || cache.has(url)) return Promise.resolve()
+  const pending = pendingArtwork.get(url)
+  if (pending) return pending
+  const work = loadArtwork(url).then((img) => {
+    if (!img) return
+    const sample = extract(img)
+    if (sample) remember(url, sample)
+  })
+  pendingArtwork.set(url, work)
+  void work.then(() => pendingArtwork.delete(url))
+  return work
 }
 
 function useSample(url: string | undefined): Sample {
   const [sample, setSample] = useState<Sample>(() =>
     url ? (cache.get(url) ?? DEFAULT_SAMPLE) : DEFAULT_SAMPLE,
   )
-  const lastUrlRef = useRef<string | undefined>(undefined)
 
   useEffect(() => {
     if (!url) {
-      setSample(DEFAULT_SAMPLE)
-      lastUrlRef.current = undefined
       return
     }
-    if (lastUrlRef.current === url) return
-    lastUrlRef.current = url
 
     const cached = cache.get(url)
     if (cached) {
@@ -254,51 +368,36 @@ function useSample(url: string | undefined): Sample {
     }
 
     let cancelled = false
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    img.decoding = 'async'
-    img.referrerPolicy = 'no-referrer'
-
     const apply = (next: Sample) =>
       setSample((prev) =>
         prev.rgb[0] === next.rgb[0] &&
         prev.rgb[1] === next.rgb[1] &&
         prev.rgb[2] === next.rgb[2] &&
-        prev.luminance === next.luminance
+        prev.palette === next.palette
           ? prev
           : next,
       )
 
-    img.onload = () => {
-      if (cancelled) return
-      const next = extract(img) ?? DEFAULT_SAMPLE
-      remember(url, next)
-      apply(next)
-    }
-    img.onerror = () => {
-      if (cancelled) return
-      apply(DEFAULT_SAMPLE)
-    }
-    img.src = url
+    const timer = window.setTimeout(
+      () =>
+        void prepareArtwork(url).then(() => {
+          if (cancelled) return
+          apply(cache.get(url) ?? DEFAULT_SAMPLE)
+        }),
+      300,
+    )
 
     return () => {
       cancelled = true
-      img.onload = null
-      img.onerror = null
-      img.src = ''
+      window.clearTimeout(timer)
     }
   }, [url])
 
-  return sample
+  return url ? (cache.get(url) ?? sample) : sample
 }
 
-export function useColorExtract(url: string | undefined): RGB {
-  return useSample(url).rgb
-}
-
-// mean artwork luminance
-export function useArtLuminance(url: string | undefined): number {
-  return useSample(url).luminance
+export function useDominantColors(url: string | undefined): RGB[] {
+  return useSample(url).palette
 }
 
 function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
@@ -341,12 +440,44 @@ function hslToRgb(h: number, s: number, l: number): RGB {
   ]
 }
 
-const DARK_L = 0.16
-const DARK_S_CAP = 0.62
+const SURFACE_L = 0.24
+const SURFACE_S_CAP = 0.62
 
-// saturated darkmode backdrop from the album accent colour
-export function darkBg(rgb: RGB): string {
+// each layer gets its own value
+export type GroundRole = 'base' | 'deep' | 'hot'
+
+const ROLE: Record<GroundRole, { lo: number; hi: number; sat: number; gain: number }> = {
+  // album colour
+  base: { lo: 0.15, hi: 0.225, sat: 0.6, gain: 1 },
+  // shadow mass
+  deep: { lo: 0.085, hi: 0.135, sat: 0.5, gain: 1 },
+  // hotter highlight
+  hot: { lo: 0.26, hi: 0.36, sat: 0.78, gain: 1.35 },
+}
+
+export function groundTone(rgb: RGB, role: GroundRole): RGB {
+  const spec = ROLE[role]
+  const [h, s, l] = rgbToHsl(rgb[0], rgb[1], rgb[2])
+  return hslToRgb(h, Math.min(s * spec.gain, spec.sat), Math.max(spec.lo, Math.min(l, spec.hi)))
+}
+
+// muted tint for the exposed bg
+export function backgroundDepthColor(rgb: RGB): RGB {
   const [h, s] = rgbToHsl(rgb[0], rgb[1], rgb[2])
-  const [r, g, b] = hslToRgb(h, Math.min(s, DARK_S_CAP), DARK_L)
-  return `rgb(${r}, ${g}, ${b})`
+  return hslToRgb(h, Math.min(s, 0.28), 0.1)
+}
+
+export function surfaceTintColor(rgb: RGB): RGB {
+  const [h, s] = rgbToHsl(rgb[0], rgb[1], rgb[2])
+  return hslToRgb(h, Math.min(s, SURFACE_S_CAP), SURFACE_L)
+}
+
+// bloom behind the cover
+const GLOW_L = 0.52
+const GLOW_S_FLOOR = 0.35
+const GLOW_S_CAP = 0.85
+
+export function surfaceGlowColor(rgb: RGB): RGB {
+  const [h, s] = rgbToHsl(rgb[0], rgb[1], rgb[2])
+  return hslToRgb(h, Math.max(GLOW_S_FLOOR, Math.min(s * 1.2, GLOW_S_CAP)), GLOW_L)
 }

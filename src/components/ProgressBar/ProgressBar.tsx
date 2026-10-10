@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useReducer, useRef } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useReducer, useRef } from 'react'
 import { formatTime } from '@/utils/time'
 import { useNarration } from '@/hooks/useDJNarration'
 import { getUiScale, useUiScale } from '@/uiScale'
@@ -80,7 +80,7 @@ function ProgressBarImpl({ status, onSeek }: Props) {
     return () => window.clearTimeout(t)
   }, [pendingAt, send])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const fill = fillRef.current
     const handle = handleRef.current
     const left = leftLabelRef.current
@@ -99,45 +99,62 @@ function ProgressBarImpl({ status, onSeek }: Props) {
 
     const playing = status.is_playing && !status.is_paused
 
-    let raf = 0
-    let lastSec = -1
-
-    const tick = () => {
+    const positionNow = () => {
       const elapsed = playing ? Math.max(0, Date.now() - status.received_at) : 0
-      const pos = Math.min(status.duration, status.position + elapsed)
-      // priority: drag > pending > live
-      const overrideRatio =
-        scrubState.kind === 'gesture'
-          ? scrubState.lastRatio
-          : scrubState.kind === 'pending'
-            ? scrubState.ratio
-            : null
-      const visiblePos = overrideRatio != null ? Math.round(overrideRatio * status.duration) : pos
-      const f =
-        overrideRatio != null
-          ? overrideRatio
-          : status.duration > 0
-            ? clamp01(pos / status.duration)
-            : 0
-
-      fill.style.transform = `scaleX(${f})`
-      const cx = f * barWidth - HANDLE_RADIUS
-      const scale = scrubState.kind === 'gesture' ? 1.18 : 1
-      handle.style.transform = `translate(${cx}px, -50%) scale(${scale})`
-
-      const sec = Math.floor(visiblePos / 1000)
-      if (sec !== lastSec) {
-        lastSec = sec
-        left.textContent = formatTime(visiblePos)
-      }
-
-      if (!playing && scrubState.kind === 'idle') return
-
-      raf = requestAnimationFrame(tick)
+      return Math.min(status.duration, status.position + elapsed)
     }
+    // hold still while dragging or waiting on a seek
+    const overrideRatio =
+      scrubState.kind === 'gesture'
+        ? scrubState.lastRatio
+        : scrubState.kind === 'pending'
+          ? scrubState.ratio
+          : null
+    const pos = positionNow()
+    const f = overrideRatio ?? (status.duration > 0 ? clamp01(pos / status.duration) : 0)
+    const scale = scrubState.kind === 'gesture' ? 1.18 : 1
+    fill.style.transform = `scaleX(${f})`
+    handle.style.transform = `translate(${f * barWidth - HANDLE_RADIUS}px, -50%) scale(${scale})`
+    left.textContent = formatTime(
+      overrideRatio != null ? Math.round(overrideRatio * status.duration) : pos,
+    )
 
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
+    if (!playing || overrideRatio != null || pos >= status.duration) return
+
+    const timing: KeyframeAnimationOptions = {
+      duration: status.duration - pos,
+      delay: Math.max(0, status.received_at - Date.now()),
+      easing: 'linear',
+      fill: 'forwards',
+    }
+    const fillAnimation = fill.animate(
+      [{ transform: fill.style.transform }, { transform: 'scaleX(1)' }],
+      timing,
+    )
+    const handleAnimation = handle.animate(
+      [
+        { transform: handle.style.transform },
+        { transform: `translate(${barWidth - HANDLE_RADIUS}px, -50%) scale(1)` },
+      ],
+      timing,
+    )
+    let timer = 0
+    const updateTime = () => {
+      const current = positionNow()
+      left.textContent = formatTime(current)
+      if (current < status.duration) {
+        timer = window.setTimeout(
+          updateTime,
+          Math.min(1000 - (current % 1000), status.duration - current),
+        )
+      }
+    }
+    timer = window.setTimeout(updateTime, Math.min(1000 - (pos % 1000), status.duration - pos))
+    return () => {
+      fillAnimation.cancel()
+      handleAnimation.cancel()
+      window.clearTimeout(timer)
+    }
   }, [
     status.position,
     status.received_at,

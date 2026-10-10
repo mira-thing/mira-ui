@@ -43,6 +43,12 @@
   will-change: transform;
 }
 
+.animating,
+.animating .maskRight,
+.animating .inner {
+  animation-play-state: var(--player-marquee-state, running);
+}
+
 @keyframes marquee-scroll {
   0%,
   12% {

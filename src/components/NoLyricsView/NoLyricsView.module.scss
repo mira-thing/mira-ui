@@ -4,93 +4,13 @@
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: center;
-  @include flex-gap-x($s-7);
-  padding: 0 $s-6;
+  padding: $s-4;
+  border-radius: $r-panel;
+  @include glass-panel;
 }
 
 .art {
-  position: relative;
   flex: 0 0 auto;
-}
-
-.cover {
-  position: relative;
-  z-index: 1;
-}
-
-.glow {
-  position: absolute;
-  z-index: 0;
-  top: 50%;
-  left: 50%;
-  width: 130%;
-  height: 130%;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-}
-
-.orb {
-  position: absolute;
-  @include inset-0;
-  border-radius: 50%;
-  background-image: var(--art);
-  background-size: cover;
-  background-position: center;
-  // no brightness boost: it blew out the white areas of the cover
-  filter: blur(30px) saturate(1.5);
-  // capped against artwork luminance
-  opacity: var(--glow-opacity, 0.75);
-  will-change: transform;
-}
-
-.orbA {
-  animation: glowDriftA 19s ease-in-out infinite;
-}
-
-.orbB {
-  animation: glowDriftB 25s ease-in-out infinite;
-}
-
-.glow.paused .orb {
-  animation-play-state: paused;
-}
-
-@keyframes glowDriftA {
-  0% {
-    transform: translate(-6%, -4%) scale(1);
-  }
-  33% {
-    transform: translate(6%, 5%) scale(1.1);
-  }
-  66% {
-    transform: translate(-3%, 6%) scale(0.96);
-  }
-  100% {
-    transform: translate(-6%, -4%) scale(1);
-  }
-}
-
-@keyframes glowDriftB {
-  0% {
-    transform: translate(5%, 4%) scale(1.05);
-  }
-  40% {
-    transform: translate(-6%, -3%) scale(0.95);
-  }
-  70% {
-    transform: translate(3%, -6%) scale(1.1);
-  }
-  100% {
-    transform: translate(5%, 4%) scale(1.05);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .orbA,
-  .orbB {
-    animation: none;
-  }
 }
 
 .meta {
@@ -99,19 +19,24 @@
   max-width: 100%;
   min-width: 0;
   @include column;
-  @include flex-gap-y($s-2);
+  margin-left: 34px;
   text-align: left;
+
+  > * + * {
+    margin-top: $s-2;
+  }
 }
 
 .title {
-  font-size: 36px;
+  font-size: 42px;
   font-weight: $fw-bold;
-  letter-spacing: -0.02em;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
   color: $text-primary;
 }
 
 .artist {
-  font-size: 20px;
+  font-size: 24px;
   font-weight: $fw-medium;
   color: $text-secondary;
 }

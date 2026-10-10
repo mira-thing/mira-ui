@@ -13,7 +13,7 @@
 }
 
 .saved {
-  color: $accent;
+  color: $text-primary;
 }
 
 .icons {
@@ -40,7 +40,7 @@
 .filled {
   opacity: 0;
   transform: scale(0.6);
-  color: $accent;
+  color: $text-primary;
 }
 
 .saved .outline {
@@ -72,7 +72,7 @@
   right: -5px;
   bottom: -5px;
   border-radius: 50%;
-  border: 2px solid $accent;
+  border: 2px solid currentColor;
   animation: save-ripple $dur-slow $ease-standard forwards;
 }
 
@@ -119,13 +119,13 @@
 }
 
 .c0 {
-  background: #5ff550;
+  background: $text-primary;
 }
 .c1 {
-  background: #c5f0c9;
+  background: rgba(255, 255, 255, 0.7);
 }
 .c2 {
-  background: #19e68c;
+  background: rgba(255, 255, 255, 0.45);
 }
 
 @keyframes confetti-fly {

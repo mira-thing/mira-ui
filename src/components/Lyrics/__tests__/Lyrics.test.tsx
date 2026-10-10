@@ -56,13 +56,24 @@ describe('lyrics rendered DOM', () => {
     )
 
     const onSeek = vi.fn()
-    render(<Lyrics status={TRACK_STATUS} onSeek={onSeek} />)
+    const { rerender } = render(<Lyrics status={TRACK_STATUS} onSeek={onSeek} />)
 
     const line2 = await screen.findByText('L2')
     fireEvent.click(line2)
 
     expect(onSeek).toHaveBeenCalledTimes(1)
     expect(onSeek).toHaveBeenCalledWith(10_000)
+
+    const nextSeek = vi.fn()
+    rerender(<Lyrics status={TRACK_STATUS} onSeek={nextSeek} />)
+    fireEvent.click(screen.getByText('L1'))
+    expect(nextSeek).toHaveBeenCalledWith(5000)
+    expect(onSeek).toHaveBeenCalledTimes(1)
+
+    rerender(<Lyrics status={{ ...TRACK_STATUS, disallow_seek: true }} onSeek={nextSeek} />)
+    expect(screen.getByText('L1')).not.toHaveAttribute('role', 'button')
+    fireEvent.click(screen.getByText('L1'))
+    expect(nextSeek).toHaveBeenCalledTimes(1)
   })
 
   it('does not make synced lines clickable when seeking is disallowed', async () => {

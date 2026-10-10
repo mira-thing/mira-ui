@@ -60,33 +60,35 @@ describe('artSizeFor', () => {
   })
 
   it('shrinks the art so the left column still fits the stage row', () => {
-    expect(artSizeFor(110)).toBe(166)
-    expect(artSizeFor(115)).toBe(147)
+    expect(artSizeFor(110)).toBe(159)
+    expect(artSizeFor(115)).toBe(140)
   })
 
   // pinned against the real scss rather than re-deriving from the same constant, which
   // would tautologically pass whatever the reserved height was set to
   it('pins the shrink curve across the range', () => {
     expect([85, 90, 95, 100, 105, 110, 115].map(artSizeFor)).toEqual([
-      200, 200, 200, 200, 187, 166, 147,
+      200, 200, 200, 200, 180, 159, 140,
     ])
   })
 })
 
 describe('heroArtSizeFor', () => {
-  it('gives up 2px at the default scale for the taller bar', () => {
-    expect(heroArtSizeFor(100)).toBe(218)
+  it('uses the player cover size at the default scale', () => {
+    expect(heroArtSizeFor(100)).toBe(264)
   })
 
-  it('keeps the 130% glow inside the stage row at every notch', () => {
+  it('keeps the cover inside the padded top slab at every notch', () => {
     for (const pct of [85, 90, 95, 100, 105, 110, 115]) {
-      const stage = logicalSize(pct).h - 196
-      expect(heroArtSizeFor(pct) * 1.3).toBeLessThanOrEqual(stage)
+      const available = logicalSize(pct).h - 214
+      expect(heroArtSizeFor(pct)).toBeLessThanOrEqual(available)
     }
   })
 
-  it('shrinks once the stage row can no longer hold the glow', () => {
-    expect(heroArtSizeFor(115)).toBe(170)
+  it('only shrinks when the slab can no longer hold a 264px cover', () => {
+    expect([85, 90, 95, 100, 105, 110, 115].map(heroArtSizeFor)).toEqual([
+      264, 264, 264, 264, 244, 223, 204,
+    ])
   })
 })
 

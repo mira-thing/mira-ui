@@ -1,7 +1,9 @@
 .info {
   @include column;
+  width: 100%;
   max-width: var(--art-size, #{$art-size});
   min-width: 0;
+  text-align: left;
   @include flex-gap-y($s-1);
 }
 
@@ -16,6 +18,18 @@
   font-size: 18px;
   font-weight: $fw-medium;
   color: $text-secondary;
+}
+
+.compact {
+  .title {
+    font-size: 23px;
+    line-height: 1.2;
+  }
+
+  .artist {
+    font-size: 17px;
+    line-height: 1.2;
+  }
 }
 
 .large {
