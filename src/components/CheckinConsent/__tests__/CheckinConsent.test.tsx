@@ -1,5 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { hw, REVERSAL_GAP_MS, withRouter } from '@/__tests__/hardware'
 import { CheckinConsent } from '../CheckinConsent'
 
 describe('CheckinConsent', () => {
@@ -31,12 +32,27 @@ describe('CheckinConsent', () => {
     expect(onChoose).toHaveBeenCalledWith('granted')
   })
 
-  it('knob rotation moves the selection before confirming', () => {
-    const onChoose = vi.fn()
-    render(<CheckinConsent onChoose={onChoose} />)
-    fireEvent.wheel(window, { deltaX: 60 })
-    fireEvent.keyDown(window, { key: 'Enter' })
-    expect(onChoose).toHaveBeenCalledWith('denied')
+  describe('knob rotation', () => {
+    beforeEach(() => vi.useFakeTimers())
+    afterEach(() => vi.useRealTimers())
+
+    it('clockwise selects the right-hand choice', () => {
+      const onChoose = vi.fn()
+      render(<CheckinConsent onChoose={onChoose} />, { wrapper: withRouter })
+      hw.turn(1)
+      hw.press()
+      expect(onChoose).toHaveBeenCalledWith('denied')
+    })
+
+    it('counter-clockwise goes back to the left-hand choice', () => {
+      const onChoose = vi.fn()
+      render(<CheckinConsent onChoose={onChoose} />, { wrapper: withRouter })
+      hw.turn(1)
+      act(() => vi.advanceTimersByTime(REVERSAL_GAP_MS))
+      hw.turn(-1)
+      hw.press()
+      expect(onChoose).toHaveBeenCalledWith('granted')
+    })
   })
 
   it('back does not dismiss - an explicit choice is required', () => {

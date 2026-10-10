@@ -1,5 +1,7 @@
 import { memo, useEffect, useState } from 'react'
 import { BRAND_NAME } from '@/brand'
+import { Layer } from '@/input/router'
+import { useKnobScope } from '@/input/useKnobScope'
 import styles from './CheckinConsent.module.scss'
 
 interface Props {
@@ -8,6 +10,14 @@ interface Props {
 
 function CheckinConsentImpl({ onChoose }: Props) {
   const [sel, setSel] = useState<0 | 1>(0)
+
+  useKnobScope({
+    layer: Layer.modal,
+    enabled: true,
+    onStep: (dir) => {
+      setSel(dir > 0 ? 1 : 0)
+    },
+  })
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -20,19 +30,8 @@ function CheckinConsentImpl({ onChoose }: Props) {
         e.stopPropagation()
       }
     }
-    const onWheel = (e: WheelEvent) => {
-      const d = e.deltaX !== 0 ? e.deltaX : e.deltaY
-      if (d === 0) return
-      e.preventDefault()
-      e.stopPropagation()
-      setSel(d > 0 ? 1 : 0)
-    }
     window.addEventListener('keydown', onKeyDown, { capture: true })
-    window.addEventListener('wheel', onWheel, { capture: true, passive: false })
-    return () => {
-      window.removeEventListener('keydown', onKeyDown, { capture: true })
-      window.removeEventListener('wheel', onWheel, { capture: true })
-    }
+    return () => window.removeEventListener('keydown', onKeyDown, { capture: true })
   }, [sel, onChoose])
 
   return (

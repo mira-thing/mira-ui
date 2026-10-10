@@ -4,7 +4,9 @@ import { Screensaver } from '../Screensaver'
 
 describe('Screensaver', () => {
   it('shows the clock with the date above it', () => {
-    const { container } = render(<Screensaver onClose={vi.fn()} utcOffsetMin={0} />)
+    const { container } = render(
+      <Screensaver onPlayPause={vi.fn()} onClose={vi.fn()} utcOffsetMin={0} />,
+    )
     const clockEl = container.querySelector('[class*="clock"]')
     const dateEl = container.querySelector('[class*="date"]')
     expect(clockEl).toBeInTheDocument()
@@ -16,7 +18,9 @@ describe('Screensaver', () => {
 
   it('dismisses on tap release, not on press, so the tap cannot land on the ui below', () => {
     const onClose = vi.fn()
-    const { container } = render(<Screensaver onClose={onClose} utcOffsetMin={0} />)
+    const { container } = render(
+      <Screensaver onPlayPause={vi.fn()} onClose={onClose} utcOffsetMin={0} />,
+    )
     const overlay = container.firstElementChild as HTMLElement
 
     fireEvent.pointerDown(overlay)
@@ -28,7 +32,7 @@ describe('Screensaver', () => {
 
   it('swallows other keys and closes', () => {
     const onClose = vi.fn()
-    render(<Screensaver onClose={onClose} utcOffsetMin={0} />)
+    render(<Screensaver onPlayPause={vi.fn()} onClose={onClose} utcOffsetMin={0} />)
     fireEvent.keyDown(window, { code: 'ArrowLeft' })
     expect(onClose).toHaveBeenCalledTimes(1)
   })
@@ -37,7 +41,7 @@ describe('Screensaver', () => {
     const onClose = vi.fn()
     const below = vi.fn()
     window.addEventListener('keydown', below)
-    render(<Screensaver onClose={onClose} utcOffsetMin={0} />)
+    render(<Screensaver onPlayPause={vi.fn()} onClose={onClose} utcOffsetMin={0} />)
     fireEvent.keyDown(window, { key: 'Enter' })
     window.removeEventListener('keydown', below)
     expect(onClose).not.toHaveBeenCalled()
@@ -46,20 +50,23 @@ describe('Screensaver', () => {
 
   it('does not dismiss on power key (KeyM) keydown or keyup', () => {
     const onClose = vi.fn()
-    render(<Screensaver onClose={onClose} utcOffsetMin={0} />)
+    render(<Screensaver onPlayPause={vi.fn()} onClose={onClose} utcOffsetMin={0} />)
     fireEvent.keyDown(window, { code: 'KeyM' })
     fireEvent.keyUp(window, { code: 'KeyM' })
     expect(onClose).not.toHaveBeenCalled()
   })
 
   it('does not render now-playing pill when no track is playing', () => {
-    const { container } = render(<Screensaver onClose={vi.fn()} utcOffsetMin={0} />)
+    const { container } = render(
+      <Screensaver onPlayPause={vi.fn()} onClose={vi.fn()} utcOffsetMin={0} />,
+    )
     expect(container.querySelector('[class*="nowPlayingDock"]')).toBeNull()
   })
 
   it('shows now-playing track and artist when provided', () => {
     const { container } = render(
       <Screensaver
+        onPlayPause={vi.fn()}
         onClose={vi.fn()}
         utcOffsetMin={0}
         artUrl="https://example.com/art.jpg"
@@ -75,7 +82,13 @@ describe('Screensaver', () => {
 
   it('renders track without artist and applies noThumb when artwork is missing', () => {
     const { container } = render(
-      <Screensaver onClose={vi.fn()} utcOffsetMin={0} trackName="Solo Track" artUrl={null} />,
+      <Screensaver
+        onPlayPause={vi.fn()}
+        onClose={vi.fn()}
+        utcOffsetMin={0}
+        trackName="Solo Track"
+        artUrl={null}
+      />,
     )
     expect(screen.getByText('Solo Track')).toBeInTheDocument()
     expect(container.querySelector('[class*="thumb"]')).toBeNull()

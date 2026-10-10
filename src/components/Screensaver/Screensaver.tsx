@@ -1,5 +1,7 @@
 import { memo, useEffect, useState } from 'react'
 import { Marquee } from '@/components/TrackInfo/Marquee'
+import { Layer } from '@/input/router'
+import { useKnobScope } from '@/input/useKnobScope'
 import styles from './Screensaver.module.scss'
 
 // double press of the power button opens this screensaver w clock
@@ -11,6 +13,8 @@ interface Props {
   trackName?: string | null
   trackArtist?: string | null
   onClose: () => void
+  /** the knob press plays and pauses, ahead of any card left under the screensaver */
+  onPlayPause: () => void
 }
 
 function pad2(n: number): string {
@@ -31,7 +35,14 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 const POWER_KEY_CODE = 'KeyM'
 const ART_FADE_MS = 900
 
-function ScreensaverImpl({ artUrl, utcOffsetMin, trackName, trackArtist, onClose }: Props) {
+function ScreensaverImpl({
+  artUrl,
+  utcOffsetMin,
+  trackName,
+  trackArtist,
+  onClose,
+  onPlayPause,
+}: Props) {
   const [now, setNow] = useState(() => displayNow(utcOffsetMin))
 
   useEffect(() => {
@@ -76,6 +87,8 @@ function ScreensaverImpl({ artUrl, utcOffsetMin, trackName, trackArtist, onClose
     const t = window.setTimeout(() => setPrevArt(null), ART_FADE_MS)
     return () => window.clearTimeout(t)
   }, [prevArt])
+
+  useKnobScope({ layer: Layer.system, enabled: true, onSelect: () => onPlayPause() })
 
   // swallow every key except knob controls
   useEffect(() => {

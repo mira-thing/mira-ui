@@ -10,21 +10,14 @@ import {
 } from '@/presets'
 import { getSettings } from '@/settings'
 import type { NotifyFn } from '@/notify/notifyContext'
+import { Layer } from '@/input/router'
+import { useKnobScope, useKnobTurn } from '@/input/useKnobScope'
 
 // physical controls
 
 const VOLUME_MAX = 65535
 
-// quadrature encoder wheel so its two contact pads sometimes send erronious signals still ever after a kernal level change
 // volume change per notch is user-adjustable now
-
-const VOLUME_DIRECTION = -1
-
-// drop events that are close together by this much
-const MIN_STEP_INTERVAL_MS = 55
-
-// similar idea
-const REVERSAL_DEBOUNCE_MS = 140
 
 const OVERLAY_MS = 1400
 
@@ -112,8 +105,6 @@ export function useHardwareButtons({
   const overlayTimerRef = useRef<number | undefined>(undefined)
   const sendTimerRef = useRef<number | undefined>(undefined)
   const pendingSendRef = useRef<number | null>(null)
-  const lastStepAtRef = useRef(0)
-  const lastStepDirRef = useRef<1 | -1>(1)
   const lastDisabledNotifyRef = useRef(0)
 
   const statusVolume = status?.volume
@@ -199,48 +190,36 @@ export function useHardwareButtons({
     [showOverlay, queueSend, notify, setVolume],
   )
 
-  // knob turn -> volume only when something is playing
-  useEffect(() => {
-    if (!status) return
+  // every turn holds off the device sync, even one the step filter drops
+  useKnobTurn(() => {
+    if (status) lastTurnAtRef.current = Date.now()
+  })
 
-    const onWheel = (e: WheelEvent) => {
-      // the knob is REL_HWHEEL -> horizontal deltaX
-      if (e.deltaX === 0) return
-      e.preventDefault()
-
-      const now = Date.now()
-      lastTurnAtRef.current = now
-      const dir: 1 | -1 = (e.deltaX > 0 ? 1 : -1) * VOLUME_DIRECTION > 0 ? 1 : -1
-      const sinceStep = now - lastStepAtRef.current
-
-      if (dir !== lastStepDirRef.current && sinceStep < REVERSAL_DEBOUNCE_MS) return
-      if (sinceStep < MIN_STEP_INTERVAL_MS) return
-
-      lastStepAtRef.current = now
-      lastStepDirRef.current = dir
+  // knob turn -> volume only when something is playing, knob press -> play/pause.
+  // consuming the press is what preventDefaults it, so a focused button doesnt also fire
+  useKnobScope({
+    layer: Layer.base,
+    enabled: true,
+    onStep: (dir) => {
+      if (!status) return false
       stepVolume(dir)
-    }
+    },
+    onSelect: () => {
+      onPlayPause()
+    },
+  })
 
-    // capture phase + window so a lyrics cant scroll from the wheel
-    window.addEventListener('wheel', onWheel, { passive: false, capture: true })
-    return () => window.removeEventListener('wheel', onWheel, { capture: true })
-  }, [status, stepVolume])
-
-  // knob press (Enter) is play/pause, back (Escape) is go back.
-  // preventDefault so Enter doesnt also trigger a focused button like the menu.
+  // back (Escape) is go back
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        e.preventDefault()
-        onPlayPause()
-      } else if (e.key === 'Escape') {
+      if (e.key === 'Escape') {
         e.preventDefault()
         onBack()
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [onPlayPause, onBack])
+  }, [onBack])
 
   // preset buttons
   // short press = play the assigned context
