@@ -306,7 +306,7 @@ export function useHardwareButtons({
       if (preset?.contextUri) {
         // only claim success once the play actually lands
         void Promise.resolve(playPreset(preset.contextUri))
-          .then(() => notifyEvent(`Playing from ${preset.label}`, { icon: 'playlist' }))
+          .then(() => notifyEvent(`Playing from ${preset.label}`, { icon: 'playlistPlay' }))
           .catch(() => notifyEvent(`Couldn't play ${preset.label}`, { variant: 'error' }))
       }
       // unassigned slots (2-4 until saved) just do nothing

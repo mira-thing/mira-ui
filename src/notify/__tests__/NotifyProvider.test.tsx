@@ -43,7 +43,7 @@ it('does not leak a contextual icon into the next ordinary or error notification
     const notify = useNotify()
     return (
       <>
-        <button onClick={() => notify('Playing from favourites', { icon: 'playlist' })}>
+        <button onClick={() => notify('Playing from favourites', { icon: 'playlistPlay' })}>
           Playlist
         </button>
         <button onClick={() => notify('Nothing playing')}>Info</button>
@@ -57,7 +57,7 @@ it('does not leak a contextual icon into the next ordinary or error notification
     </NotifyProvider>,
   )
   for (const [label, expected] of [
-    ['Playlist', 'playlist'],
+    ['Playlist', 'playlistPlay'],
     ['Info', 'info'],
     ['Error', 'error'],
   ]) {
@@ -91,10 +91,10 @@ it('reuses the picker device types and does not retain the previous device icon'
     </NotifyProvider>,
   )
   for (const [type, expected] of [
-    ['COMPUTER', 'pc'],
-    ['smartphone', 'phone'],
-    ['TABLET', 'phone'],
-    ['SPEAKER', 'generic'],
+    ['COMPUTER', 'deviceComputer'],
+    ['smartphone', 'devicePhone'],
+    ['TABLET', 'devicePhone'],
+    ['SPEAKER', 'deviceGeneric'],
   ]) {
     fireEvent.click(screen.getByRole('button', { name: type }))
     expect(screen.getByRole('status').querySelector('svg')).toHaveAttribute(
