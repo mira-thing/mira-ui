@@ -1,7 +1,7 @@
 import { memo, useEffect, useState } from 'react'
-import { Marquee } from '@/components/TrackInfo/Marquee'
 import { Layer } from '@/input/router'
 import { useKnobScope } from '@/input/useKnobScope'
+import { Marquee } from '@/ui/TrackText'
 import styles from './Screensaver.module.scss'
 
 // double press of the power button opens this screensaver w clock

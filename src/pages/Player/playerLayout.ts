@@ -3,7 +3,7 @@ import { logicalSize } from '@/uiScale'
 
 // the album art is the only fixed height block in the player column, so it gives way first
 //   stage row = h - (pad-y 12 + pad-bottom 12 + row gap 12 + bottom bar 144)
-//   .left     = surface inset (padding + border, both sides) + art gap 12 + compact TrackInfo 52
+//   .left     = surface inset (padding + border, both sides) + art gap 12 + panel TrackText 52
 const STAGE_RESERVED_H = 180
 const ART_MAX = 200
 const ART_MIN = 120

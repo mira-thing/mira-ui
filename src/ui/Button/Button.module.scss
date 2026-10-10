@@ -1,0 +1,60 @@
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: $r-pill;
+  white-space: nowrap;
+  transition:
+    opacity $dur-fast $ease-standard,
+    transform $dur-fast $ease-standard;
+  @include flex-gap-x($s-2);
+  @include press;
+  @include focus-ring;
+
+  &:disabled {
+    @include disabled-control;
+  }
+}
+
+.md {
+  min-height: $touch-min;
+  padding: $s-3 $s-5;
+  @include type(body);
+  font-weight: $fw-semibold;
+}
+
+.lg {
+  height: 60px;
+  padding: 0 $s-6;
+  @include type(body-lg);
+  font-weight: $fw-semibold;
+}
+
+.block {
+  display: flex;
+  width: 100%;
+}
+
+.primary {
+  background: $accent;
+  color: #000;
+}
+
+.secondary {
+  background: rgba(255, 255, 255, 0.12);
+  color: $text-primary;
+}
+
+.danger {
+  background: $c-danger-strong;
+  color: $text-primary;
+}
+
+.ghost {
+  background: transparent;
+  color: $text-secondary;
+
+  &:active {
+    color: $text-primary;
+  }
+}

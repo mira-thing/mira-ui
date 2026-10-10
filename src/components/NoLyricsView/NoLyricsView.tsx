@@ -1,8 +1,8 @@
 import { memo } from 'react'
-import { AlbumArt } from '@/components/AlbumArt'
-import { Marquee } from '@/components/TrackInfo/Marquee'
 import type { TrackPresentation } from '@/hooks/useDJNarration'
+import { Artwork } from '@/ui/Artwork'
 import { Surface } from '@/ui/Surface'
+import { TrackText } from '@/ui/TrackText'
 import styles from './NoLyricsView.module.scss'
 
 interface Props extends TrackPresentation {
@@ -23,12 +23,9 @@ function NoLyricsViewImpl({
   return (
     <Surface variant="panel" tint={0.22} className={styles.wrap}>
       <div className={styles.art}>
-        <AlbumArt src={art} size={artSize} djFallback={djFallback} pending={pending} />
+        <Artwork src={art} size={artSize} fallback={djFallback ? 'dj' : 'none'} pending={pending} />
       </div>
-      <div className={styles.meta} data-track-motion="">
-        <Marquee text={title || 'Unknown track'} className={styles.title} />
-        <Marquee text={artist || 'Unknown artist'} className={styles.artist} />
-      </div>
+      <TrackText title={title} artist={artist} size="hero" className={styles.meta} />
     </Surface>
   )
 }
