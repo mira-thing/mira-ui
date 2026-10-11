@@ -77,16 +77,17 @@ function ScreensaverImpl({ artUrl, utcOffsetMin, trackName, trackArtist, onClose
     return () => window.clearTimeout(t)
   }, [prevArt])
 
-  // swallow every key
+  // swallow every key except knob controls
   useEffect(() => {
+    const passes = (e: KeyboardEvent) => e.code === POWER_KEY_CODE || e.key === 'Enter'
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.code === POWER_KEY_CODE) return
+      if (passes(e)) return
       e.preventDefault()
       e.stopPropagation()
       onClose()
     }
     const onKeyUp = (e: KeyboardEvent) => {
-      if (e.code === POWER_KEY_CODE) return
+      if (passes(e)) return
       e.preventDefault()
       e.stopPropagation()
     }

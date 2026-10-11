@@ -55,6 +55,58 @@ describe('App', () => {
     expect(screen.queryByText('Nothing playing')).not.toBeInTheDocument()
   })
 
+  it('keeps a manual screensaver up without remounting when playback starts', async () => {
+    server.use(
+      http.get('*/connect/devices', () => HttpResponse.json([])),
+      http.get('*/player/saved', () => HttpResponse.json({ saved: false })),
+      http.get('*/lyrics/*', () => HttpResponse.json({ lines: [] })),
+    )
+
+    render(<App />)
+    await waitFor(() => expect(screen.getByText('Nothing playing')).toBeInTheDocument())
+
+    // power double press
+    for (let i = 0; i < 2; i++) {
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyM' }))
+        window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyM' }))
+      })
+    }
+    const saver = document.querySelector('.scrim')?.parentElement
+    expect(saver).toBeTruthy()
+
+    pushEvent('observer_track_changed', baseWire)
+    await waitFor(() => expect(screen.getAllByText('Song').length).toBeGreaterThan(0))
+    expect(saver!.isConnected).toBe(true)
+    expect(saver!.textContent).toContain('Song')
+  })
+
+  it('plays from the screensaver on a knob press without closing it', async () => {
+    const resume = vi.fn(() => HttpResponse.json({}))
+    server.use(
+      http.get('*/connect/devices', () => HttpResponse.json([])),
+      http.post('*/player/resume_last', resume),
+    )
+
+    render(<App />)
+    await waitFor(() => expect(screen.getByText('Nothing playing')).toBeInTheDocument())
+
+    for (let i = 0; i < 2; i++) {
+      act(() => {
+        window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyM' }))
+        window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyM' }))
+      })
+    }
+    const saver = document.querySelector('.scrim')?.parentElement
+    expect(saver).toBeTruthy()
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }))
+    })
+    await waitFor(() => expect(resume).toHaveBeenCalledTimes(1))
+    expect(saver!.isConnected).toBe(true)
+  })
+
   it('holds the boot splash while the daemon reports itself starting up', async () => {
     server.use(
       http.get('*/observer/status', () =>

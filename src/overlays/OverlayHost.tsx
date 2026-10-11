@@ -5,7 +5,6 @@ import { DevicePicker } from '@/components/DevicePicker'
 import { PairingDialog } from '@/components/PairingDialog'
 import { PowerMenu } from '@/components/PowerMenu'
 import { ReportDialog } from '@/components/ReportDialog'
-import { Screensaver } from '@/components/Screensaver'
 import { SettingsSheet } from '@/components/SettingsSheet'
 import { SponsorScreen } from '@/components/SponsorScreen'
 import { UpdateCard } from '@/components/UpdateCard'
@@ -34,10 +33,6 @@ export interface OverlayHostProps {
   busy: boolean
   onChooseConsent: (consent: 'granted' | 'denied') => void
   update: UpdateOfferProps
-  screensaverArt: string | null
-  screensaverTrack: string | null
-  screensaverArtist: string | null
-  utcOffsetMin: number | null
 }
 
 /**
@@ -54,10 +49,6 @@ export function OverlayHost({
   busy,
   onChooseConsent,
   update,
-  screensaverArt,
-  screensaverTrack,
-  screensaverArtist,
-  utcOffsetMin,
 }: OverlayHostProps) {
   const overlays = useOverlayState()
 
@@ -108,15 +99,6 @@ export function OverlayHost({
           mandatory={update.mandatory}
           onRemindLater={overlays.remindLater}
           onSkip={update.onSkip}
-        />
-      ) : null}
-      {overlays.isOpen('screensaver') ? (
-        <Screensaver
-          artUrl={screensaverArt}
-          trackName={screensaverTrack}
-          trackArtist={screensaverArtist}
-          utcOffsetMin={utcOffsetMin}
-          onClose={() => overlays.close('screensaver')}
         />
       ) : null}
     </>

@@ -61,12 +61,12 @@
   align-items: center;
   justify-content: center;
   @include flex-gap-y($s-3);
+  transition: transform 600ms $ease-standard;
 }
 
 // centre the clock in the space the pill leaves
 .withPill {
-  padding-bottom: 112px;
-  box-sizing: border-box;
+  transform: translateY(-56px);
 }
 
 .clock {
@@ -186,5 +186,8 @@
   }
   .artEnter {
     animation: none;
+  }
+  .content {
+    transition: none;
   }
 }

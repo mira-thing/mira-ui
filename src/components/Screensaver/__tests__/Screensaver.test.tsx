@@ -33,6 +33,17 @@ describe('Screensaver', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
+  it('lets the knob still control play and pause without dismissing the screensaver', () => {
+    const onClose = vi.fn()
+    const below = vi.fn()
+    window.addEventListener('keydown', below)
+    render(<Screensaver onClose={onClose} utcOffsetMin={0} />)
+    fireEvent.keyDown(window, { key: 'Enter' })
+    window.removeEventListener('keydown', below)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(below).toHaveBeenCalledTimes(1)
+  })
+
   it('does not dismiss on power key (KeyM) keydown or keyup', () => {
     const onClose = vi.fn()
     render(<Screensaver onClose={onClose} utcOffsetMin={0} />)

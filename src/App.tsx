@@ -356,270 +356,289 @@ function AppContent() {
         mandatory: updateMandatory,
         onSkip: skipVersion,
       }}
-      screensaverArt={screensaverArt}
-      screensaverTrack={screensaverTrack}
-      screensaverArtist={screensaverArtist}
-      utcOffsetMin={utcOffsetMin}
     />
   )
 
-  if (forced === 'connection-chooser') {
-    return (
-      <div className={styles.app}>
-        <ConnectionChooser
-          onPickPc={() => setForced('pc-connect')}
-          onPickBluetooth={() => setForced('needs-network')}
-        />
-        {globalOverlays}
-      </div>
-    )
-  }
-  if (forced === 'pc-connect') {
-    return (
-      <div className={styles.app}>
-        <PcConnect />
-        {globalOverlays}
-      </div>
-    )
-  }
-  if (forced === 'needs-network') {
-    return (
-      <div className={styles.app}>
-        <NeedsNetwork />
-        {globalOverlays}
-      </div>
-    )
-  }
-  if (forced === 'starting') {
-    return (
-      <div className={styles.app}>
-        <BootSplash caption="starting up" />
-        {globalOverlays}
-      </div>
-    )
-  }
-  if (forced === 'setting-up') {
-    return (
-      <div className={styles.app}>
-        <BootSplash caption="setting things up" progress={47} />
-        {globalOverlays}
-      </div>
-    )
-  }
-  if (forced === 'boot-splash') {
-    return (
-      <div className={styles.app}>
-        <BootSplash />
-        {globalOverlays}
-      </div>
-    )
-  }
-  if (forced === 'sponsor') {
-    return (
-      <div className={styles.app}>
-        <SponsorScreen onClose={() => setForced(null)} />
-      </div>
-    )
-  }
-  if (forced === 'screensaver') {
-    return (
-      <div className={styles.app}>
-        <Screensaver
-          artUrl={screensaverArt || mockStatus.track_image}
-          trackName={screensaverTrack || mockStatus.track_name}
-          trackArtist={screensaverArtist || mockStatus.track_artist}
-          utcOffsetMin={utcOffsetMin}
-          onClose={() => setForced(null)}
-        />
-      </div>
-    )
-  }
-  if (forced === 'consent') {
-    return (
-      <div className={styles.app}>
-        <CheckinConsent onChoose={() => setForced(null)} />
-      </div>
-    )
-  }
-  if (forced === 'update-card') {
-    return (
-      <div className={styles.app}>
-        <UpdateCard
-          latest="1.1.0"
-          highlights={[
-            'Clock screensaver (double-press power)',
-            'Setup progress bar',
-            'Bluetooth pairing fixes',
-          ]}
-          onRemindLater={() => setForced(null)}
-          onSkip={() => setForced(null)}
-        />
-      </div>
-    )
-  }
-  if (forced === 'debug') {
-    return (
-      <div className={styles.app}>
-        <DebugScreen open onClose={() => setForced(null)} onReport={overlays.openReport} />
-        {overlays.reportId ? (
-          <ReportDialog id={overlays.reportId} onDismiss={() => overlays.close('report')} />
-        ) : null}
-      </div>
-    )
-  }
-  if (forced === 'auth') {
-    return (
-      <>
-        <AuthScreen url="https://accounts.spotify.com/authorize?response_type=code&client_id=dev-mock&redirect_uri=https%3A%2F%2Fexample.com%2Fcb&scope=user-read-private" />
-        {globalOverlays}
-      </>
-    )
-  }
-  if (forced === 'idle') {
-    return (
-      <div className={styles.app}>
-        <IdleScreen connected={connected} devices={connectDevices} onSelectDevice={onPickDevice} />
-        {globalOverlays}
-      </div>
-    )
-  }
-  if (forced === 'reconnecting') {
-    return (
-      <div className={styles.app}>
-        <ReconnectingScreen
-          deviceName="Kaz’s S24"
-          carriers={{ usb: false, bt: false }}
-          onSetUpOther={() => {}}
-        />
-        {globalOverlays}
-      </div>
-    )
-  }
-  if (forced === 'no-internet') {
-    return (
-      <div className={styles.app}>
-        <ReconnectingScreen
-          phase="no-internet"
-          deviceName="Kaz’s S24"
-          carriers={{ usb: false, bt: false }}
-          onSetUpOther={() => {}}
-        />
-        {globalOverlays}
-      </div>
-    )
-  }
-  if (forced === 'checking') {
-    return (
-      <div className={styles.app}>
-        <ReconnectingScreen phase="checking" />
-        {globalOverlays}
-      </div>
-    )
-  }
-
-  if (!forced) {
-    const route = resolveRoute({
-      offlineScreen,
-      auth,
-      status,
-      setupProgress,
-      loading,
-      online,
-      reconnecting,
-      playerStartingUp,
-      spotifyStuck,
-      splashOnlineStuck,
-      loadStuck,
-    })
-
-    switch (route.kind) {
-      case 'offline':
-        return (
-          <div className={styles.app}>
-            <OfflinePage
-              screen={route.screen}
-              deviceName={topKnownDeviceName}
-              carriers={carriers}
-              trouble={btTrouble}
-              onSetUpOther={() => offline.setSetupOverride(true)}
-              onPickMethod={offline.setMethod}
-            />
-            {globalOverlays}
-          </div>
-        )
-      case 'auth':
-        return (
-          <>
-            <AuthPage url={route.url} />
-            {globalOverlays}
-          </>
-        )
-      case 'spotify-unreachable':
-        return (
-          <div className={styles.app}>
-            <ReconnectingScreen phase="spotify-unreachable" />
-            {globalOverlays}
-          </div>
-        )
-      case 'auth-pending':
-        return (
-          <>
-            <AuthPage stuck={route.stuck} />
-            {globalOverlays}
-          </>
-        )
-      case 'booting':
-        return (
-          <div className={styles.app}>
-            <BootPage phase="starting" stuck={route.stuck} />
-            {globalOverlays}
-          </div>
-        )
-      case 'setting-up':
-        return (
-          <div className={styles.app}>
-            <BootPage phase="setting-up" progress={route.progress} />
-            {globalOverlays}
-          </div>
-        )
-      case 'idle':
-        return (
-          <div className={styles.app}>
-            <IdleScreen
-              connected={connected}
-              devices={connectDevices}
-              onSelectDevice={onPickDevice}
-            />
-            {globalOverlays}
-          </div>
-        )
-      case 'player':
-        break
-    }
-  }
-
-  // live status when active otherwise the last playing
-  const playerStatus = savableStatus
-  if (!playerStatus || !playerStatus.active) return null
-
-  // noti over the player on a network drops
-  const bannerReason: ReconnectReason | null =
-    forced === 'reconnect-banner' ? 'offline' : reconnecting ? dropReason : null
+  const screensaver = overlays.isOpen('screensaver') ? (
+    <Screensaver
+      artUrl={screensaverArt}
+      trackName={screensaverTrack}
+      trackArtist={screensaverArtist}
+      utcOffsetMin={utcOffsetMin}
+      onClose={closeScreensaver}
+    />
+  ) : null
 
   return (
-    <PlayerPage
-      status={playerStatus}
-      live={statusActive}
-      controls={controls}
-      narration={narration}
-      showLyrics={showLyrics}
-      bannerReason={bannerReason}
-      carriers={carriers}
-      pairing={pairing}
-      seek={seek}
-      notify={notify}
-    >
-      {globalOverlays}
-    </PlayerPage>
+    <>
+      {renderPage()}
+      {screensaver}
+    </>
   )
+
+  function renderPage() {
+    if (forced === 'connection-chooser') {
+      return (
+        <div className={styles.app}>
+          <ConnectionChooser
+            onPickPc={() => setForced('pc-connect')}
+            onPickBluetooth={() => setForced('needs-network')}
+          />
+          {globalOverlays}
+        </div>
+      )
+    }
+    if (forced === 'pc-connect') {
+      return (
+        <div className={styles.app}>
+          <PcConnect />
+          {globalOverlays}
+        </div>
+      )
+    }
+    if (forced === 'needs-network') {
+      return (
+        <div className={styles.app}>
+          <NeedsNetwork />
+          {globalOverlays}
+        </div>
+      )
+    }
+    if (forced === 'starting') {
+      return (
+        <div className={styles.app}>
+          <BootSplash caption="starting up" />
+          {globalOverlays}
+        </div>
+      )
+    }
+    if (forced === 'setting-up') {
+      return (
+        <div className={styles.app}>
+          <BootSplash caption="setting things up" progress={47} />
+          {globalOverlays}
+        </div>
+      )
+    }
+    if (forced === 'boot-splash') {
+      return (
+        <div className={styles.app}>
+          <BootSplash />
+          {globalOverlays}
+        </div>
+      )
+    }
+    if (forced === 'sponsor') {
+      return (
+        <div className={styles.app}>
+          <SponsorScreen onClose={() => setForced(null)} />
+        </div>
+      )
+    }
+    if (forced === 'screensaver') {
+      return (
+        <div className={styles.app}>
+          <Screensaver
+            artUrl={screensaverArt || mockStatus.track_image}
+            trackName={screensaverTrack || mockStatus.track_name}
+            trackArtist={screensaverArtist || mockStatus.track_artist}
+            utcOffsetMin={utcOffsetMin}
+            onClose={() => setForced(null)}
+          />
+        </div>
+      )
+    }
+    if (forced === 'consent') {
+      return (
+        <div className={styles.app}>
+          <CheckinConsent onChoose={() => setForced(null)} />
+        </div>
+      )
+    }
+    if (forced === 'update-card') {
+      return (
+        <div className={styles.app}>
+          <UpdateCard
+            latest="1.1.0"
+            highlights={[
+              'Clock screensaver (double-press power)',
+              'Setup progress bar',
+              'Bluetooth pairing fixes',
+            ]}
+            onRemindLater={() => setForced(null)}
+            onSkip={() => setForced(null)}
+          />
+        </div>
+      )
+    }
+    if (forced === 'debug') {
+      return (
+        <div className={styles.app}>
+          <DebugScreen open onClose={() => setForced(null)} onReport={overlays.openReport} />
+          {overlays.reportId ? (
+            <ReportDialog id={overlays.reportId} onDismiss={() => overlays.close('report')} />
+          ) : null}
+        </div>
+      )
+    }
+    if (forced === 'auth') {
+      return (
+        <>
+          <AuthScreen url="https://accounts.spotify.com/authorize?response_type=code&client_id=dev-mock&redirect_uri=https%3A%2F%2Fexample.com%2Fcb&scope=user-read-private" />
+          {globalOverlays}
+        </>
+      )
+    }
+    if (forced === 'idle') {
+      return (
+        <div className={styles.app}>
+          <IdleScreen
+            connected={connected}
+            devices={connectDevices}
+            onSelectDevice={onPickDevice}
+          />
+          {globalOverlays}
+        </div>
+      )
+    }
+    if (forced === 'reconnecting') {
+      return (
+        <div className={styles.app}>
+          <ReconnectingScreen
+            deviceName="Kaz’s S24"
+            carriers={{ usb: false, bt: false }}
+            onSetUpOther={() => {}}
+          />
+          {globalOverlays}
+        </div>
+      )
+    }
+    if (forced === 'no-internet') {
+      return (
+        <div className={styles.app}>
+          <ReconnectingScreen
+            phase="no-internet"
+            deviceName="Kaz’s S24"
+            carriers={{ usb: false, bt: false }}
+            onSetUpOther={() => {}}
+          />
+          {globalOverlays}
+        </div>
+      )
+    }
+    if (forced === 'checking') {
+      return (
+        <div className={styles.app}>
+          <ReconnectingScreen phase="checking" />
+          {globalOverlays}
+        </div>
+      )
+    }
+
+    if (!forced) {
+      const route = resolveRoute({
+        offlineScreen,
+        auth,
+        status,
+        setupProgress,
+        loading,
+        online,
+        reconnecting,
+        playerStartingUp,
+        spotifyStuck,
+        splashOnlineStuck,
+        loadStuck,
+      })
+
+      switch (route.kind) {
+        case 'offline':
+          return (
+            <div className={styles.app}>
+              <OfflinePage
+                screen={route.screen}
+                deviceName={topKnownDeviceName}
+                carriers={carriers}
+                trouble={btTrouble}
+                onSetUpOther={() => offline.setSetupOverride(true)}
+                onPickMethod={offline.setMethod}
+              />
+              {globalOverlays}
+            </div>
+          )
+        case 'auth':
+          return (
+            <>
+              <AuthPage url={route.url} />
+              {globalOverlays}
+            </>
+          )
+        case 'spotify-unreachable':
+          return (
+            <div className={styles.app}>
+              <ReconnectingScreen phase="spotify-unreachable" />
+              {globalOverlays}
+            </div>
+          )
+        case 'auth-pending':
+          return (
+            <>
+              <AuthPage stuck={route.stuck} />
+              {globalOverlays}
+            </>
+          )
+        case 'booting':
+          return (
+            <div className={styles.app}>
+              <BootPage phase="starting" stuck={route.stuck} />
+              {globalOverlays}
+            </div>
+          )
+        case 'setting-up':
+          return (
+            <div className={styles.app}>
+              <BootPage phase="setting-up" progress={route.progress} />
+              {globalOverlays}
+            </div>
+          )
+        case 'idle':
+          return (
+            <div className={styles.app}>
+              <IdleScreen
+                connected={connected}
+                devices={connectDevices}
+                onSelectDevice={onPickDevice}
+              />
+              {globalOverlays}
+            </div>
+          )
+        case 'player':
+          break
+      }
+    }
+
+    // live status when active otherwise the last playing
+    const playerStatus = savableStatus
+    if (!playerStatus || !playerStatus.active) return null
+
+    // noti over the player on a network drops
+    const bannerReason: ReconnectReason | null =
+      forced === 'reconnect-banner' ? 'offline' : reconnecting ? dropReason : null
+
+    return (
+      <PlayerPage
+        status={playerStatus}
+        live={statusActive}
+        controls={controls}
+        narration={narration}
+        showLyrics={showLyrics}
+        bannerReason={bannerReason}
+        carriers={carriers}
+        pairing={pairing}
+        seek={seek}
+        notify={notify}
+      >
+        {globalOverlays}
+      </PlayerPage>
+    )
+  }
 }
