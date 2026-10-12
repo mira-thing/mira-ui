@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { hw, withRouter } from '@/__tests__/hardware'
 import { UpdateCard } from '../UpdateCard'
 
 describe('UpdateCard', () => {
@@ -52,19 +53,35 @@ describe('UpdateCard', () => {
   it('starts on remind-me-later and confirms it with the knob', () => {
     const onRemindLater = vi.fn()
     const onSkip = vi.fn()
-    render(<UpdateCard latest="1.1.0" onRemindLater={onRemindLater} onSkip={onSkip} />)
-    fireEvent.keyDown(window, { key: 'Enter' })
+    render(<UpdateCard latest="1.1.0" onRemindLater={onRemindLater} onSkip={onSkip} />, {
+      wrapper: withRouter,
+    })
+    hw.press()
     expect(onRemindLater).toHaveBeenCalledTimes(1)
     expect(onSkip).not.toHaveBeenCalled()
   })
 
-  it('turning the knob right moves the selection to skip', () => {
+  it('turning the knob clockwise moves the selection right, to skip', () => {
     const onRemindLater = vi.fn()
     const onSkip = vi.fn()
-    render(<UpdateCard latest="1.1.0" onRemindLater={onRemindLater} onSkip={onSkip} />)
-    fireEvent.wheel(window, { deltaY: 1 })
-    fireEvent.keyDown(window, { key: 'Enter' })
+    render(<UpdateCard latest="1.1.0" onRemindLater={onRemindLater} onSkip={onSkip} />, {
+      wrapper: withRouter,
+    })
+    hw.turn(1)
+    hw.press()
     expect(onSkip).toHaveBeenCalledTimes(1)
     expect(onRemindLater).not.toHaveBeenCalled()
+  })
+
+  it('presses remind-me-later with the knob on a mandatory release', () => {
+    const onRemindLater = vi.fn()
+    render(<UpdateCard latest="1.1.2" mandatory onRemindLater={onRemindLater} />, {
+      wrapper: withRouter,
+    })
+    expect(screen.getByText('Remind me later')).toHaveClass('btnFocus')
+    hw.turn(1)
+    expect(screen.getByText('Remind me later')).toHaveClass('btnFocus')
+    hw.press()
+    expect(onRemindLater).toHaveBeenCalledTimes(1)
   })
 })

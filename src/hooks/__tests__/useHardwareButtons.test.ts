@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
 import { useHardwareButtons, type UseHardwareButtonsParams } from '../useHardwareButtons'
 import { activeStatus } from '@/__tests__/fixtures/observer'
+import { hw, withRouter } from '@/__tests__/hardware'
 
 function params(over: Partial<UseHardwareButtonsParams> = {}): UseHardwareButtonsParams {
   return {
@@ -129,16 +130,13 @@ describe('useHardwareButtons volume on a device that cannot take it', () => {
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => vi.useRealTimers())
 
-  const turn = () =>
-    act(() => {
-      window.dispatchEvent(new WheelEvent('wheel', { deltaX: 1 }))
-      vi.advanceTimersByTime(60)
-    })
+  const advance = (ms: number) => act(() => vi.advanceTimersByTime(ms))
+  const turn = () => hw.turnSteps(1, -1, { advance })
 
   it('flashes the overlay once, then holds still while the knob keeps spinning', async () => {
     const setVolume = vi.fn(() => Promise.reject(new Error('no volume control')))
     const p = params({ status: { ...activeStatus, volume_disabled: true }, setVolume })
-    const { result } = renderHook(() => useHardwareButtons(p))
+    const { result } = renderHook(() => useHardwareButtons(p), { wrapper: withRouter })
 
     turn()
     expect(result.current.volumeOverlay.visible).toBe(true)
@@ -154,5 +152,78 @@ describe('useHardwareButtons volume on a device that cannot take it', () => {
     turn()
     expect(result.current.volumeOverlay.visible).toBe(true)
     expect(setVolume).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('useHardwareButtons knob', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  const advance = (ms: number) => act(() => vi.advanceTimersByTime(ms))
+  const VOLUME_MAX = 65535
+  // the default 2% step
+  const STEP = Math.round(0.02 * VOLUME_MAX)
+
+  it('turns the volume up clockwise and down counter-clockwise', () => {
+    const p = params({ status: { ...activeStatus, volume: 30000 } })
+    renderHook(() => useHardwareButtons(p), { wrapper: withRouter })
+
+    hw.turnSteps(2, 1, { advance })
+    advance(200)
+    expect(p.setVolume).toHaveBeenLastCalledWith(30000 + 2 * STEP, false)
+
+    hw.turnSteps(1, -1, { advance })
+    advance(200)
+    expect(p.setVolume).toHaveBeenLastCalledWith(30000 + STEP, false)
+  })
+
+  it('leaves the volume alone with nothing playing, but still keeps the wheel from scrolling', () => {
+    const p = params({ status: null })
+    renderHook(() => useHardwareButtons(p), { wrapper: withRouter })
+
+    const e = hw.turn(1)
+    advance(200)
+    expect(e.defaultPrevented).toBe(true)
+    expect(p.setVolume).not.toHaveBeenCalled()
+  })
+
+  // the sync grace runs from the last turn, not the last accepted step
+  it('holds off the device volume sync after a turn the step filter dropped', () => {
+    const initial = params({ status: { ...activeStatus, volume: 30000 } })
+    const { rerender } = renderHook((x: UseHardwareButtonsParams) => useHardwareButtons(x), {
+      initialProps: initial,
+      wrapper: withRouter,
+    })
+
+    hw.turn(1)
+    advance(30)
+    // dropped by the 55ms minimum interval
+    hw.turn(1)
+    // 1510ms after the accepted step, inside the 1500ms grace only if the dropped turn counts
+    advance(1480)
+
+    const latest = params({ status: { ...activeStatus, volume: 50000 } })
+    rerender(latest)
+    hw.turn(1)
+    advance(200)
+    expect(latest.setVolume).toHaveBeenLastCalledWith(30000 + 2 * STEP, false)
+  })
+
+  it('plays or pauses on a knob press, and claims the key', () => {
+    const p = params()
+    renderHook(() => useHardwareButtons(p), { wrapper: withRouter })
+
+    const e = hw.press()
+    expect(p.onPlayPause).toHaveBeenCalledTimes(1)
+    expect(e.defaultPrevented).toBe(true)
+  })
+
+  it('goes back on the back button', () => {
+    const p = params()
+    renderHook(() => useHardwareButtons(p), { wrapper: withRouter })
+
+    hw.back()
+    expect(p.onBack).toHaveBeenCalledTimes(1)
+    expect(p.onPlayPause).not.toHaveBeenCalled()
   })
 })

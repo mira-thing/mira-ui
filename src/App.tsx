@@ -13,6 +13,7 @@ import { Screensaver } from '@/components/Screensaver'
 import { SponsorScreen } from '@/components/SponsorScreen'
 import { UpdateCard } from '@/components/UpdateCard'
 import { DebugScreen } from '@/components/DebugScreen'
+import { InputRouter } from '@/input/InputRouter'
 import { resolveRoute } from '@/app/routes'
 import { useDevScreen } from '@/dev/devContext'
 import { makeMockStatus } from '@/dev/mockStatus'
@@ -51,7 +52,8 @@ import { initSettings, useSettings } from '@/settings'
 import styles from './App.module.scss'
 
 /**
- * Owns the overlay stack so every screen below can reach it, and nothing else.
+ * Owns the overlay stack and the input router so every screen below can reach them, and
+ * nothing else.
  * The dev-screen override lives here because it is what `useOverlays` needs to
  * treat a forced menu as open.
  */
@@ -81,7 +83,9 @@ export default function App() {
 
   return (
     <OverlayContext.Provider value={overlays}>
-      <AppContent />
+      <InputRouter>
+        <AppContent />
+      </InputRouter>
     </OverlayContext.Provider>
   )
 }

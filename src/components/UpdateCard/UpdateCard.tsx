@@ -1,5 +1,7 @@
-import { memo, useEffect, useState } from 'react'
+import { memo, useState } from 'react'
 import { BRAND_NAME } from '@/brand'
+import { Layer } from '@/input/router'
+import { useKnobScope } from '@/input/useKnobScope'
 import styles from './UpdateCard.module.scss'
 
 const MAX_HIGHLIGHTS = 3
@@ -23,30 +25,18 @@ function UpdateCardImpl({
   const canSkip = !mandatory && onSkip != null
   const [sel, setSel] = useState<0 | 1>(0)
 
-  useEffect(() => {
-    if (!canSkip) return
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        e.preventDefault()
-        e.stopPropagation()
-        if (sel === 0) onRemindLater()
-        else onSkip?.()
-      }
-    }
-    const onWheel = (e: WheelEvent) => {
-      const d = e.deltaX !== 0 ? e.deltaX : e.deltaY
-      if (d === 0) return
-      e.preventDefault()
-      e.stopPropagation()
-      setSel(d > 0 ? 1 : 0)
-    }
-    window.addEventListener('keydown', onKeyDown, { capture: true })
-    window.addEventListener('wheel', onWheel, { capture: true, passive: false })
-    return () => {
-      window.removeEventListener('keydown', onKeyDown, { capture: true })
-      window.removeEventListener('wheel', onWheel, { capture: true })
-    }
-  }, [canSkip, sel, onRemindLater, onSkip])
+  // a mandatory card has one button, but still keeps the knob off the volume behind it
+  useKnobScope({
+    layer: Layer.modal,
+    enabled: true,
+    onStep: (dir) => {
+      if (canSkip) setSel(dir > 0 ? 1 : 0)
+    },
+    onSelect: () => {
+      if (canSkip && sel === 1) onSkip?.()
+      else onRemindLater()
+    },
+  })
 
   return (
     <div className={styles.overlay} role="dialog" aria-label="Update available">
@@ -71,7 +61,7 @@ function UpdateCardImpl({
         <div className={styles.buttons}>
           <button
             type="button"
-            className={`${styles.btn} ${styles.btnPrimary} ${canSkip && sel === 0 ? styles.btnFocus : ''}`}
+            className={`${styles.btn} ${styles.btnPrimary} ${!canSkip || sel === 0 ? styles.btnFocus : ''}`}
             onClick={onRemindLater}
           >
             Remind me later
