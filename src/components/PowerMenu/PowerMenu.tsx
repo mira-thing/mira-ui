@@ -1,6 +1,7 @@
 import { memo, useEffect, useState } from 'react'
 import { resetDevice, restartDevice, suspendDevice } from '@/api/system'
 import { BRAND_NAME } from '@/brand'
+import { Icon } from '@/ui/icons'
 import styles from './PowerMenu.module.scss'
 
 interface Props {
@@ -88,11 +89,11 @@ function PowerMenuImpl({ open, onClose, onSupport }: Props) {
         ) : (
           <>
             <button type="button" className={styles.action} onClick={onSleep} disabled={!!busy}>
-              <MoonIcon />
+              <Icon name="moon" />
               <span>Sleep</span>
             </button>
             <button type="button" className={styles.action} onClick={onRestart} disabled={!!busy}>
-              <RestartIcon />
+              <Icon name="restart" />
               <span>{busy === 'restart' ? 'Restarting...' : 'Restart'}</span>
             </button>
             {onSupport ? (
@@ -102,7 +103,7 @@ function PowerMenuImpl({ open, onClose, onSupport }: Props) {
                 onClick={onSupport}
                 disabled={!!busy}
               >
-                <HeartIcon />
+                <Icon name="heart" />
                 <span>Support {BRAND_NAME}</span>
               </button>
             ) : null}
@@ -112,63 +113,13 @@ function PowerMenuImpl({ open, onClose, onSupport }: Props) {
               onClick={() => setConfirmReset(true)}
               disabled={!!busy}
             >
-              <ResetIcon />
+              <Icon name="trash" />
               <span>Reset</span>
             </button>
           </>
         )}
       </div>
     </div>
-  )
-}
-
-function HeartIcon() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-    </svg>
-  )
-}
-
-function MoonIcon() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="currentColor" />
-    </svg>
-  )
-}
-
-function RestartIcon() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M19 12a7 7 0 1 1-2.05-4.95"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M19 4v4h-4"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function ResetIcon() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M6 7h12M9 7V5h6v2M7 7l1 12h8l1-12"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   )
 }
 

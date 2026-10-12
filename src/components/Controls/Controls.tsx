@@ -1,19 +1,9 @@
 import { memo } from 'react'
 import type { ReactNode } from 'react'
-import {
-  DJIcon,
-  MoreIcon,
-  NextIcon,
-  PrevIcon,
-  RepeatIcon,
-  RepeatOneIcon,
-  SeekBack15Icon,
-  SeekForward15Icon,
-  ShuffleIcon,
-} from './icons'
 import { SaveButton } from './SaveButton'
 import { PlayPauseIcon } from './PlayPauseIcon'
 import { useNarration } from '@/hooks/useDJNarration'
+import { Icon } from '@/ui/icons'
 import styles from './Controls.module.scss'
 
 import type { RepeatMode } from '@/hooks/usePlayerControls'
@@ -129,12 +119,12 @@ function ControlsImpl({
       <div className={styles.center}>
         {isPodcast ? (
           <ControlButton size="xs" label="Rewind 15 seconds" onPress={onRewind15}>
-            <SeekBack15Icon size={32} />
+            <Icon name="seekBack15" size={32} />
           </ControlButton>
         ) : isDJ ? (
           // momentary action, not a toggle. Jumping mid-line cuts the speech short
           <ControlButton size="xs" label="Switch DJ set" disabled={narrating} onPress={onDJSignal}>
-            <DJIcon size={32} />
+            <Icon name="dj" size={32} />
           </ControlButton>
         ) : (
           <ControlButton
@@ -144,12 +134,12 @@ function ControlsImpl({
             active={shuffle}
             onPress={onToggleShuffle}
           >
-            <ShuffleIcon size={32} />
+            <Icon name="shuffle" size={32} />
           </ControlButton>
         )}
 
         <ControlButton size="sm" label="Previous" disabled={disallowPrev} onPress={onPrev}>
-          <PrevIcon size={43} />
+          <Icon name="prev" size={43} />
         </ControlButton>
 
         <ControlButton size="lg" label={isPaused ? 'Play' : 'Pause'} onPress={onPlayPause}>
@@ -157,12 +147,12 @@ function ControlsImpl({
         </ControlButton>
 
         <ControlButton size="sm" label="Next" disabled={disallowNext} onPress={onNext}>
-          <NextIcon size={43} />
+          <Icon name="next" size={43} />
         </ControlButton>
 
         {isPodcast ? (
           <ControlButton size="xs" label="Forward 15 seconds" onPress={onForward15}>
-            <SeekForward15Icon size={32} />
+            <Icon name="seekForward15" size={32} />
           </ControlButton>
         ) : (
           <ControlButton
@@ -173,14 +163,14 @@ function ControlsImpl({
             disabled={repeatDisabled}
             onPress={onCycleRepeat}
           >
-            {repeat === 'track' ? <RepeatOneIcon size={32} /> : <RepeatIcon size={32} />}
+            <Icon name={repeat === 'track' ? 'repeatOne' : 'repeat'} size={32} />
           </ControlButton>
         )}
       </div>
 
       <div className={styles.right}>
         <ControlButton size="xs" label="More" onPress={onMore}>
-          <MoreIcon size={28} />
+          <Icon name="more" size={28} />
         </ControlButton>
       </div>
     </div>

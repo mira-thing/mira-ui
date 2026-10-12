@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, useState } from 'react'
-import { DJIcon } from '@/components/Controls/icons'
+import { Icon } from '@/ui/icons'
 import styles from './AlbumArt.module.scss'
 import { loadArtwork } from '@/hooks/useColorExtract'
 
@@ -54,7 +54,7 @@ function AlbumArtImpl({ src, size = 200, alt = '', djFallback = false, pending =
   // shared by both crossfade layers
   const empty = djFallback ? (
     <div className={styles.djFallback} role="img" aria-label="DJ">
-      <DJIcon size={Math.round(size * 0.55)} />
+      <Icon name="dj" size={Math.round(size * 0.55)} />
     </div>
   ) : (
     <div className={styles.placeholder} />
