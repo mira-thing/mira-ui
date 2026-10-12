@@ -10,6 +10,7 @@ import { server } from '@/__tests__/msw-server'
 import { activeStatus } from '@/__tests__/fixtures/observer'
 import type { UsePlayerControlsResult } from '@/hooks/usePlayerControls'
 import type { DJNarration } from '@/hooks/useDJNarration'
+import { useTrackScene } from '@/hooks/useTrackScene'
 
 function controls(over: Partial<UsePlayerControlsResult> = {}): UsePlayerControlsResult {
   return {
@@ -31,7 +32,9 @@ function controls(over: Partial<UsePlayerControlsResult> = {}): UsePlayerControl
 
 const silent: DJNarration = { narrating: false, title: '', artist: '' }
 
-function props(over: Partial<PlayerPageProps> = {}): PlayerPageProps {
+type PageProps = Omit<PlayerPageProps, 'scene'>
+
+function props(over: Partial<PageProps> = {}): PageProps {
   return {
     status: activeStatus,
     live: true,
@@ -55,7 +58,13 @@ function Harness({ children }: { children: ReactNode }) {
   return <OverlayContext.Provider value={overlays}>{children}</OverlayContext.Provider>
 }
 
-function renderPage(p: PlayerPageProps = props()) {
+// App owns the scene in production
+function ScenePage(p: PageProps) {
+  const scene = useTrackScene(p.status, p.controls.transitioning, p.controls.trackTransition)
+  return <PlayerPage {...p} scene={scene} />
+}
+
+function renderPage(p: PageProps = props()) {
   // setup.ts runs msw with onUnhandledRequest: 'error', and neither call the
   // player makes is in the default handler set
   server.use(
@@ -64,7 +73,7 @@ function renderPage(p: PlayerPageProps = props()) {
   )
   return render(
     <Harness>
-      <PlayerPage {...p} />
+      <ScenePage {...p} />
     </Harness>,
   )
 }
@@ -105,6 +114,23 @@ describe('PlayerPage', () => {
     const active = container.querySelector('.viewLayer.viewActive')
     expect(active?.querySelector('.topNoLyrics')).toBeInTheDocument()
     expect(container.querySelector('.viewLayer.viewInactive .top')).toBeInTheDocument()
+  })
+
+  it('marks the same glass panels and depth holes as before the surfaces moved', () => {
+    const { container } = renderPage()
+
+    const glass = Array.from(container.querySelectorAll('[data-glass-panel]'))
+    expect(glass.map((el) => el.classList[1])).toEqual(['panel', 'panel', 'panel', 'bar'])
+    expect(glass.map((el) => el.classList[2])).toEqual(['left', 'lyrics', 'wrap', 'bottom'])
+    const depth = Array.from(container.querySelectorAll<HTMLElement>('[data-depth-panel]'))
+    expect(
+      depth.map((el) => [el.classList[el.classList.length - 1], el.dataset.depthPanel]),
+    ).toEqual([
+      ['left', 'lyrics'],
+      ['right', 'lyrics'],
+      ['topNoLyrics', 'art'],
+      ['bottom', ''],
+    ])
   })
 
   it('hands the narration to the subtree, which shows the DJ instead of the track', () => {

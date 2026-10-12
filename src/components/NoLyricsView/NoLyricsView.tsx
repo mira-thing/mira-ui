@@ -1,9 +1,8 @@
 import { memo } from 'react'
 import { AlbumArt } from '@/components/AlbumArt'
-
-import { useArtworkSurface } from '@/components/AmbientGround'
 import { Marquee } from '@/components/TrackInfo/Marquee'
 import type { TrackPresentation } from '@/hooks/useDJNarration'
+import { Surface } from '@/ui/Surface'
 import styles from './NoLyricsView.module.scss'
 
 interface Props extends TrackPresentation {
@@ -21,10 +20,8 @@ function NoLyricsViewImpl({
   artSize = ART_SIZE,
   pending = false,
 }: Props) {
-  const surfaceStyle = useArtworkSurface(0, 0.22)
-
   return (
-    <div className={styles.wrap} style={surfaceStyle} data-glass-panel="">
+    <Surface variant="panel" tint={0.22} className={styles.wrap}>
       <div className={styles.art}>
         <AlbumArt src={art} size={artSize} djFallback={djFallback} pending={pending} />
       </div>
@@ -32,7 +29,7 @@ function NoLyricsViewImpl({
         <Marquee text={title || 'Unknown track'} className={styles.title} />
         <Marquee text={artist || 'Unknown artist'} className={styles.artist} />
       </div>
-    </div>
+    </Surface>
   )
 }
 

@@ -15,6 +15,8 @@ export type DevForcedScreen =
   | 'idle'
   | 'playing-lyrics'
   | 'playing-no-lyrics'
+  | 'playing-no-art'
+  | 'dj-narrating'
   | 'pairing'
   | 'menu'
   | 'power-menu'

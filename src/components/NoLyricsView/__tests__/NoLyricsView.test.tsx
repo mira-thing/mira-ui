@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { NoLyricsView } from '../NoLyricsView'
 import { activeStatus } from '../../../__tests__/fixtures/observer'
@@ -9,8 +9,6 @@ import type { ObserverStatusActive } from '@/api/types'
 const talking: DJNarration = { narrating: true, title: 'Up next', artist: 'DJ X' }
 
 const quiet: DJNarration = { narrating: false, title: '', artist: '' }
-
-vi.mock('@/components/AmbientGround', () => ({ useArtworkSurface: vi.fn(() => ({})) }))
 
 describe('NoLyricsView', () => {
   it('shows the real track when the DJ is not talking', () => {

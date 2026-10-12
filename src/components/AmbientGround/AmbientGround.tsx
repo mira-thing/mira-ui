@@ -1,27 +1,8 @@
-import {
-  memo,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type HTMLAttributes,
-  type ReactNode,
-} from 'react'
-import {
-  groundTone,
-  surfaceGlowColor,
-  useDominantColors,
-  type GroundRole,
-  type RGB,
-} from '@/hooks/useColorExtract'
-import { ArtworkPaletteContext, useArtworkSurface } from './artworkTheme'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
+import type { GroundRole, RGB } from '@/hooks/useColorExtract'
+import { deriveRoles } from '@/theme/seed'
+import { useTheme } from '@/theme/theme'
 import styles from './AmbientGround.module.scss'
-
-interface Props {
-  artUrl?: string
-}
-
-const FALLBACK: RGB = [45, 50, 61]
 
 // three orbs per scene
 const ORBS: { role: GroundRole; className: string; peak: number }[] = [
@@ -34,30 +15,24 @@ function rgba(rgb: RGB, alpha: number): string {
   return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`
 }
 
-function orbPaint(rgb: RGB, role: GroundRole, peak: number): string {
-  const color = groundTone(rgb, role)
+function orbPaint(color: RGB, peak: number): string {
   return `radial-gradient(closest-side, ${rgba(color, peak)} 0%, ${rgba(color, peak * 0.97)} 10%, ${rgba(color, peak * 0.72)} 30%, ${rgba(color, peak * 0.34)} 52%, ${rgba(color, peak * 0.09)} 74%, ${rgba(color, peak * 0.015)} 90%, ${rgba(color, 0)} 100%)`
 }
 
-function orbColors(palette: RGB[]): RGB[] {
-  const first = palette[0] ?? FALLBACK
-  const second = palette[1] ?? first
-  const third = palette[2] ?? second
-  // deep, base, hot
-  return [second, first, third]
-}
-
-function bloomPaint(rgb: RGB): string {
-  const glow = surfaceGlowColor(rgb)
+function bloomPaint(glow: RGB): string {
   return `radial-gradient(closest-side, ${rgba(glow, 0.28)} 0%, ${rgba(glow, 0.09)} 45%, ${rgba(glow, 0)} 100%)`
 }
 
+// an empty palette still mounts its orbs, so both scenes drift in phase from the start
 function Field({ palette }: { palette: RGB[] }) {
-  const paints = useMemo(() => {
-    const colors = orbColors(palette)
-    return ORBS.map((orb, i) => orbPaint(colors[i], orb.role, orb.peak))
+  const { paints, bloom } = useMemo(() => {
+    if (palette.length === 0) return { paints: ORBS.map(() => 'none'), bloom: 'none' }
+    const roles = deriveRoles(palette)
+    return {
+      paints: ORBS.map((orb) => orbPaint(roles.ground[orb.role], orb.peak)),
+      bloom: bloomPaint(roles.glow),
+    }
   }, [palette])
-  const bloom = useMemo(() => bloomPaint(palette[0] ?? FALLBACK), [palette])
   return (
     <>
       {paints.map((paint, i) => (
@@ -72,7 +47,13 @@ function Field({ palette }: { palette: RGB[] }) {
   )
 }
 
-const GroundLayers = memo(function GroundLayers({ palette }: { palette: RGB[] }) {
+const GroundLayers = memo(function GroundLayers({
+  palette,
+  idle,
+}: {
+  palette: RGB[]
+  idle: boolean
+}) {
   const [front, setFront] = useState(palette)
   const [back, setBack] = useState(palette)
   const [showFront, setShowFront] = useState(true)
@@ -82,7 +63,8 @@ const GroundLayers = memo(function GroundLayers({ palette }: { palette: RGB[] })
   const [settled, setSettled] = useState(0)
 
   useEffect(() => {
-    if (lastPalette.current === palette || busy.current) return
+    // idle covers both scenes, so they keep the last album until one arrives
+    if (idle || lastPalette.current === palette || busy.current) return
     lastPalette.current = palette
     busy.current = true
     timers.current.frame = window.requestAnimationFrame(() => {
@@ -100,7 +82,7 @@ const GroundLayers = memo(function GroundLayers({ palette }: { palette: RGB[] })
       }, 1200)
     })
     // rapid skips keep only the latest palette
-  }, [palette, showFront, settled])
+  }, [palette, idle, showFront, settled])
 
   useEffect(
     () => () => {
@@ -110,41 +92,24 @@ const GroundLayers = memo(function GroundLayers({ palette }: { palette: RGB[] })
     [],
   )
 
+  const shown = (visible: boolean) => (visible ? styles.visible : styles.hidden)
   return (
     <div className={styles.ground} aria-hidden>
-      <div className={`${styles.layer} ${showFront ? styles.visible : styles.hidden}`}>
+      <div className={`${styles.layer} ${shown(!idle && showFront)}`}>
         <Field palette={front} />
       </div>
-      <div className={`${styles.layer} ${showFront ? styles.hidden : styles.visible}`}>
+      <div className={`${styles.layer} ${shown(!idle && !showFront)}`}>
         <Field palette={back} />
       </div>
       <div className={styles.vignette} />
       <div className={styles.grain} />
+      <div className={`${styles.layer} ${styles.idle} ${shown(idle)}`} />
     </div>
   )
 })
 
-export function ArtworkTheme({ artUrl, children }: Props & { children: ReactNode }) {
-  const palette = useDominantColors(artUrl)
-  return (
-    <ArtworkPaletteContext.Provider value={palette}>
-      <GroundLayers palette={palette} />
-      {children}
-    </ArtworkPaletteContext.Provider>
-  )
-}
-
-interface ArtworkSurfaceProps extends HTMLAttributes<HTMLDivElement> {
-  tone?: number
-  strength?: number
-}
-
-export function ArtworkSurface({
-  tone = 0,
-  strength = 0.46,
-  style,
-  ...props
-}: ArtworkSurfaceProps) {
-  const tintStyle = useArtworkSurface(tone, strength)
-  return <div {...props} data-glass-panel="" style={{ ...tintStyle, ...style }} />
+/** The themed background: the album's drifting orbs, or the idle look. */
+export function AmbientGround() {
+  const { source, palette } = useTheme()
+  return <GroundLayers palette={palette} idle={source === 'idle'} />
 }

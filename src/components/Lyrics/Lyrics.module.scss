@@ -2,10 +2,8 @@
 .lyrics {
   width: 100%;
   height: 100%;
-  border-radius: $r-surface;
   overflow: hidden;
   position: relative;
-  @include glass-panel;
 }
 
 .unsyncedPill {

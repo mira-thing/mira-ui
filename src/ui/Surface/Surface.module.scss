@@ -1,0 +1,46 @@
+// --theme-tint is written on the themed root; resolved here so each surface keeps its own alpha
+.surface {
+  --surface-tint: rgba(var(--theme-tint), var(--surface-tint-alpha));
+}
+
+[data-theme='idle'] .surface {
+  --surface-tint: transparent;
+}
+
+.panel {
+  --surface-radius: #{$r-surface};
+  --surface-tint-alpha: 0.2;
+  border-radius: $r-surface;
+  @include glass-panel;
+}
+
+.bar {
+  --surface-radius: #{$r-surface};
+  --surface-tint-alpha: 0.14;
+  border-radius: $r-surface;
+  @include glass-panel($face: 0.095);
+}
+
+.card {
+  --surface-radius: #{$r-card};
+  --surface-tint-alpha: 0.2;
+  border-radius: $r-card;
+  @include glass-panel;
+
+  &.focused {
+    --surface-tint-alpha: 0.3;
+  }
+}
+
+.floating {
+  --surface-radius: #{$r-surface};
+  --surface-tint-alpha: 0;
+  @include floating-glass;
+}
+
+.clip {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+}
