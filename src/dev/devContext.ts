@@ -31,9 +31,12 @@ export type DevForcedScreen =
   | 'screensaver'
   | 'consent'
   | 'update-card'
+  | 'ui-kit'
 
 // dev screens that are a page in the stack, rendered over the mock status
-const FORCED_PAGES: Partial<Record<Exclude<DevForcedScreen, null>, PageId>> = {}
+const FORCED_PAGES: Partial<Record<Exclude<DevForcedScreen, null>, PageId>> = {
+  'ui-kit': 'ui-kit',
+}
 
 export function forcedPageOf(forced: DevForcedScreen): PageId | null {
   return (forced && FORCED_PAGES[forced]) ?? null

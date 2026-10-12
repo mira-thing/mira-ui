@@ -1,0 +1,63 @@
+.row {
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  @include flex-gap-x($s-4);
+}
+
+.chip {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: $r-md;
+  background: rgba(255, 255, 255, 0.07);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $text-secondary;
+}
+
+.chipBtn {
+  transition:
+    transform $dur-fast $ease-standard,
+    background-color $dur-base $ease-standard,
+    color $dur-base $ease-standard;
+
+  &:active {
+    transform: scale(0.92);
+  }
+}
+
+.chipOn {
+  background: rgba(30, 215, 96, 0.16);
+  color: $accent;
+}
+
+.rowMain {
+  flex: 1 1 auto;
+  min-width: 0;
+  @include column;
+  @include flex-gap-y($s-3);
+}
+
+.rowHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 $s-2;
+  @include flex-gap-x($s-3);
+}
+
+.label {
+  font-size: $fs-lg;
+  font-weight: $fw-medium;
+  color: $text-primary;
+}
+
+.value {
+  font-size: $fs-md;
+  font-weight: $fw-medium;
+  font-variant-numeric: tabular-nums;
+  color: $text-secondary;
+  white-space: nowrap;
+}

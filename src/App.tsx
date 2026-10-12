@@ -18,7 +18,7 @@ import { PageShell } from '@/app/PageShell'
 import { createRouteBack, RouteBackContext } from '@/app/routeBack'
 import { resolveRoute } from '@/app/routes'
 import { usePages, type PageId } from '@/app/usePages'
-import { forcedPageOf, useDevScreen } from '@/dev/devContext'
+import { DEV_SCREENS_ENABLED, forcedPageOf, useDevScreen } from '@/dev/devContext'
 import { makeMockStatus, MOCK_NARRATION, type MockStatusKind } from '@/dev/mockStatus'
 import { useAuth } from '@/hooks/useAuth'
 import { useConnectDevices } from '@/hooks/useConnectDevices'
@@ -43,6 +43,7 @@ import { AuthPage } from '@/pages/Auth/AuthPage'
 import { BootPage } from '@/pages/Boot/BootPage'
 import { OfflinePage } from '@/pages/Offline/OfflinePage'
 import { PlayerPage } from '@/pages/Player/PlayerPage'
+import { UiKitPage } from '@/pages/UiKit/UiKitPage'
 import { artSizeFor } from '@/pages/Player/playerLayout'
 import { usePlayerControls } from '@/hooks/usePlayerControls'
 import { usePrefetch } from '@/hooks/usePrefetch'
@@ -300,7 +301,12 @@ function AppContent() {
       return
     }
     if (routeBack.run()) return
-  }, [overlays, overlayBusy, offline, routeBack])
+    // a forced page is what is showing, so Back leaves it for the player beneath
+    if (forcedPage !== null) {
+      setForced('playing-lyrics')
+      return
+    }
+  }, [overlays, overlayBusy, offline, routeBack, forcedPage, setForced])
 
   const controls = usePlayerControls({
     status: status && status.active ? status : null,
@@ -654,6 +660,8 @@ function AppContent() {
             notify={notify}
           />
         )
+      case 'ui-kit':
+        return DEV_SCREENS_ENABLED ? <UiKitPage /> : null
     }
   }
 

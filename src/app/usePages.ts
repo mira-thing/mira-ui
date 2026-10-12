@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 
-export type PageId = 'player'
+export type PageId = 'player' | 'ui-kit'
 
 export interface PageEntry<Id extends string = PageId> {
   id: Id

@@ -1,0 +1,19 @@
+.tile {
+  flex: 0 0 auto;
+  @include flex-center;
+  background: rgba(255, 255, 255, 0.14);
+  color: $text-primary;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.md {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+}
+
+.lg {
+  width: 64px;
+  height: 64px;
+  border-radius: $r-lg;
+}

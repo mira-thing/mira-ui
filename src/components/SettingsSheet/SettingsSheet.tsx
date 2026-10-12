@@ -1,4 +1,4 @@
-import { memo, useState, type ReactNode } from 'react'
+import { memo, useState } from 'react'
 import {
   BRIGHTNESS_MAX,
   BRIGHTNESS_MIN,
@@ -11,8 +11,8 @@ import {
   VOLUME_STEP_MAX,
   VOLUME_STEP_MIN,
 } from '@/settings'
+import { NotchedSlider, SettingRow } from '@/ui/controls'
 import { Icon } from '@/ui/icons'
-import { NotchedSlider } from './NotchedSlider'
 import styles from './SettingsSheet.module.scss'
 
 interface Props {
@@ -122,61 +122,28 @@ function SettingsSheetImpl({ open, onClose, phoneVolume = false }: Props) {
           />
         </SettingRow>
 
-        <div className={styles.row}>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={autoBrightness}
-            aria-label="Auto brightness"
-            className={`${styles.chip} ${styles.chipBtn} ${autoBrightness ? styles.chipOn : ''}`}
-            onClick={() => updateSettings({ autoBrightness: !autoBrightness })}
-          >
-            <Icon name="sun" size={20} />
-          </button>
-          <div className={styles.rowMain}>
-            <div className={styles.rowHead}>
-              <span className={styles.label}>Brightness</span>
-              <span className={styles.value}>
-                {autoBrightness ? 'Auto' : `${brightness * 10}%`}
-              </span>
-            </div>
-            <NotchedSlider
-              ariaLabel="Brightness"
-              value={brightness}
-              min={BRIGHTNESS_MIN}
-              max={BRIGHTNESS_MAX}
-              step={1}
-              onChange={(v) => updateSettings({ brightness: v })}
-              format={(v) => `${v * 10}%`}
-              disabled={autoBrightness}
-              defaultValue={5}
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-interface RowProps {
-  icon: ReactNode
-  label: string
-  value: string
-  children: ReactNode
-}
-
-function SettingRow({ icon, label, value, children }: RowProps) {
-  return (
-    <div className={styles.row}>
-      <span className={styles.chip} aria-hidden>
-        {icon}
-      </span>
-      <div className={styles.rowMain}>
-        <div className={styles.rowHead}>
-          <span className={styles.label}>{label}</span>
-          <span className={styles.value}>{value}</span>
-        </div>
-        {children}
+        <SettingRow
+          icon={<Icon name="sun" size={20} />}
+          label="Brightness"
+          value={autoBrightness ? 'Auto' : `${brightness * 10}%`}
+          iconSwitch={{
+            checked: autoBrightness,
+            onChange: (on) => updateSettings({ autoBrightness: on }),
+            label: 'Auto brightness',
+          }}
+        >
+          <NotchedSlider
+            ariaLabel="Brightness"
+            value={brightness}
+            min={BRIGHTNESS_MIN}
+            max={BRIGHTNESS_MAX}
+            step={1}
+            onChange={(v) => updateSettings({ brightness: v })}
+            format={(v) => `${v * 10}%`}
+            disabled={autoBrightness}
+            defaultValue={5}
+          />
+        </SettingRow>
       </div>
     </div>
   )

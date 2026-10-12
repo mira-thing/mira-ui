@@ -1,0 +1,30 @@
+// vertical room for the cards' shadows, which the horizontal clip would otherwise cut
+.carousel {
+  position: relative;
+  height: 100%;
+  padding: $s-4 0 $s-6;
+  overflow: hidden;
+}
+
+// the items' offsetParent, so their offsets are in the track's own layout px
+.track {
+  --carousel-item-w: 196px;
+  --carousel-item-w-focused: 264px;
+  position: relative;
+  display: flex;
+  height: 100%;
+  will-change: transform;
+  transition: transform $dur-slow $ease-emphasized;
+  @include flex-gap-x($s-4);
+}
+
+// no width transition: the track measures the final layout in the same frame
+.item {
+  flex: 0 0 auto;
+  width: var(--carousel-item-w);
+  height: 100%;
+}
+
+.focused {
+  width: var(--carousel-item-w-focused);
+}
