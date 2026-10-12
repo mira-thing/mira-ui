@@ -1,4 +1,4 @@
-import { useCallback, useRef, type ReactNode } from 'react'
+import { useCallback, useRef } from 'react'
 import { AlbumArt } from '@/components/AlbumArt'
 import {
   ArtworkSurface,
@@ -49,8 +49,6 @@ export interface PlayerPageProps {
   pairing: PairingPrompt | null
   seek: (positionMs: number) => Promise<void>
   notify: NotifyFn
-  /** the overlay host, which renders inside the player's own container */
-  children?: ReactNode
 }
 
 export function PlayerPage({
@@ -64,7 +62,6 @@ export function PlayerPage({
   pairing,
   seek,
   notify,
-  children,
 }: PlayerPageProps) {
   const overlays = useOverlayState()
   const settings = useSettings()
@@ -228,8 +225,6 @@ export function PlayerPage({
               overlays.open('settings')
             }}
           />
-
-          {children}
         </ArtworkTheme>
       </div>
     </NarrationContext.Provider>

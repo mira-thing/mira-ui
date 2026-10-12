@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { usePageActive } from '@/app/pageActive'
 import { useArtworkSurface } from '@/components/AmbientGround'
 import { useActiveLine } from '@/hooks/useActiveLine'
 import { useLyricStarts, useLyrics } from '@/hooks/useLyrics'
@@ -38,7 +39,10 @@ const KaraokeLine = memo(function KaraokeLine({
 }) {
   const [sung, setSung] = useState(() => sungCount(syllables, currentPosMs(status)))
   const maxSung = useRef(sung)
+  const pageActive = usePageActive()
   useEffect(() => {
+    // a per-frame loop is wasted on a page that is covered
+    if (!pageActive) return
     let raf = 0
     const tick = () => {
       const n = sungCount(syllables, currentPosMs(status))
@@ -50,7 +54,7 @@ const KaraokeLine = memo(function KaraokeLine({
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [syllables, status])
+  }, [syllables, status, pageActive])
 
   const cls = `${styles.line} ${styles.lineActive}${onClick ? ` ${styles.lineClickable}` : ''}`
   return (

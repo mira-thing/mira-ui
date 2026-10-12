@@ -2,8 +2,10 @@ import { describe, expect, it, vi } from 'vitest'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import App from '../App'
+import { DevScreenContext, type DevForcedScreen } from '@/dev/devContext'
 import { server } from './msw-server'
 import { baseWire } from './fixtures/observer'
+import { hw } from './hardware'
 
 const busState = vi.hoisted(() => ({
   listeners: [] as Array<(evt: { type: string; data: unknown }) => void>,
@@ -81,5 +83,52 @@ describe('App', () => {
 
     await waitFor(() => expect(screen.getByText('waiting for sign-in...')).toBeInTheDocument())
     expect(screen.getByText('accounts.spotify.com/authorize?x=1')).toBeInTheDocument()
+  })
+
+  describe('over a forced dev screen', () => {
+    function renderForced(forced: DevForcedScreen) {
+      server.use(
+        http.get('*/connect/devices', () => HttpResponse.json([])),
+        http.get('*/player/saved', () => HttpResponse.json({ saved: false })),
+        http.get('*/lyrics/*', () => HttpResponse.json({ lines: [] })),
+      )
+      const setForced = vi.fn()
+      const view = render(
+        <DevScreenContext.Provider value={{ forced, setForced }}>
+          <App />
+        </DevScreenContext.Provider>,
+      )
+      return { ...view, setForced }
+    }
+
+    it('renders the player and every overlay inside the page shell', async () => {
+      const { container } = renderForced('settings')
+
+      const dialog = await screen.findByRole('dialog')
+      const shell = container.querySelector('.shell')
+      expect(shell?.querySelector('.app.appPlaying')).toBeInTheDocument()
+      expect(shell?.contains(dialog)).toBe(true)
+    })
+
+    // closing only the real flag would leave the forced one holding it open
+    it.each(['menu', 'power-menu', 'settings', 'bluetooth-menu'] as const)(
+      'drops the override when back closes a forced %s',
+      async (forced) => {
+        const { setForced } = renderForced(forced)
+        await screen.findAllByText('Reka')
+
+        hw.back()
+        expect(setForced).toHaveBeenCalledWith('playing-lyrics')
+      },
+    )
+
+    it('leaves back a no-op on the bare player', async () => {
+      const { setForced } = renderForced('playing-lyrics')
+      await screen.findAllByText('Reka')
+
+      hw.back()
+      expect(setForced).not.toHaveBeenCalled()
+      expect(screen.getAllByText('Reka').length).toBeGreaterThan(0)
+    })
   })
 })
