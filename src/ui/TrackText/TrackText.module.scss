@@ -1,0 +1,66 @@
+.text {
+  @include column;
+  min-width: 0;
+  text-align: left;
+}
+
+.title {
+  color: $text-primary;
+}
+
+.artist {
+  color: $text-secondary;
+}
+
+.line {
+  @include truncate;
+}
+
+.mini {
+  width: 100%;
+
+  .title {
+    @include type(body);
+    font-weight: $fw-semibold;
+    line-height: 1.25;
+  }
+
+  .artist {
+    @include type(label);
+    line-height: 1.25;
+  }
+}
+
+.panel {
+  width: 100%;
+  max-width: var(--art-size, #{$art-size});
+  @include flex-gap-y($s-1);
+
+  .title {
+    font-size: 23px;
+    font-weight: $fw-bold;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+
+  .artist {
+    font-size: 17px;
+    font-weight: $fw-medium;
+    line-height: 1.2;
+  }
+}
+
+.hero {
+  @include flex-gap-y($s-2);
+
+  .title {
+    @include type(display);
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+  }
+
+  .artist {
+    font-size: 24px;
+    font-weight: $fw-medium;
+  }
+}

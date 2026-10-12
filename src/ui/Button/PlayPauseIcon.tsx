@@ -16,7 +16,7 @@ function shape(progress: number): string {
     .join('')
 }
 
-export function PlayPauseIcon({ isPaused }: { isPaused: boolean }) {
+export function PlayPauseIcon({ isPaused, size = 36 }: { isPaused: boolean; size?: number }) {
   const pathRef = useRef<SVGPathElement>(null)
   const progress = useRef(isPaused ? 1 : 0)
 
@@ -46,7 +46,7 @@ export function PlayPauseIcon({ isPaused }: { isPaused: boolean }) {
   }, [isPaused])
 
   return (
-    <svg width="36" height="36" viewBox="0 0 24 24" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
       <path
         ref={pathRef}
         d={shape(isPaused ? 1 : 0)}
