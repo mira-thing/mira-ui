@@ -1,6 +1,6 @@
 import { useLayoutEffect, type RefObject } from 'react'
+import { GLASS_PAD } from '@/theme/metrics'
 
-const PAD = 54
 const MARKER = 'data-glass-cached'
 const PAINT = '--glass-paint'
 const FACE = '--glass-face'
@@ -57,7 +57,7 @@ function buildPanelImage(
   density: number,
   base = false,
 ): Promise<Blob | null> {
-  const pad = base ? 0 : PAD
+  const pad = base ? 0 : GLASS_PAD
   const width = parseFloat(style.width)
   const height = parseFloat(style.height)
   const canvas = document.createElement('canvas')

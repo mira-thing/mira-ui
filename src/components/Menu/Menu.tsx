@@ -1,8 +1,6 @@
 import { memo } from 'react'
 import styles from './Menu.module.scss'
 
-export type RepeatMode = 'off' | 'context' | 'track'
-
 interface Props {
   open: boolean
   onClose: () => void

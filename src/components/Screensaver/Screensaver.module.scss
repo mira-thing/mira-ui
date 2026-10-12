@@ -41,8 +41,8 @@
   background:
     radial-gradient(
       circle at 50% 62%,
-      rgba(30, 215, 96, 0.08) 0%,
-      rgba(30, 215, 96, 0.03) 26%,
+      rgba($idle-glow, 0.08) 0%,
+      rgba($idle-glow, 0.03) 26%,
       #000 62%
     ),
     #000;
