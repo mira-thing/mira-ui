@@ -51,6 +51,11 @@ export function tintVar({ roles }: Theme): CSSProperties {
   return { '--theme-tint': triplet(roles.tint) } as CSSProperties
 }
 
+/** Written on a surface that shows on states, for `rgb(var(--theme-accent))` */
+export function accentVar({ roles }: Theme): CSSProperties {
+  return { '--theme-accent': triplet(roles.accent) } as CSSProperties
+}
+
 /** The fill of the player's background depth shade. */
 export function depthFill({ roles }: Theme): string {
   return `rgb(${triplet(roles.depth)})`

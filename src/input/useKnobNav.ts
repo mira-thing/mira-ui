@@ -18,6 +18,8 @@ export interface KnobNavOptions<K extends string> {
   onFocus?: (key: K) => void
   enabled?: boolean
   wrap?: boolean
+  /** `modal` for a sheet over a page, so the pages own scopes stay behind it */
+  layer?: number
 }
 
 /** Spreads onto a row: `focused` styles it, the rest is plain DOM. */
@@ -72,6 +74,7 @@ export function useKnobNav<K extends string>({
   onFocus,
   enabled = true,
   wrap = false,
+  layer = Layer.page,
 }: KnobNavOptions<K>): KnobNav<K> {
   const pageActive = usePageActive()
   const active = enabled && pageActive
@@ -100,7 +103,7 @@ export function useKnobNav<K extends string>({
   }
 
   useKnobScope({
-    layer: Layer.page,
+    layer,
     enabled: active,
     onStep: (dir: KnobStep) => {
       setFocusState((prev) => {

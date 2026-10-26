@@ -49,3 +49,42 @@
   color: $text-primary;
   margin-bottom: $s-2;
 }
+
+.navRow {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding-top: $s-1;
+  text-align: left;
+  color: $text-primary;
+  @include flex-gap-x($s-4);
+
+  &:active .navChip {
+    transform: scale(0.92);
+  }
+}
+
+.navChip {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: $r-md;
+  background: rgba(255, 255, 255, 0.07);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: $text-secondary;
+  transition: transform $dur-fast $ease-standard;
+}
+
+.navLabel {
+  flex: 1 1 auto;
+  padding-left: $s-2;
+  font-size: $fs-lg;
+  font-weight: $fw-medium;
+}
+
+.navChevron {
+  display: flex;
+  color: $text-tertiary;
+}

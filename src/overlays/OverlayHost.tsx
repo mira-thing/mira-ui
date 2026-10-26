@@ -67,6 +67,10 @@ export function OverlayHost({
         open={overlays.isOpen('settings')}
         onClose={() => overlays.close('settings')}
         phoneVolume={phoneVolume}
+        onOpenBluetooth={() => {
+          overlays.close('settings')
+          overlays.open('btMenu')
+        }}
       />
       {overlays.isOpen('deviceMenu') ? (
         <DevicePicker

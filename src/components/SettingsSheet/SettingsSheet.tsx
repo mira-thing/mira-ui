@@ -20,6 +20,7 @@ interface Props {
   onClose: () => void
   // active device is a phone
   phoneVolume?: boolean
+  onOpenBluetooth?: () => void
 }
 
 const OFFSET_MIN = -500
@@ -31,7 +32,7 @@ function fmtOffset(ms: number): string {
   return `${ms > 0 ? '+' : ''}${ms} ms`
 }
 
-function SettingsSheetImpl({ open, onClose, phoneVolume = false }: Props) {
+function SettingsSheetImpl({ open, onClose, phoneVolume = false, onOpenBluetooth }: Props) {
   const { lyricOffsetMs, volumeStepPct, autoBrightness, brightness, uiScalePct } = useSettings()
 
   // applying the scale mid-drag moves this very panel under the finger, which has no
@@ -144,6 +145,18 @@ function SettingsSheetImpl({ open, onClose, phoneVolume = false }: Props) {
             defaultValue={5}
           />
         </SettingRow>
+
+        {onOpenBluetooth ? (
+          <button type="button" className={styles.navRow} onClick={onOpenBluetooth}>
+            <span className={styles.navChip} aria-hidden>
+              <Icon name="bluetooth" size={20} />
+            </span>
+            <span className={styles.navLabel}>Bluetooth pairing</span>
+            <span className={styles.navChevron} aria-hidden>
+              <Icon name="chevronRight" size={20} />
+            </span>
+          </button>
+        ) : null}
       </div>
     </div>
   )

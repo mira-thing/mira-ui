@@ -139,3 +139,12 @@ describe('SettingsSheet display size', () => {
     expect(getSettings().volumeStepPct).toBe(10)
   })
 })
+
+describe('SettingsSheet bluetooth', () => {
+  it('opens bluetooth pairing from its row', () => {
+    const onOpenBluetooth = vi.fn()
+    render(<SettingsSheet open onClose={vi.fn()} onOpenBluetooth={onOpenBluetooth} />)
+    fireEvent.click(screen.getByText('Bluetooth pairing'))
+    expect(onOpenBluetooth).toHaveBeenCalledTimes(1)
+  })
+})
