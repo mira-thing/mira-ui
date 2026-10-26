@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  accentColor,
   backgroundDepthColor,
   groundTone,
   surfaceGlowColor,
@@ -41,12 +42,19 @@ describe('deriveRoles', () => {
     })
   })
 
+  it('takes the accent from the hot orb colour, falling back like it does', () => {
+    expect(deriveRoles([RED, TEAL, MUTED]).accent).toEqual(accentColor(MUTED))
+    expect(deriveRoles([RED, TEAL]).accent).toEqual(accentColor(TEAL))
+    expect(deriveRoles([RED]).accent).toEqual(accentColor(RED))
+  })
+
   it('pins the exact values the player paints with', () => {
     expect(deriveRoles([RED, TEAL, MUTED])).toEqual({
       tint: [99, 23, 27],
       glow: [237, 29, 40],
       depth: [33, 18, 19],
       ground: { deep: [17, 52, 49], base: [92, 23, 27], hot: [110, 98, 74] },
+      accent: [212, 183, 125],
     })
   })
 
@@ -54,12 +62,13 @@ describe('deriveRoles', () => {
     expect(deriveRoles([])).toBe(IDLE_ROLES)
   })
 
-  it('pins the idle look: black depth and tint, the screensaver green glow', () => {
+  it('pins the idle look: black depth and tint, the screensaver green glow, a grey accent', () => {
     expect(IDLE_ROLES).toEqual({
       tint: [0, 0, 0],
       glow: [30, 215, 96],
       depth: [0, 0, 0],
       ground: { deep: [0, 0, 0], base: [0, 0, 0], hot: [0, 0, 0] },
+      accent: [205, 210, 220],
     })
   })
 })

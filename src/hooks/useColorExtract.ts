@@ -475,3 +475,12 @@ export function surfaceGlowColor(rgb: RGB): RGB {
   const [h, s] = rgbToHsl(rgb[0], rgb[1], rgb[2])
   return hslToRgb(h, Math.max(GLOW_S_FLOOR, Math.min(s * 1.2, GLOW_S_CAP)), GLOW_L)
 }
+
+const ACCENT_L = 0.66
+const ACCENT_GRAY_S = 0.12
+
+export function accentColor(rgb: RGB): RGB {
+  const [h, s] = rgbToHsl(rgb[0], rgb[1], rgb[2])
+  if (s < ACCENT_GRAY_S) return hslToRgb(h, s, ACCENT_L + 0.1)
+  return hslToRgb(h, Math.max(0.5, Math.min(s * 1.2, 0.85)), ACCENT_L)
+}
