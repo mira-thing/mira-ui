@@ -1,145 +1,21 @@
-.root {
-  @include absolute-fill;
-  z-index: $z-menu;
-  pointer-events: none;
-  background: rgba(0, 0, 0, 0);
-  transition: background-color $dur-base $ease-standard;
-  @include flex-center;
+.view {
+  @include column;
+  @include flex-gap-y($s-3);
+  animation: powerViewIn $dur-base $ease-standard both;
 }
 
-.open {
-  pointer-events: auto;
-  background: $scrim;
-
-  .panel {
-    transform: none;
+@keyframes powerViewIn {
+  from {
+    opacity: 0;
+  }
+  to {
     opacity: 1;
   }
 }
 
-// Card styled to match PairingDialog (solid $bg, generous padding, soft shadow,
-// slide-up entrance) so the two modals don't feel like different apps.
-.panel {
-  width: 420px;
-  max-width: calc(100% - #{$s-6});
-  padding: $s-6;
-  background: $bg;
-  border-radius: $r-2xl;
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
-
-  @include column;
-  @include flex-gap-y($s-3);
-
-  // slide-up + fade, mirrors pairingSlideIn (but transition-based so it also
-  // animates on close)
-  transform: translateY(12px) scale(0.98);
-  opacity: 0;
-  transition:
-    transform $dur-base $ease-emphasized,
-    opacity $dur-base $ease-standard;
-}
-
-// Android-style action rows: rounded, sitting on the card.
-.action {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  @include flex-gap-x($s-3);
-
-  width: 100%;
-  height: 64px;
-  border-radius: $r-pill;
-  background: rgba(255, 255, 255, 0.07);
-  color: $text-primary;
-  font-size: $fs-xl;
-  font-weight: $fw-semibold;
-
-  transition:
-    transform $dur-fast $ease-standard,
-    background-color $dur-fast $ease-standard,
-    opacity $dur-fast $ease-standard;
-
-  &:active:not(:disabled) {
-    transform: scale(0.97);
-    background: rgba(255, 255, 255, 0.12);
-  }
-
-  &:disabled {
-    opacity: 0.5;
-  }
-
-  svg {
-    flex: 0 0 auto;
-  }
-}
-
-.danger {
-  color: $c-danger;
-}
-
-.support {
-  color: #f06db4;
-  background: rgba(240, 109, 180, 0.1);
-
-  &:active:not(:disabled) {
-    background: rgba(240, 109, 180, 0.18);
-  }
-}
-
-.confirm {
-  width: 100%;
-  @include column;
-  align-items: center;
-  text-align: center;
-  @include flex-gap-y($s-4);
-}
-
-.confirmTitle {
-  font-size: $fs-3xl;
-  font-weight: $fw-semibold;
-  letter-spacing: -0.02em;
-  color: $text-primary;
-}
-
-.confirmBody {
+.body {
+  padding: 0 $s-1;
   font-size: $fs-lg;
   color: $text-tertiary;
   line-height: 1.45;
-  max-width: 340px;
-}
-
-.confirmButtons {
-  display: flex;
-  @include flex-gap-x($s-3);
-  margin-top: $s-3;
-  align-self: stretch;
-}
-
-.confirmBtn {
-  flex: 1;
-  height: 60px;
-  border-radius: $r-pill;
-  font-size: $fs-xl;
-  font-weight: $fw-semibold;
-  transition:
-    opacity $dur-fast $ease-standard,
-    transform $dur-fast $ease-standard;
-
-  &:active:not(:disabled) {
-    transform: scale(0.97);
-  }
-
-  &:disabled {
-    opacity: 0.5;
-  }
-}
-
-.secondary {
-  background: rgba(255, 255, 255, 0.12);
-  color: $text-primary;
-}
-
-.confirmDanger {
-  background: $c-danger-strong;
-  color: $text-primary;
 }
