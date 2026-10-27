@@ -211,6 +211,7 @@ export const ICONS = {
     ),
   ),
   chevronRight: line2(path('M9 6l6 6-6 6')),
+  close: line2(path('M6 6l12 12M18 6 6 18')),
 
   // 24-grid, stroke and fill set per node
   lyrics: mixed24(

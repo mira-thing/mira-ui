@@ -1,7 +1,9 @@
-import { memo, useEffect, useState } from 'react'
+import { memo, useState } from 'react'
 import { resetDevice, restartDevice, suspendDevice } from '@/api/system'
 import { BRAND_NAME } from '@/brand'
-import { Icon } from '@/ui/icons'
+import { MenuGrid, MenuLink, MenuSheet, MenuTile } from '@/components/Menu'
+import { Layer } from '@/input/router'
+import { useKnobNav } from '@/input/useKnobNav'
 import styles from './PowerMenu.module.scss'
 
 interface Props {
@@ -10,17 +12,14 @@ interface Props {
   onSupport?: () => void
 }
 
+type Item = 'sleep' | 'restart' | 'reset' | 'support'
+type ConfirmItem = 'cancel' | 'confirm'
+const CONFIRM: readonly ConfirmItem[] = ['cancel', 'confirm']
+
 // power menu
 function PowerMenuImpl({ open, onClose, onSupport }: Props) {
   const [confirmReset, setConfirmReset] = useState(false)
   const [busy, setBusy] = useState<'sleep' | 'restart' | 'reset' | null>(null)
-
-  useEffect(() => {
-    if (!open) {
-      setConfirmReset(false)
-      setBusy(null)
-    }
-  }, [open])
 
   const onSleep = () => {
     if (busy) return
@@ -48,78 +47,105 @@ function PowerMenuImpl({ open, onClose, onSupport }: Props) {
     void resetDevice().catch(() => setBusy(null))
   }
 
+  const onAskReset = () => {
+    setConfirmReset(true)
+    // the safe choice is under the knob first
+    confirm.setFocus('cancel')
+  }
+
+  const items: Item[] = onSupport
+    ? ['sleep', 'restart', 'reset', 'support']
+    : ['sleep', 'restart', 'reset']
+  const actions: Record<Item, () => void> = {
+    sleep: onSleep,
+    restart: onRestart,
+    reset: onAskReset,
+    support: () => onSupport?.(),
+  }
+  const nav = useKnobNav({
+    keys: items,
+    onSelect: (item) => actions[item](),
+    disabled: () => !!busy,
+    enabled: open && !confirmReset,
+    layer: Layer.modal,
+  })
+  const confirm = useKnobNav({
+    keys: CONFIRM,
+    onSelect: (item) => (item === 'cancel' ? setConfirmReset(false) : onConfirmReset()),
+    disabled: () => busy === 'reset',
+    enabled: open && confirmReset,
+    layer: Layer.modal,
+  })
+
+  // every open starts fresh at the top. not on close, so the sheet leaves as it was
+  const [wasOpen, setWasOpen] = useState(open)
+  if (open !== wasOpen) {
+    setWasOpen(open)
+    if (open) {
+      setConfirmReset(false)
+      setBusy(null)
+      nav.setFocus(items[0])
+    }
+  }
+
   return (
-    <div
-      className={`${styles.root} ${open ? styles.open : ''}`}
-      aria-hidden={!open}
-      onClick={onClose}
+    <MenuSheet
+      open={open}
+      onClose={onClose}
+      title={confirmReset ? 'Reset device?' : 'Power'}
+      edge="top"
     >
-      <div
-        className={styles.panel}
-        role="dialog"
-        aria-modal="true"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {confirmReset ? (
-          <div className={styles.confirm}>
-            <div className={styles.confirmTitle}>Reset device?</div>
-            <div className={styles.confirmBody}>
-              This forgets your Spotify sign-in and all paired phones, then restarts. You'll need to
-              pair and sign in again.
-            </div>
-            <div className={styles.confirmButtons}>
-              <button
-                type="button"
-                className={`${styles.confirmBtn} ${styles.secondary}`}
-                onClick={() => setConfirmReset(false)}
-                disabled={busy === 'reset'}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className={`${styles.confirmBtn} ${styles.confirmDanger}`}
-                onClick={onConfirmReset}
-                disabled={busy === 'reset'}
-              >
-                {busy === 'reset' ? 'Resetting...' : 'Reset'}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <button type="button" className={styles.action} onClick={onSleep} disabled={!!busy}>
-              <Icon name="moon" />
-              <span>Sleep</span>
-            </button>
-            <button type="button" className={styles.action} onClick={onRestart} disabled={!!busy}>
-              <Icon name="restart" />
-              <span>{busy === 'restart' ? 'Restarting...' : 'Restart'}</span>
-            </button>
-            {onSupport ? (
-              <button
-                type="button"
-                className={`${styles.action} ${styles.support}`}
-                onClick={onSupport}
-                disabled={!!busy}
-              >
-                <Icon name="heart" />
-                <span>Support {BRAND_NAME}</span>
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className={`${styles.action} ${styles.danger}`}
-              onClick={() => setConfirmReset(true)}
-              disabled={!!busy}
-            >
-              <Icon name="trash" />
-              <span>Reset</span>
-            </button>
-          </>
-        )}
-      </div>
-    </div>
+      {confirmReset ? (
+        <div key="confirm" className={styles.view}>
+          <p className={styles.body}>
+            This forgets your Spotify sign-in and all paired phones, then restarts. You'll need to
+            pair and sign in again.
+          </p>
+          <MenuGrid columns={2}>
+            <MenuTile
+              icon="close"
+              label="Cancel"
+              detail="Keep everything"
+              {...confirm.itemProps('cancel')}
+            />
+            <MenuTile
+              icon="trash"
+              label="Reset"
+              detail={busy === 'reset' ? 'Resetting...' : 'Erase & restart'}
+              tone="danger"
+              {...confirm.itemProps('confirm')}
+            />
+          </MenuGrid>
+        </div>
+      ) : (
+        <div key="actions" className={styles.view}>
+          <MenuGrid columns={3}>
+            <MenuTile icon="moon" label="Sleep" detail="Screen off" {...nav.itemProps('sleep')} />
+            <MenuTile
+              icon="restart"
+              label="Restart"
+              detail={busy === 'restart' ? 'Restarting...' : 'Reboot'}
+              {...nav.itemProps('restart')}
+            />
+            <MenuTile
+              icon="trash"
+              label="Reset"
+              detail="Sign out & unpair"
+              tone="danger"
+              {...nav.itemProps('reset')}
+            />
+          </MenuGrid>
+          {onSupport ? (
+            <MenuLink
+              icon="heart"
+              label={`Support ${BRAND_NAME}`}
+              tone="support"
+              {...nav.itemProps('support')}
+            />
+          ) : null}
+        </div>
+      )}
+    </MenuSheet>
   )
 }
 
