@@ -2,6 +2,8 @@ import { memo, useEffect, useState } from 'react'
 import styles from './DebugScreen.module.scss'
 import { fetchDebugStatus, sendDebugReport } from '@/api/client'
 import type { DebugStatus } from '@/api/types'
+import { Layer } from '@/input/router'
+import { useKnobScope } from '@/input/useKnobScope'
 
 interface Props {
   open: boolean
@@ -233,6 +235,8 @@ function SendReportButton({ onReport }: { onReport: (id: string) => void }) {
 function DebugScreenImpl({ open, onClose, onReport }: Props) {
   const [status, setStatus] = useState<DebugStatus | null>(null)
   const [err, setErr] = useState(false)
+  // keeps the knob off a menu left open underneath
+  useKnobScope({ layer: Layer.system, enabled: open, onStep: () => true, onSelect: () => true })
 
   useEffect(() => {
     if (!open) return

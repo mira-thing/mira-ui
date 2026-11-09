@@ -1,4 +1,5 @@
 import {
+  accentColor,
   backgroundDepthColor,
   groundTone,
   surfaceGlowColor,
@@ -16,6 +17,8 @@ export interface ThemeRoles {
   depth: RGB
   /** one colour per ambient orb */
   ground: Record<GroundRole, RGB>
+  /** on states (switches, selections), from the hot orbs colour so it reads on dark glass */
+  accent: RGB
 }
 
 const BLACK: RGB = [0, 0, 0]
@@ -29,6 +32,7 @@ export const IDLE_ROLES: ThemeRoles = {
   glow: [30, 215, 96],
   depth: BLACK,
   ground: { deep: BLACK, base: BLACK, hot: BLACK },
+  accent: [205, 210, 220],
 }
 
 /** The album's roles, from its palette (the accent first). An empty palette is the idle look. */
@@ -46,5 +50,6 @@ export function deriveRoles(palette: RGB[]): ThemeRoles {
       base: groundTone(first, 'base'),
       hot: groundTone(third, 'hot'),
     },
+    accent: accentColor(third),
   }
 }

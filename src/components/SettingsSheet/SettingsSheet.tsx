@@ -1,4 +1,4 @@
-import { memo, useState } from 'react'
+import { memo, useLayoutEffect, useRef, useState } from 'react'
 import {
   BRIGHTNESS_MAX,
   BRIGHTNESS_MIN,
@@ -13,6 +13,7 @@ import {
 } from '@/settings'
 import { NotchedSlider, SettingRow } from '@/ui/controls'
 import { Icon } from '@/ui/icons'
+import { ListRow } from '@/ui/List'
 import styles from './SettingsSheet.module.scss'
 
 interface Props {
@@ -20,6 +21,7 @@ interface Props {
   onClose: () => void
   // active device is a phone
   phoneVolume?: boolean
+  onOpenBluetooth?: () => void
 }
 
 const OFFSET_MIN = -500
@@ -31,7 +33,7 @@ function fmtOffset(ms: number): string {
   return `${ms > 0 ? '+' : ''}${ms} ms`
 }
 
-function SettingsSheetImpl({ open, onClose, phoneVolume = false }: Props) {
+function SettingsSheetImpl({ open, onClose, phoneVolume = false, onOpenBluetooth }: Props) {
   const { lyricOffsetMs, volumeStepPct, autoBrightness, brightness, uiScalePct } = useSettings()
 
   // applying the scale mid-drag moves this very panel under the finger, which has no
@@ -46,6 +48,22 @@ function SettingsSheetImpl({ open, onClose, phoneVolume = false }: Props) {
   }
   const shownScale = scalePreview ?? uiScalePct
 
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [more, setMore] = useState({ above: false, below: false })
+  const checkMore = () => {
+    const el = scrollRef.current
+    if (!el) return
+    const above = el.scrollTop > 4
+    const below = el.scrollHeight - el.scrollTop - el.clientHeight > 4
+    setMore((m) => (m.above === above && m.below === below ? m : { above, below }))
+  }
+  useLayoutEffect(() => {
+    if (!open) return
+    checkMore()
+    const id = requestAnimationFrame(checkMore)
+    return () => cancelAnimationFrame(id)
+  }, [open, uiScalePct, onOpenBluetooth])
+
   return (
     <div
       className={`${styles.root} ${open ? styles.open : ''}`}
@@ -58,92 +76,120 @@ function SettingsSheetImpl({ open, onClose, phoneVolume = false }: Props) {
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className={styles.title}>Settings</div>
+        <div ref={scrollRef} className={styles.scroll} onScroll={checkMore}>
+          <div className={styles.title}>Settings</div>
 
-        {/* first on purpose: at the largest display size the panel scrolls, and this is
+          {/* first on purpose: at the largest display size the panel scrolls, and this is
             the one control that has to stay reachable to get back down */}
-        <SettingRow
-          icon={<Icon name="displaySize" size={20} />}
-          label="Display size"
-          value={`${shownScale}%`}
-        >
-          <NotchedSlider
-            ariaLabel="Display size"
-            value={shownScale}
-            min={UI_SCALE_MIN}
-            max={UI_SCALE_MAX}
-            step={UI_SCALE_STEP}
-            onChange={setScalePreview}
-            onCommit={(v) => {
-              setScalePreview(null)
-              // the sheet was dismissed mid-gesture, so drop the drag instead of
-              // resizing the whole ui after it's gone
-              if (!open) return
-              updateSettings({ uiScalePct: v })
+          <SettingRow
+            icon={<Icon name="displaySize" size={20} />}
+            label="Display size"
+            value={`${shownScale}%`}
+          >
+            <NotchedSlider
+              ariaLabel="Display size"
+              value={shownScale}
+              min={UI_SCALE_MIN}
+              max={UI_SCALE_MAX}
+              step={UI_SCALE_STEP}
+              onChange={setScalePreview}
+              onCommit={(v) => {
+                setScalePreview(null)
+                // the sheet was dismissed mid-gesture, so drop the drag instead of
+                // resizing the whole ui after it's gone
+                if (!open) return
+                updateSettings({ uiScalePct: v })
+              }}
+              onCancel={() => setScalePreview(null)}
+              format={(v) => `${v}%`}
+              defaultValue={UI_SCALE_DEFAULT}
+            />
+          </SettingRow>
+
+          <SettingRow
+            icon={<Icon name="lyrics" size={20} />}
+            label="Lyric sync"
+            value={fmtOffset(lyricOffsetMs)}
+          >
+            <NotchedSlider
+              ariaLabel="Lyric sync offset"
+              value={lyricOffsetMs}
+              min={OFFSET_MIN}
+              max={OFFSET_MAX}
+              step={OFFSET_STEP}
+              onChange={(v) => updateSettings({ lyricOffsetMs: v })}
+              format={fmtOffset}
+              defaultValue={0}
+            />
+          </SettingRow>
+
+          <SettingRow
+            icon={<Icon name="speaker" size={20} />}
+            label="Volume per turn"
+            value={phoneVolume ? 'Set by phone' : `${volumeStepPct}%`}
+          >
+            <NotchedSlider
+              ariaLabel="Volume per turn"
+              value={volumeStepPct}
+              min={VOLUME_STEP_MIN}
+              max={VOLUME_STEP_MAX}
+              step={1}
+              onChange={(v) => updateSettings({ volumeStepPct: v })}
+              format={(v) => `${v}%`}
+              disabled={phoneVolume}
+              defaultValue={2}
+            />
+          </SettingRow>
+
+          <SettingRow
+            icon={<Icon name="sun" size={20} />}
+            label="Brightness"
+            value={autoBrightness ? 'Auto' : `${brightness * 10}%`}
+            iconSwitch={{
+              checked: autoBrightness,
+              onChange: (on) => updateSettings({ autoBrightness: on }),
+              label: 'Auto brightness',
             }}
-            onCancel={() => setScalePreview(null)}
-            format={(v) => `${v}%`}
-            defaultValue={UI_SCALE_DEFAULT}
-          />
-        </SettingRow>
+          >
+            <NotchedSlider
+              ariaLabel="Brightness"
+              value={brightness}
+              min={BRIGHTNESS_MIN}
+              max={BRIGHTNESS_MAX}
+              step={1}
+              onChange={(v) => updateSettings({ brightness: v })}
+              format={(v) => `${v * 10}%`}
+              disabled={autoBrightness}
+              defaultValue={5}
+            />
+          </SettingRow>
 
-        <SettingRow
-          icon={<Icon name="lyrics" size={20} />}
-          label="Lyric sync"
-          value={fmtOffset(lyricOffsetMs)}
+          {onOpenBluetooth ? (
+            <ListRow
+              className={styles.navRow}
+              leading={
+                <span className={styles.navChip} aria-hidden>
+                  <Icon name="bluetooth" size={20} />
+                </span>
+              }
+              title={<span className={styles.navLabel}>Bluetooth pairing</span>}
+              value={<Icon name="chevronRight" size={20} />}
+              onSelect={onOpenBluetooth}
+            />
+          ) : null}
+        </div>
+        <div
+          className={`${styles.more} ${styles.moreAbove} ${more.above ? styles.moreShown : ''}`}
+          aria-hidden
         >
-          <NotchedSlider
-            ariaLabel="Lyric sync offset"
-            value={lyricOffsetMs}
-            min={OFFSET_MIN}
-            max={OFFSET_MAX}
-            step={OFFSET_STEP}
-            onChange={(v) => updateSettings({ lyricOffsetMs: v })}
-            format={fmtOffset}
-            defaultValue={0}
-          />
-        </SettingRow>
-
-        <SettingRow
-          icon={<Icon name="speaker" size={20} />}
-          label="Volume per turn"
-          value={phoneVolume ? 'Set by phone' : `${volumeStepPct}%`}
+          <Icon name="chevronRight" size={20} />
+        </div>
+        <div
+          className={`${styles.more} ${styles.moreBelow} ${more.below ? styles.moreShown : ''}`}
+          aria-hidden
         >
-          <NotchedSlider
-            ariaLabel="Volume per turn"
-            value={volumeStepPct}
-            min={VOLUME_STEP_MIN}
-            max={VOLUME_STEP_MAX}
-            step={1}
-            onChange={(v) => updateSettings({ volumeStepPct: v })}
-            format={(v) => `${v}%`}
-            disabled={phoneVolume}
-            defaultValue={2}
-          />
-        </SettingRow>
-
-        <SettingRow
-          icon={<Icon name="sun" size={20} />}
-          label="Brightness"
-          value={autoBrightness ? 'Auto' : `${brightness * 10}%`}
-          iconSwitch={{
-            checked: autoBrightness,
-            onChange: (on) => updateSettings({ autoBrightness: on }),
-            label: 'Auto brightness',
-          }}
-        >
-          <NotchedSlider
-            ariaLabel="Brightness"
-            value={brightness}
-            min={BRIGHTNESS_MIN}
-            max={BRIGHTNESS_MAX}
-            step={1}
-            onChange={(v) => updateSettings({ brightness: v })}
-            format={(v) => `${v * 10}%`}
-            disabled={autoBrightness}
-            defaultValue={5}
-          />
-        </SettingRow>
+          <Icon name="chevronRight" size={20} />
+        </div>
       </div>
     </div>
   )
