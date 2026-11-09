@@ -60,9 +60,10 @@ function resolve<K extends string>(
 }
 
 /**
- * Knob focus over a list of keys, on the `page` layer. Focus is a key, never DOM focus: it
- * follows its key when `keys` changes and holds the index when the key goes away. It clamps at
- * the ends unless `wrap`, and an empty list still swallows the knob so it never reaches volume.
+ * Knob focus over a list of keys, on `layer` (`page` by default). Focus is a key, never DOM
+ * focus: it follows its key when `keys` changes and holds the index when the key goes away. It
+ * clamps at the ends unless `wrap`, and an empty list still swallows the knob so it never
+ * reaches volume.
  * Off while the page is not the active one.
  */
 export function useKnobNav<K extends string>({

@@ -54,6 +54,11 @@ export function createInputRouter(): InputRouter {
   // bubble phase, so a capture-phase key shield still blocks it
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.key !== 'Enter') return
+    // the knob never repeats
+    if (e.repeat) {
+      e.preventDefault()
+      return
+    }
     for (const scope of ordered()) {
       if (scope.onSelect && scope.onSelect() !== false) {
         e.preventDefault()

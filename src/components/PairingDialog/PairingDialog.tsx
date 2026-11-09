@@ -1,4 +1,6 @@
 import { memo } from 'react'
+import { Layer } from '@/input/router'
+import { useKnobScope } from '@/input/useKnobScope'
 import styles from './PairingDialog.module.scss'
 
 interface Props {
@@ -7,6 +9,8 @@ interface Props {
 }
 
 function PairingDialogImpl({ passkey, address }: Props) {
+  useKnobScope({ layer: Layer.system, enabled: true, onStep: () => true, onSelect: () => true })
+
   return (
     <div className={styles.overlay} role="dialog" aria-modal="true">
       <div className={styles.card}>

@@ -19,27 +19,61 @@
 }
 
 .panel {
+  position: relative;
   width: 540px;
   max-width: calc(100% - #{$s-6});
   max-height: calc(100% - #{$s-7});
-  overflow-y: auto;
-  @include hide-scrollbar;
-  // four rows have to clear 448px at 100%: padding 40 + title 38.8 + 4 gaps 64
-  // + 4 rows 297.6 = 440.4. it scrolls at larger display sizes, hence hide-scrollbar
-  padding: $s-5;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: $bg;
   border-radius: $r-2xl;
   box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
-
-  @include column;
-  // four rows at $s-6 overflow the panel even at 100%
-  @include flex-gap-y($s-4);
 
   transform: translateY(12px) scale(0.98);
   opacity: 0;
   transition:
     transform $dur-base $ease-emphasized,
     opacity $dur-base $ease-standard;
+}
+
+.scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  @include hide-scrollbar;
+  padding: $s-5;
+  @include column;
+  @include flex-gap-y($s-4);
+
+  > * {
+    flex-shrink: 0;
+  }
+}
+
+.more {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 56px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: $s-1;
+  color: $text-secondary;
+  background: linear-gradient(to bottom, rgba($bg, 0), $bg 70%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity $dur-base $ease-standard;
+
+  svg {
+    transform: rotate(90deg);
+  }
+}
+
+.moreShown {
+  opacity: 1;
 }
 
 .title {
@@ -51,40 +85,26 @@
 }
 
 .navRow {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  padding-top: $s-1;
-  text-align: left;
-  color: $text-primary;
-  @include flex-gap-x($s-4);
-
-  &:active .navChip {
-    transform: scale(0.92);
-  }
+  // cancel the row's inset so the chip lines up with the chips above
+  width: calc(100% + #{2 * $s-3});
+  margin-left: -$s-3;
+  margin-right: -$s-3;
 }
 
 .navChip {
   flex: 0 0 auto;
   width: 40px;
   height: 40px;
+  margin-right: $s-1;
   border-radius: $r-md;
   background: rgba(255, 255, 255, 0.07);
   display: flex;
   align-items: center;
   justify-content: center;
   color: $text-secondary;
-  transition: transform $dur-fast $ease-standard;
 }
 
 .navLabel {
-  flex: 1 1 auto;
   padding-left: $s-2;
-  font-size: $fs-lg;
   font-weight: $fw-medium;
-}
-
-.navChevron {
-  display: flex;
-  color: $text-tertiary;
 }
