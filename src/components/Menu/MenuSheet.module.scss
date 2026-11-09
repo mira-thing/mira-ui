@@ -35,6 +35,12 @@ $accent-fallback: 205, 210, 220;
   transition: transform $dur-slow $ease-emphasized;
 }
 
+.top .sheet {
+  top: $s-3;
+  bottom: auto;
+  transform: translateY(calc(-100% - #{$s-6}));
+}
+
 .open {
   pointer-events: auto;
   opacity: 1;
@@ -53,15 +59,8 @@ $accent-fallback: 205, 210, 220;
   letter-spacing: -0.01em;
 }
 
-.toggles {
+.grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  grid-gap: $s-3;
-}
-
-.links {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-gap: $s-3;
 }
 
@@ -76,8 +75,12 @@ $accent-fallback: 205, 210, 220;
     border-color $dur-base $ease-standard,
     transform $dur-fast $ease-standard;
 
-  &:active {
+  &:active:not(:disabled) {
     transform: scale(0.97);
+  }
+
+  &:disabled {
+    opacity: 0.5;
   }
 
   @include focus-ring;
@@ -166,4 +169,20 @@ $accent-fallback: 205, 210, 220;
   flex: 0 0 auto;
   margin-left: $s-2;
   color: $text-tertiary;
+}
+
+.danger {
+  .tileIcon,
+  .tileLabel,
+  .linkIcon,
+  .linkLabel {
+    color: $c-danger;
+  }
+}
+
+.support {
+  .linkIcon,
+  .linkLabel {
+    color: #f06db4;
+  }
 }
