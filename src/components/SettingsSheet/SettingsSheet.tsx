@@ -49,10 +49,13 @@ function SettingsSheetImpl({ open, onClose, phoneVolume = false, onOpenBluetooth
   const shownScale = scalePreview ?? uiScalePct
 
   const scrollRef = useRef<HTMLDivElement>(null)
-  const [more, setMore] = useState(false)
+  const [more, setMore] = useState({ above: false, below: false })
   const checkMore = () => {
     const el = scrollRef.current
-    if (el) setMore(el.scrollHeight - el.scrollTop - el.clientHeight > 4)
+    if (!el) return
+    const above = el.scrollTop > 4
+    const below = el.scrollHeight - el.scrollTop - el.clientHeight > 4
+    setMore((m) => (m.above === above && m.below === below ? m : { above, below }))
   }
   useLayoutEffect(() => {
     if (!open) return
@@ -175,7 +178,16 @@ function SettingsSheetImpl({ open, onClose, phoneVolume = false, onOpenBluetooth
             />
           ) : null}
         </div>
-        <div className={`${styles.more} ${more ? styles.moreShown : ''}`} aria-hidden>
+        <div
+          className={`${styles.more} ${styles.moreAbove} ${more.above ? styles.moreShown : ''}`}
+          aria-hidden
+        >
+          <Icon name="chevronRight" size={20} />
+        </div>
+        <div
+          className={`${styles.more} ${styles.moreBelow} ${more.below ? styles.moreShown : ''}`}
+          aria-hidden
+        >
           <Icon name="chevronRight" size={20} />
         </div>
       </div>

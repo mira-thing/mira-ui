@@ -54,7 +54,7 @@ describe('deriveRoles', () => {
       glow: [237, 29, 40],
       depth: [33, 18, 19],
       ground: { deep: [17, 52, 49], base: [92, 23, 27], hot: [110, 98, 74] },
-      accent: [212, 183, 125],
+      accent: [205, 189, 156],
     })
   })
 

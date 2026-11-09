@@ -55,17 +55,31 @@
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
   height: 56px;
   display: flex;
-  align-items: flex-end;
   justify-content: center;
-  padding-bottom: $s-1;
   color: $text-secondary;
-  background: linear-gradient(to bottom, rgba($bg, 0), $bg 70%);
   pointer-events: none;
   opacity: 0;
   transition: opacity $dur-base $ease-standard;
+}
+
+.moreAbove {
+  top: 0;
+  align-items: flex-start;
+  padding-top: $s-1;
+  background: linear-gradient(to top, rgba($bg, 0), $bg 70%);
+
+  svg {
+    transform: rotate(-90deg);
+  }
+}
+
+.moreBelow {
+  bottom: 0;
+  align-items: flex-end;
+  padding-bottom: $s-1;
+  background: linear-gradient(to bottom, rgba($bg, 0), $bg 70%);
 
   svg {
     transform: rotate(90deg);
