@@ -15,7 +15,7 @@ interface SheetProps {
 export function MenuSheet({ open, onClose, title, edge = 'bottom', style, children }: SheetProps) {
   return (
     <div
-      className={`${styles.root} ${styles[edge]} ${open ? styles.open : ''}`}
+      className={`${styles.root} ${edge === 'top' ? styles.top : ''} ${open ? styles.open : ''}`}
       aria-hidden={!open}
       onClick={onClose}
     >
@@ -50,13 +50,15 @@ type Tone = 'danger' | 'support'
 interface TileProps extends KnobItemProps {
   icon: IconName
   label: string
-  detail: string
+  /** a toggle (`on` set) shows On or Off here instead */
+  detail?: string
   on?: boolean
   tone?: Tone
 }
 
 export function MenuTile({ icon, label, detail, on, tone, focused, disabled, onClick }: TileProps) {
   const toggle = on !== undefined
+  const value = toggle ? (on ? 'On' : 'Off') : detail
   return (
     <button
       type="button"
@@ -70,7 +72,7 @@ export function MenuTile({ icon, label, detail, on, tone, focused, disabled, onC
         <Icon name={icon} />
       </span>
       <span className={styles.tileLabel}>{label}</span>
-      <span className={styles.tileValue}>{detail}</span>
+      {value ? <span className={styles.tileValue}>{value}</span> : null}
     </button>
   )
 }

@@ -14,12 +14,13 @@ interface Props {
 
 type Item = 'sleep' | 'restart' | 'reset' | 'support'
 type ConfirmItem = 'cancel' | 'confirm'
-const CONFIRM: readonly ConfirmItem[] = ['cancel', 'confirm']
+const CONFIRM: readonly ConfirmItem[] = ['confirm', 'cancel']
 
 // power menu
 function PowerMenuImpl({ open, onClose, onSupport }: Props) {
   const [confirmReset, setConfirmReset] = useState(false)
   const [busy, setBusy] = useState<'sleep' | 'restart' | 'reset' | null>(null)
+  const [resetFailed, setResetFailed] = useState(false)
 
   const onSleep = () => {
     if (busy) return
@@ -39,16 +40,25 @@ function PowerMenuImpl({ open, onClose, onSupport }: Props) {
   const onConfirmReset = () => {
     if (busy) return
     setBusy('reset')
-    try {
-      window.localStorage.clear()
-    } catch {
-      // ignore
-    }
-    void resetDevice().catch(() => setBusy(null))
+    setResetFailed(false)
+    void resetDevice().then(
+      () => {
+        try {
+          window.localStorage.clear()
+        } catch {
+          // ignore
+        }
+      },
+      () => {
+        setBusy(null)
+        setResetFailed(true)
+      },
+    )
   }
 
   const onAskReset = () => {
     setConfirmReset(true)
+    setResetFailed(false)
     // the safe choice is under the knob first
     confirm.setFocus('cancel')
   }
@@ -84,6 +94,7 @@ function PowerMenuImpl({ open, onClose, onSupport }: Props) {
     if (open) {
       setConfirmReset(false)
       setBusy(null)
+      setResetFailed(false)
       nav.setFocus(items[0])
     }
   }
@@ -103,17 +114,23 @@ function PowerMenuImpl({ open, onClose, onSupport }: Props) {
           </p>
           <MenuGrid columns={2}>
             <MenuTile
+              icon="trash"
+              label="Reset"
+              detail={
+                busy === 'reset'
+                  ? 'Resetting...'
+                  : resetFailed
+                    ? "Didn't reset, try again"
+                    : 'Erase & restart'
+              }
+              tone="danger"
+              {...confirm.itemProps('confirm')}
+            />
+            <MenuTile
               icon="close"
               label="Cancel"
               detail="Keep everything"
               {...confirm.itemProps('cancel')}
-            />
-            <MenuTile
-              icon="trash"
-              label="Reset"
-              detail={busy === 'reset' ? 'Resetting...' : 'Erase & restart'}
-              tone="danger"
-              {...confirm.itemProps('confirm')}
             />
           </MenuGrid>
         </div>

@@ -67,21 +67,13 @@ function MenuImpl({
         <MenuTile
           icon="textLines"
           label="Show lyrics"
-          detail={showLyrics ? 'On' : 'Off'}
           on={showLyrics}
           {...nav.itemProps('lyrics')}
         />
-        <MenuTile
-          icon="lyrics"
-          label="Karaoke"
-          detail={karaokeLyrics ? 'On' : 'Off'}
-          on={karaokeLyrics}
-          {...nav.itemProps('karaoke')}
-        />
+        <MenuTile icon="lyrics" label="Karaoke" on={karaokeLyrics} {...nav.itemProps('karaoke')} />
         <MenuTile
           icon={voiceMic ? 'microphone' : 'microphoneOff'}
           label="Mic"
-          detail={voiceMic ? 'On' : 'Off'}
           on={voiceMic}
           {...nav.itemProps('mic')}
         />

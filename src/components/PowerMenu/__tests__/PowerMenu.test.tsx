@@ -56,7 +56,7 @@ describe('PowerMenu', () => {
   it('resets once confirmed', () => {
     setup()
     fireEvent.click(screen.getByText('Reset'))
-    turn(1, 1)
+    turn(1, -1)
     expect(confirmFocused()).toMatch(/^Reset/)
     hw.press()
     expect(system.resetDevice).toHaveBeenCalledTimes(1)
