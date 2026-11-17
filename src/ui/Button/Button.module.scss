@@ -11,6 +11,11 @@
   @include press;
   @include focus-ring;
 
+  // own layer while ringed: Chrome 69 leaves the ring's outset behind when a list scrolls in the same frame
+  &.focused {
+    will-change: transform;
+  }
+
   &:disabled {
     @include disabled-control;
   }

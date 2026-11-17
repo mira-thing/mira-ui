@@ -1,0 +1,20 @@
+.fill {
+  height: 100%;
+  @include column;
+  align-items: center;
+  justify-content: center;
+  @include flex-gap-y($s-4);
+
+  > :first-child {
+    height: auto;
+  }
+}
+
+.retry {
+  flex: 0 0 auto;
+}
+
+// room for the 2px focus ring on the first and last rows, which the scroller would clip
+.listInset {
+  padding: 4px;
+}

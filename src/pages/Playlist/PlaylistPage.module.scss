@@ -1,0 +1,21 @@
+.header {
+  display: flex;
+  align-items: center;
+  padding-left: $s-3;
+  padding-bottom: $s-3;
+}
+
+.headerText {
+  flex: 1 1 auto;
+  min-width: 0;
+
+  > * {
+    padding-bottom: 0;
+  }
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  @include flex-gap-x($s-2);
+}

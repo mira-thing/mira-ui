@@ -5,7 +5,12 @@ import { NavigationContext, useNavigation, type Navigation } from '../navigation
 
 describe('useNavigation', () => {
   it('hands a page the stack’s controls', () => {
-    const nav: Navigation = { push: vi.fn(), pop: vi.fn(() => true), reset: vi.fn() }
+    const nav: Navigation = {
+      push: vi.fn(),
+      pop: vi.fn(() => true),
+      reset: vi.fn(),
+      setFocusKey: vi.fn(),
+    }
     const wrapper = ({ children }: { children: ReactNode }) => (
       <NavigationContext.Provider value={nav}>{children}</NavigationContext.Provider>
     )

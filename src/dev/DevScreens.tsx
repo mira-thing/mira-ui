@@ -94,7 +94,7 @@ const SCREENS: ScreenDef[] = [
   { id: 'consent', label: 'Consent card', hint: 'First-boot telemetry choice, right after setup' },
   { id: 'update-card', label: 'Update card', hint: 'New release nag on the idle screen' },
   { id: 'ui-kit', label: 'UI kit', hint: 'Framework primitives' },
-  { id: 'playlists', label: 'Playlists page', hint: 'Placeholder' },
+  { id: 'playlists', label: 'Playlists page', hint: 'Your library' },
   { id: 'queue', label: 'Queue page', hint: 'Placeholder' },
 ]
 
