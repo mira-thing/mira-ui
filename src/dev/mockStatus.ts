@@ -1,10 +1,31 @@
-import type { ObserverStatusActive } from '@/api/types'
+import type { ObserverStatusActive, QueueTrack } from '@/api/types'
 import { DJ_PLAYLIST_URI, type DJNarration } from '@/hooks/useDJNarration'
 
 export type MockStatusKind = 'track' | 'no-art' | 'dj'
 
 // what useDJNarration reports while the DJ talks over the mock DJ set
 export const MOCK_NARRATION: DJNarration = { narrating: true, title: 'Up next', artist: 'DJ X' }
+
+const mockNext = (n: number, name: string, artist: string, image_url: string): QueueTrack => ({
+  uri: `spotify:track:mock-next-${n}`,
+  track_id: `mock-next-${n}`,
+  name,
+  artist,
+  album: 'Dev Album',
+  image_url,
+})
+
+// a repeat and a missing cover, so the dev queue shows both edge cases
+function mockUpNext(art: string): QueueTrack[] {
+  return [
+    mockNext(1, 'Neon Harbour', 'Glass Animals of Tin', art),
+    mockNext(2, 'Slow Weather', 'Mira Ensemble', ''),
+    mockNext(3, 'Paper Satellites', 'The Overpass', art),
+    mockNext(1, 'Neon Harbour', 'Glass Animals of Tin', art),
+    mockNext(4, 'Afterglow Drive', 'Night Transit', art),
+    mockNext(5, 'Low Tide Signals', 'Coastline Radio', art),
+  ]
+}
 
 // mock playback state used by the dev screen switcher
 export function makeMockStatus(kind: MockStatusKind = 'track'): ObserverStatusActive {
@@ -36,7 +57,8 @@ export function makeMockStatus(kind: MockStatusKind = 'track'): ObserverStatusAc
     raw_metadata: null,
     received_at: Date.now(),
   }
-  if (kind === 'no-art') return { ...status, track_image: '' }
+  status.next_tracks = mockUpNext(status.track_image)
+  if (kind === 'no-art') return { ...status, track_image: '', next_tracks: mockUpNext('') }
   if (kind === 'dj') {
     return {
       ...status,

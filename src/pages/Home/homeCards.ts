@@ -20,6 +20,8 @@ export interface HomeCardsInput {
   deviceName: string | null
   /** Spotify Connect devices in reach */
   deviceCount: number
+  /** what the Queue card says is up next */
+  queueSummary: string
   /** the phone connected over Bluetooth, if any */
   btDeviceName: string | null
 }
@@ -29,6 +31,7 @@ export function homeCards({
   nowPlaying,
   deviceName,
   deviceCount,
+  queueSummary,
   btDeviceName,
 }: HomeCardsInput): HomeCard[] {
   const playback: HomeCard = nowPlaying
@@ -49,7 +52,7 @@ export function homeCards({
       key: 'queue',
       icon: 'queue',
       title: 'Queue',
-      subtitle: nowPlaying ? 'Up next' : 'Nothing queued',
+      subtitle: queueSummary,
     },
     { key: 'devices', icon: 'computer', title: 'Devices', subtitle: devices },
     {

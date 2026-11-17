@@ -177,6 +177,16 @@ export async function setSavedState(uri: string, saved: boolean): Promise<void> 
   if (!res.ok) throw new Error(`player/saved ${res.status}`)
 }
 
+// appends to the user's queue on the active device
+export async function addToQueue(uri: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/player/add_to_queue`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uri }),
+  })
+  if (!res.ok) throw new Error(`player/add_to_queue ${res.status}`)
+}
+
 export function eventsUrl(): string {
   return WS_URL
 }
