@@ -1,13 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, render, screen } from '@testing-library/react'
 import { Artwork } from '../Artwork'
-import { loadArtwork } from '@/hooks/useColorExtract'
+import { isArtworkLoaded, loadArtwork } from '@/hooks/useColorExtract'
 
-vi.mock('@/hooks/useColorExtract', () => ({ loadArtwork: vi.fn() }))
+vi.mock('@/hooks/useColorExtract', () => ({ loadArtwork: vi.fn(), isArtworkLoaded: vi.fn() }))
 
 describe('Artwork', () => {
   beforeEach(() => {
     vi.mocked(loadArtwork).mockResolvedValue(null)
+    vi.mocked(isArtworkLoaded).mockReturnValue(false)
+  })
+
+  it('swaps an already decoded cover in on the render that brings it, never dimmed', () => {
+    vi.mocked(loadArtwork).mockReturnValue(new Promise(() => {}))
+    const { container, rerender } = render(<Artwork src="/a.jpg" />)
+    const art = container.firstElementChild as HTMLElement
+    vi.mocked(isArtworkLoaded).mockImplementation((url) => url === '/b.jpg')
+    rerender(<Artwork src="/b.jpg" />)
+    expect(container.querySelector('[aria-hidden="false"] img')?.getAttribute('src')).toBe('/b.jpg')
+    expect(art.className).not.toMatch(/pending/)
   })
 
   it('keeps the image until its replacement loads and ignores old covers', async () => {

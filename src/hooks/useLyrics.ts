@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fetchLyrics } from '@/api/client'
 import type { LyricsResult } from '@/api/types'
 
@@ -71,7 +71,8 @@ function hasWordTiming(lyrics: LyricsResult): boolean {
 }
 
 export function useLyrics(params: LyricsParams): LyricsState {
-  const [state, setState] = useState<LyricsState>({
+  // tagged with its track, so a new track never renders the last one's lyrics before the effect
+  const [state, setTagged] = useState<LyricsState & { trackId?: string | null }>({
     lyrics: null,
     loading: false,
     error: null,
@@ -88,13 +89,20 @@ export function useLyrics(params: LyricsParams): LyricsState {
     karaoke = true,
   } = params
   const debounceRef = useRef(0)
+  const setState = useCallback(
+    (next: LyricsState | ((s: LyricsState) => LyricsState)) =>
+      setTagged((s) => {
+        const own = s.trackId === trackId ? s : { lyrics: null, loading: false, error: null }
+        return { ...(typeof next === 'function' ? next(own) : next), trackId }
+      }),
+    [trackId],
+  )
 
   useEffect(() => {
     // lyric view hidden dont fetch
     if (!enabled) return
 
-    // tracks need name + artist to look up and episodes are fetched by id alone
-    if (!trackId || (!episode && (!trackName || !artist))) {
+    if (!trackId) {
       setState({ lyrics: null, loading: false, error: null })
       return
     }
@@ -122,14 +130,20 @@ export function useLyrics(params: LyricsParams): LyricsState {
         })
     }
 
-    // show cache and upgrade to karaoke if possible after
+    // the cache is keyed by id, so a prefetched track shows before its title and artist resolve
     if (!episode) {
       const cached = cacheGet(trackId)
       if (cached) {
         setState({ lyrics: cached, loading: false, error: null })
-        if (!hasWordTiming(cached)) upgradeToWordByWord()
+        if (!hasWordTiming(cached) && trackName && artist) upgradeToWordByWord()
         return () => ac.abort()
       }
+    }
+
+    // tracks need name + artist to look up and episodes are fetched by id alone
+    if (!episode && (!trackName || !artist)) {
+      setState({ lyrics: null, loading: false, error: null })
+      return () => ac.abort()
     }
 
     setState((s) => ({ ...s, loading: true, error: null }))
@@ -153,9 +167,14 @@ export function useLyrics(params: LyricsParams): LyricsState {
       ac.abort()
       window.clearTimeout(debounceRef.current)
     }
-  }, [trackId, trackName, artist, album, durationMs, episode, enabled, karaoke])
+  }, [trackId, trackName, artist, album, durationMs, episode, enabled, karaoke, setState])
 
-  return state
+  const own = state.trackId === trackId
+  const cached = !own && trackId && !episode ? cache.get(trackId) : undefined
+  const lyrics = own ? state.lyrics : (cached ?? null)
+  const loading = own ? state.loading : !cached && enabled && !!trackId
+  const error = own ? state.error : null
+  return useMemo(() => ({ lyrics, loading, error }), [lyrics, loading, error])
 }
 
 // offsetMs is the user-tunable lyric timing knob which is currently stripped

@@ -34,12 +34,34 @@ function source(initial: ThemeInput) {
 }
 
 describe('useThemeSource', () => {
-  it('follows the album while there is art', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  it('follows the album while there is art, a beat after the cover changes', () => {
     const { result, rerender } = source({ art: 'a' })
     expect(result.current.source).toBe('album')
     expect(result.current.palette).toBe(ALBUM_A)
     rerender({ art: 'b' })
+    expect(result.current.palette).toBe(ALBUM_A)
+    act(() => vi.advanceTimersByTime(300))
     expect(result.current.palette).toBe(ALBUM_B)
+  })
+
+  it('takes the album straight from idle, and goes idle at once', () => {
+    const { result, rerender } = source({ art: '' })
+    rerender({ art: 'a' })
+    expect(result.current.palette).toBe(ALBUM_A)
+    rerender({ art: '' })
+    expect(result.current.source).toBe('idle')
+  })
+
+  it('lands on the last album when covers change faster than the beat', () => {
+    const { result, rerender } = source({ art: 'a' })
+    rerender({ art: 'b' })
+    act(() => vi.advanceTimersByTime(200))
+    rerender({ art: 'a' })
+    act(() => vi.advanceTimersByTime(1000))
+    expect(result.current.palette).toBe(ALBUM_A)
   })
 
   it('is idle with no art and no DJ', () => {
@@ -70,6 +92,7 @@ describe('useThemeSource', () => {
     expect(result.current.palette).toBe(ALBUM_A)
     colours.sampling = { palette: ALBUM_B, pending: false }
     rerender({ art: 'sampling' })
+    act(() => vi.advanceTimersByTime(300))
     expect(result.current.palette).toBe(ALBUM_B)
   })
 

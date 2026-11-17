@@ -16,6 +16,8 @@ export interface TrackTransition {
   fromTrackId: string
   at: number
   direction: -1 | 1
+  /** the track was just restarted, so Spotify's Previous leaves it rather than restarting it */
+  fromStart?: boolean
 }
 
 interface SkipRequest {
@@ -198,11 +200,12 @@ export function usePlayerControls(params: UsePlayerControlsParams): UsePlayerCon
   }, [isPaused, pause, play, reportCommandError])
 
   const skip = useCallback(
-    (direction: -1 | 1) => {
+    (direction: -1 | 1, fromStart = false) => {
       setTrackTransition({
         fromTrackId: statusRef.current?.track_id ?? '',
         at: Date.now(),
         direction,
+        fromStart,
       })
       setSkipPending(true)
       skips.current.push({
@@ -221,7 +224,7 @@ export function usePlayerControls(params: UsePlayerControlsParams): UsePlayerCon
     lastPrevAtRef.current = now
     if (recent) {
       // second press within window > actual prev
-      skip(1)
+      skip(1, true)
     } else {
       // first press > rewind to start of current track
       void Promise.resolve(seek(0)).catch((err) => reportCommandError('Seek failed', err))

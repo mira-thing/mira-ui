@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
-import { __resetLyricsCache, useLyrics } from '../useLyrics'
+import { __resetLyricsCache, primeLyricsCache, useLyrics } from '../useLyrics'
 import type { LyricsResult } from '../../api/types'
 import { server } from '../../__tests__/msw-server'
 
@@ -79,6 +79,25 @@ describe('useLyrics fetch outcomes', () => {
     expect(requested).toBe(0)
     expect(result.current).toEqual({ lyrics: null, loading: false, error: null })
   })
+
+  it('shows prefetched lyrics before the title and artist resolve, without fetching', async () => {
+    let requested = 0
+    server.use(
+      http.get('*/lyrics/*', () => {
+        requested++
+        return HttpResponse.json(sampleLyrics)
+      }),
+    )
+    primeLyricsCache('abc', sampleLyrics)
+
+    const { result } = renderHook(() =>
+      useLyrics({ trackId: 'abc', trackName: '', artist: '', karaoke: false }),
+    )
+
+    expect(result.current.lyrics).toEqual(sampleLyrics)
+    await new Promise((r) => setTimeout(r, 250))
+    expect(requested).toBe(0)
+  })
 })
 
 describe('useLyrics track switch cancellation', () => {
@@ -112,6 +131,54 @@ describe('useLyrics track switch cancellation', () => {
     // wait past A's slow handler, if abort didn't fire A would overwrite state
     await new Promise((r) => setTimeout(r, 300))
     expect(result.current.lyrics).toEqual(bLyrics)
+  })
+})
+
+describe('useLyrics on a track change', () => {
+  const aLyrics: LyricsResult = {
+    syncType: 'LINE_SYNCED',
+    lines: [{ startTimeMs: '0', words: 'A' }],
+  }
+  const bLyrics: LyricsResult = {
+    syncType: 'LINE_SYNCED',
+    lines: [{ startTimeMs: '0', words: 'B' }],
+  }
+
+  // every render's result, so a value that showed for one render before an effect replaced it counts
+  function renders() {
+    const seen: (LyricsResult | null)[] = []
+    const hook = renderHook(
+      ({ trackId }: { trackId: string }) => {
+        const state = useLyrics({ trackId, trackName: 'X', artist: 'Y', karaoke: false })
+        seen.push(state.lyrics)
+        return state
+      },
+      { initialProps: { trackId: 'a-id' } },
+    )
+    return { ...hook, seen }
+  }
+
+  it("never renders the last track's lyrics for the new one", async () => {
+    server.use(http.get('*/lyrics/a-id', () => HttpResponse.json(aLyrics)))
+    server.use(http.get('*/lyrics/b-id', () => new HttpResponse(null, { status: 404 })))
+    const { result, rerender, seen } = renders()
+    await waitFor(() => expect(result.current.lyrics).toEqual(aLyrics))
+
+    seen.length = 0
+    rerender({ trackId: 'b-id' })
+    expect(seen).not.toContainEqual(aLyrics)
+    expect(result.current.loading).toBe(true)
+  })
+
+  it("shows the new track's prefetched lyrics on the render that brings it", async () => {
+    server.use(http.get('*/lyrics/a-id', () => HttpResponse.json(aLyrics)))
+    const { result, rerender, seen } = renders()
+    await waitFor(() => expect(result.current.lyrics).toEqual(aLyrics))
+    primeLyricsCache('b-id', bLyrics)
+
+    seen.length = 0
+    rerender({ trackId: 'b-id' })
+    expect(seen[0]).toBe(bLyrics)
   })
 })
 

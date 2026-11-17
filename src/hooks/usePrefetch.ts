@@ -11,6 +11,24 @@ const PREFETCH_PREV = 2
 // 5s delay so rapid skipping doesnt fire prefetches for tracks we are likely to skip past
 const PREFETCH_DELAY_MS = 5000
 
+// queue entries carry Spotify's 64px album thumbnail; the player shows the same art at 300px
+const SPOTIFY_ALBUM_ART = /^(https:\/\/i\.scdn\.co\/image\/ab67616d0000)(?:4851|b273)/
+
+/** The cover the player will ask for, given a queue entry's thumbnail. */
+export function playerCoverUrl(url: string): string {
+  return url.replace(SPOTIFY_ALBUM_ART, (_, prefix: string) => `${prefix}1e02`)
+}
+
+/** A queue entry's title, artist, album and player cover, as status fields. */
+export function queueTrackFields(t: QueueTrack) {
+  return {
+    track_name: t.name,
+    track_artist: t.artist,
+    track_album: t.album,
+    track_image: t.image_url ? playerCoverUrl(t.image_url) : '',
+  }
+}
+
 const seenUris = new Set<string>()
 const SEEN_CEILING = 2000
 
@@ -53,13 +71,14 @@ function runPrefetch(status: ObserverStatus) {
   for (const t of [...next, ...prev]) {
     if (!t.uri || seenUris.has(t.uri)) continue
     markSeen(t.uri)
-    if (t.image_url) prefetchImage(t.image_url)
+    if (t.image_url) prefetchImage(playerCoverUrl(t.image_url))
     prefetchLyrics(t)
   }
 }
 
 export function usePrefetch(status: ObserverStatus | null) {
-  const nextArt = status?.active ? status.next_tracks?.[0]?.image_url : undefined
+  const nextImage = status?.active ? status.next_tracks?.[0]?.image_url : undefined
+  const nextArt = nextImage ? playerCoverUrl(nextImage) : undefined
   useEffect(() => {
     if (!nextArt) return
     // fetch the cover now

@@ -36,3 +36,15 @@
     pointer-events: none !important;
   }
 }
+
+// enters opaque and only slides; the transition is its own so a re-entering page doesn't fade
+.pageInactive.pageSlideIn {
+  opacity: 1;
+  visibility: visible;
+  transition: transform $dur-slow $ease-emphasized;
+}
+
+// a fade under an opaque page would show its text through the one sliding in
+.pageInactive.pageUnderSlideIn {
+  transition: none;
+}

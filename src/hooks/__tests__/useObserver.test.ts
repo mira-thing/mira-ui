@@ -135,6 +135,97 @@ describe('useObserver', () => {
     })
   })
 
+  it('fills a bare track announcement from the queue it was skipped to', async () => {
+    server.use(http.get('*/observer/status', () => new Promise(() => undefined)))
+    const { result } = renderHook(() => useObserver())
+    const next = {
+      uri: 'spotify:track:nxt',
+      track_id: 'nxt',
+      name: 'Next Song',
+      artist: 'Next Artist',
+      album: 'Next Album',
+      image_url: 'https://i.scdn.co/image/ab67616d00004851abc',
+    }
+
+    await act(async () => {
+      fireEvent({ type: 'observer_state_changed', data: { ...baseWire, NextTracks: [next] } })
+    })
+    await act(async () => {
+      fireEvent({
+        type: 'observer_track_changed',
+        data: {
+          ...baseWire,
+          TrackUri: 'spotify:track:nxt',
+          TrackName: '',
+          TrackArtist: '',
+          TrackAlbum: '',
+          TrackImageUrl: '',
+        },
+      })
+    })
+
+    expect(result.current.status).toMatchObject({
+      track_id: 'nxt',
+      track_name: 'Next Song',
+      track_artist: 'Next Artist',
+      track_album: 'Next Album',
+      track_image: 'https://i.scdn.co/image/ab67616d00001e02abc',
+    })
+  })
+
+  it('keeps filling a track that is still bare on its next update', async () => {
+    server.use(http.get('*/observer/status', () => new Promise(() => undefined)))
+    const { result } = renderHook(() => useObserver())
+    const next = {
+      uri: 'spotify:track:nxt',
+      track_id: 'nxt',
+      name: 'Next Song',
+      artist: 'Next Artist',
+      album: 'Next Album',
+      image_url: 'https://i.scdn.co/image/ab67616d00004851abc',
+    }
+    const bare = {
+      ...baseWire,
+      TrackUri: 'spotify:track:nxt',
+      TrackName: '',
+      TrackArtist: '',
+      TrackAlbum: '',
+      TrackImageUrl: '',
+    }
+
+    await act(async () => {
+      fireEvent({ type: 'observer_state_changed', data: { ...baseWire, NextTracks: [next] } })
+    })
+    await act(async () => {
+      fireEvent({ type: 'observer_track_changed', data: bare })
+    })
+    await act(async () => {
+      fireEvent({ type: 'observer_state_changed', data: { ...bare, NextTracks: [] } })
+    })
+
+    expect(result.current.status).toMatchObject({
+      track_name: 'Next Song',
+      track_image: 'https://i.scdn.co/image/ab67616d00001e02abc',
+    })
+  })
+
+  it('leaves a bare track alone when the queue does not know it', async () => {
+    server.use(http.get('*/observer/status', () => new Promise(() => undefined)))
+    const { result } = renderHook(() => useObserver())
+
+    await act(async () => {
+      fireEvent({ type: 'observer_state_changed', data: { ...baseWire, NextTracks: [] } })
+    })
+    await act(async () => {
+      fireEvent({
+        type: 'observer_track_changed',
+        data: { ...baseWire, TrackUri: 'spotify:track:other', TrackName: '', TrackImageUrl: '' },
+      })
+    })
+
+    expect(result.current.status).toMatchObject({ track_name: '', track_image: '' })
+  })
+
   it('ignores legacy patch-style events and waits for full snapshots', async () => {
     server.use(http.get('*/observer/status', () => new Promise(() => undefined)))
 
