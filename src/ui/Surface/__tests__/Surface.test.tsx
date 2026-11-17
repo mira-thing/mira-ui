@@ -16,13 +16,13 @@ describe('Surface', () => {
     expect(screen.getByTestId('s')).toHaveClass('card', 'focused')
   })
 
-  it('registers panels and bars with the paint cache by default, and nothing else', () => {
+  it('registers panels, bars and cards with the paint cache by default, and nothing else', () => {
     const { rerender } = render(<Surface variant="panel" data-testid="s" />)
     expect(screen.getByTestId('s')).toHaveAttribute('data-glass-panel', '')
     rerender(<Surface variant="bar" data-testid="s" />)
     expect(screen.getByTestId('s')).toHaveAttribute('data-glass-panel', '')
     rerender(<Surface variant="card" data-testid="s" />)
-    expect(screen.getByTestId('s')).not.toHaveAttribute('data-glass-panel')
+    expect(screen.getByTestId('s')).toHaveAttribute('data-glass-panel', '')
     rerender(<Surface variant="floating" data-testid="s" />)
     expect(screen.getByTestId('s')).not.toHaveAttribute('data-glass-panel')
   })
@@ -30,7 +30,7 @@ describe('Surface', () => {
   it('lets the caller override the cache default', () => {
     const { rerender } = render(<Surface variant="panel" cache={false} data-testid="s" />)
     expect(screen.getByTestId('s')).not.toHaveAttribute('data-glass-panel')
-    rerender(<Surface variant="card" cache data-testid="s" />)
+    rerender(<Surface variant="floating" cache data-testid="s" />)
     expect(screen.getByTestId('s')).toHaveAttribute('data-glass-panel', '')
   })
 

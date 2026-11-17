@@ -121,20 +121,20 @@ function sample(state: SwipeState, x: number, y: number, touches: number): Swipe
 
   // single finger horizontal track skip
   if (base.mode !== 'undecided') return { next: base }
-  const dx = x - state.startX
-  const dy = y - state.startY
+  const axis = decideAxis(x - state.startX, y - state.startY)
+  if (axis === 'y') return { next: { ...base, mode: 'vscroll' } }
+  // lock to a horizontal drag, the skip is decided on release
+  if (axis === 'x') return { next: { ...base, mode: 'horizontal' } }
+  return { next: base }
+}
+
+/** The axis a one-finger drag has committed to: a clear vertical lead is a scroll. */
+export function decideAxis(dx: number, dy: number): 'x' | 'y' | null {
   const adx = Math.abs(dx)
   const ady = Math.abs(dy)
-
-  // a clear vertical lead means a scroll
-  if (ady > AXIS_DECIDE_PX && ady > adx) {
-    return { next: { ...base, mode: 'vscroll' } }
-  }
-  // lock to a horizontal drag, the skip is decided on release
-  if (adx > AXIS_DECIDE_PX && adx > AXIS_RATIO * ady) {
-    return { next: { ...base, mode: 'horizontal' } }
-  }
-  return { next: base }
+  if (ady > AXIS_DECIDE_PX && ady > adx) return 'y'
+  if (adx > AXIS_DECIDE_PX && adx > AXIS_RATIO * ady) return 'x'
+  return null
 }
 
 export function skipFor(dx: number, dy: number): 'next' | 'prev' | undefined {

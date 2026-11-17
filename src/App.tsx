@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { AuthScreen } from '@/components/AuthScreen'
 import { BootSplash } from '@/components/BootSplash'
 import { CheckinConsent } from '@/components/CheckinConsent'
 import { ConnectionChooser } from '@/components/ConnectionChooser'
-import { IdleScreen } from '@/components/IdleScreen'
 import { NeedsNetwork } from '@/components/NeedsNetwork'
 import { ReportDialog } from '@/components/ReportDialog'
 import { PcConnect } from '@/components/PcConnect'
@@ -14,11 +13,17 @@ import { SponsorScreen } from '@/components/SponsorScreen'
 import { UpdateCard } from '@/components/UpdateCard'
 import { DebugScreen } from '@/components/DebugScreen'
 import { InputRouter } from '@/input/InputRouter'
-import { PageShell } from '@/app/PageShell'
+import { NavigationContext, type Navigation } from '@/app/navigation'
+import { LEAVE_FALLBACK_MS, PageShell } from '@/app/PageShell'
 import { createRouteBack, RouteBackContext } from '@/app/routeBack'
 import { resolveRoute } from '@/app/routes'
-import { usePages, type PageId } from '@/app/usePages'
-import { DEV_SCREENS_ENABLED, forcedPageOf, useDevScreen } from '@/dev/devContext'
+import { usePages, type PageEntry } from '@/app/usePages'
+import {
+  DEV_SCREENS_ENABLED,
+  forcedPageOf,
+  useDevScreen,
+  type DevForcedScreen,
+} from '@/dev/devContext'
 import { makeMockStatus, MOCK_NARRATION, type MockStatusKind } from '@/dev/mockStatus'
 import { useAuth } from '@/hooks/useAuth'
 import { useConnectDevices } from '@/hooks/useConnectDevices'
@@ -41,8 +46,11 @@ import { OverlayContext, useOverlayState } from '@/overlays/overlayContext'
 import { OverlayHost } from '@/overlays/OverlayHost'
 import { AuthPage } from '@/pages/Auth/AuthPage'
 import { BootPage } from '@/pages/Boot/BootPage'
+import { HomePage } from '@/pages/Home/HomePage'
 import { OfflinePage } from '@/pages/Offline/OfflinePage'
 import { PlayerPage } from '@/pages/Player/PlayerPage'
+import { PlaylistsPage } from '@/pages/Playlists/PlaylistsPage'
+import { QueuePage } from '@/pages/Queue/QueuePage'
 import { UiKitPage } from '@/pages/UiKit/UiKitPage'
 import { artSizeFor } from '@/pages/Player/playerLayout'
 import { usePlayerControls } from '@/hooks/usePlayerControls'
@@ -53,9 +61,19 @@ import { useSponsorGate } from '@/hooks/useSponsorGate'
 import { useUpdateNotice } from '@/hooks/useUpdateNotice'
 import { useUtcOffset } from '@/hooks/useUtcOffset'
 import { resumeLastDevice } from '@/api/client'
-import type { ObserverStatusActive } from '@/api/types'
+import type { ObserverStatus, ObserverStatusActive } from '@/api/types'
 import { initSettings, useSettings } from '@/settings'
 import styles from './App.module.scss'
+
+const IDLE_STATUS: ObserverStatus = { active: false, message: 'no session' }
+// dev screens that draw the page stack with nothing over it
+const SHOWS_HOME = new Set<DevForcedScreen>([
+  'idle',
+  'playing-lyrics',
+  'playing-no-lyrics',
+  'playing-no-art',
+  'dj-narrating',
+])
 
 /**
  * Owns the overlay stack and the input router so every screen below can reach them, and
@@ -111,7 +129,7 @@ function AppContent() {
     narration: seenNarration,
   } = useObserver()
   const notify = useNotify()
-  const { forced, setForced } = useDevScreen()
+  const { forced, setForced, homeRequests = 0 } = useDevScreen()
   const overlays = useOverlayState()
   // `overlays` itself is a new object on every open and close; these three are
   // not, so anything that ends up in a dep array is built from them
@@ -164,7 +182,8 @@ function AppContent() {
   const mockStatus = useMemo<ObserverStatusActive>(() => makeMockStatus(mockKind), [mockKind])
   const forcedPage = forcedPageOf(forced)
 
-  const status =
+  // the forced screens that show the player in the page shell, over the mock status
+  const forcedPlaying =
     forced === 'playing-lyrics' ||
     forced === 'playing-no-lyrics' ||
     forced === 'playing-no-art' ||
@@ -176,8 +195,7 @@ function AppContent() {
     forced === 'reconnect-banner' ||
     forced === 'settings' ||
     forcedPage !== null
-      ? mockStatus
-      : realStatus
+  const status = forcedPlaying ? mockStatus : forced === 'idle' ? IDLE_STATUS : realStatus
 
   const SPOTIFY_STUCK_MS = 60000
   const playerStartingUp = status != null && !status.active && status.message === 'starting up'
@@ -287,6 +305,9 @@ function AppContent() {
 
   const pages = usePages()
   const [routeBack] = useState(createRouteBack)
+  const playingRef = useRef(false)
+  const rootOnly = pages.depth === 1
+  const pushRootPage = pages.push
 
   // hardware back button
   const goBack = useCallback(() => {
@@ -306,7 +327,9 @@ function AppContent() {
       setForced('playing-lyrics')
       return
     }
-  }, [overlays, overlayBusy, offline, routeBack, forcedPage, setForced])
+    // Home is the root, so Back has nowhere to pop to; while a track plays it returns to the player
+    if (!overlayBusy && playingRef.current && rootOnly) pushRootPage({ id: 'player' })
+  }, [overlays, overlayBusy, offline, routeBack, forcedPage, setForced, rootOnly, pushRootPage])
 
   const controls = usePlayerControls({
     status: status && status.active ? status : null,
@@ -362,6 +385,63 @@ function AppContent() {
     onOpenDebug: openDebug,
     notify,
   })
+
+  const route = forced
+    ? null
+    : resolveRoute({
+        offlineScreen,
+        auth,
+        status,
+        setupProgress,
+        loading,
+        online,
+        reconnecting,
+        playerStartingUp,
+        spotifyStuck,
+        splashOnlineStuck,
+        loadStuck,
+      })
+  // home and the player share one shell, so moving between them never remounts it
+  const shellShown = route
+    ? route.kind === 'idle' || route.kind === 'player'
+    : forced === 'idle' || forcedPlaying
+  const playing = shellShown && (route ? route.kind === 'player' : forcedPlaying) && !!savableStatus
+
+  // the player keeps drawing its last status while it leaves, theme included
+  const playerStatus = useHeldStatus(savableStatus)
+  const playerLeft = useDelayedFlag(!playing, LEAVE_FALLBACK_MS)
+
+  // playback starting on home brings the player up; from deeper, it waits on home's card
+  const shellWasShown = useRef(false)
+  const wasPlaying = useRef(false)
+  const { push: pushPage, drop: dropPage } = pages
+  const depth = pages.depth
+  useLayoutEffect(() => {
+    // a shell only now appearing has no page to animate away from
+    const silent = !shellWasShown.current
+    shellWasShown.current = shellShown
+    const started = playing && !wasPlaying.current
+    wasPlaying.current = playing
+    playingRef.current = playing
+    // on every pass, so a player pushed in the tick playback stopped goes too
+    if (!playing) dropPage('player')
+    else if (started && depth === 1) pushPage({ id: 'player' }, { silent })
+  }, [playing, shellShown, depth, pushPage, dropPage])
+
+  // dev: any other forced screen hides home, so going home swaps it for the player's mock status
+  const seenHomeRequests = useRef(homeRequests)
+  const { reset: resetPages } = pages
+  useEffect(() => {
+    if (homeRequests === seenHomeRequests.current) return
+    seenHomeRequests.current = homeRequests
+    if (forced && !SHOWS_HOME.has(forced)) setForced('playing-lyrics')
+    resetPages()
+  }, [homeRequests, forced, setForced, resetPages])
+
+  const navigation = useMemo<Navigation>(
+    () => ({ push: pushPage, pop: pages.pop, reset: pages.reset }),
+    [pushPage, pages.pop, pages.reset],
+  )
 
   // ambient screensaver background
   let screensaverArt: string | null = null
@@ -524,18 +604,6 @@ function AppContent() {
         </>
       )
     }
-    if (forced === 'idle') {
-      return (
-        <div className={styles.app}>
-          <IdleScreen
-            connected={connected}
-            devices={connectDevices}
-            onSelectDevice={onPickDevice}
-          />
-          {globalOverlays}
-        </div>
-      )
-    }
     if (forced === 'reconnecting') {
       return (
         <div className={styles.app}>
@@ -570,21 +638,7 @@ function AppContent() {
       )
     }
 
-    if (!forced) {
-      const route = resolveRoute({
-        offlineScreen,
-        auth,
-        status,
-        setupProgress,
-        loading,
-        online,
-        reconnecting,
-        playerStartingUp,
-        spotifyStuck,
-        splashOnlineStuck,
-        loadStuck,
-      })
-
+    if (route) {
       switch (route.kind) {
         case 'offline':
           return (
@@ -636,36 +690,36 @@ function AppContent() {
             </div>
           )
         case 'idle':
-          return (
-            <div className={styles.app}>
-              <IdleScreen
-                connected={connected}
-                devices={connectDevices}
-                onSelectDevice={onPickDevice}
-              />
-              {globalOverlays}
-            </div>
-          )
         case 'player':
           break
       }
     }
-
-    // live status when active otherwise the last playing
-    const playerStatus = savableStatus
-    if (!playerStatus || !playerStatus.active) return null
 
     // noti over the player on a network drops
     const bannerReason: ReconnectReason | null =
       forced === 'reconnect-banner' ? 'offline' : reconnecting ? dropReason : null
 
     // the theme follows what the player presents, so the DJ keeps the album's colours
-    const shown = presentTrack(scene.status ?? playerStatus, narration)
+    const presented = playerStatus ? presentTrack(scene.status ?? playerStatus, narration) : null
+    const shown = playing ? presented : null
+    const theme = playerLeft ? null : presented
 
-    const renderPage = (id: PageId) => {
-      switch (id) {
-        case 'player':
+    const renderPage = (entry: PageEntry) => {
+      switch (entry.id) {
+        case 'home':
           return (
+            <HomePage
+              nowPlaying={shown}
+              connected={connected}
+              deviceName={playing ? (playerStatus?.device_name ?? null) : null}
+              deviceCount={connectDevices.length}
+              btDeviceName={btConnectedDevice?.name ?? null}
+              onResume={resumeLast}
+              utcOffsetMin={utcOffsetMin}
+            />
+          )
+        case 'player':
+          return playerStatus ? (
             <PlayerPage
               status={playerStatus}
               live={statusActive}
@@ -679,7 +733,11 @@ function AppContent() {
               seek={seek}
               notify={notify}
             />
-          )
+          ) : null
+        case 'playlists':
+          return <PlaylistsPage />
+        case 'queue':
+          return <QueuePage />
         case 'ui-kit':
           return DEV_SCREENS_ENABLED ? <UiKitPage /> : null
       }
@@ -687,17 +745,19 @@ function AppContent() {
 
     return (
       <RouteBackContext.Provider value={routeBack}>
-        <PageShell
-          root={pages.root}
-          current={pages.current}
-          previous={pages.previous}
-          forcedPage={forcedPage}
-          onBack={pages.pop}
-          renderPage={renderPage}
-          overlays={globalOverlays}
-          theme={{ art: shown.art, narrating: shown.djFallback }}
-          paintKey={String(artSizeFor(settings.uiScalePct))}
-        />
+        <NavigationContext.Provider value={navigation}>
+          <PageShell
+            root={pages.root}
+            current={pages.current}
+            previous={pages.previous}
+            forcedPage={forcedPage}
+            onBack={pages.pop}
+            renderPage={renderPage}
+            overlays={globalOverlays}
+            theme={theme ? { art: theme.art, narrating: theme.djFallback } : undefined}
+            paintKey={String(artSizeFor(settings.uiScalePct))}
+          />
+        </NavigationContext.Provider>
       </RouteBackContext.Provider>
     )
   }

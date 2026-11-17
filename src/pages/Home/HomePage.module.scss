@@ -1,0 +1,23 @@
+// the carousel's own lead is the side inset, so the cards run off the screen edge
+.home {
+  padding-right: 0;
+  padding-left: 0;
+}
+
+.header {
+  padding: 0 $pad-x;
+}
+
+// the title's size, so the two share a baseline across the header
+.clock {
+  color: $text-primary;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  @include type(title);
+}
+
+.ampm {
+  margin-left: $s-1;
+  color: $text-secondary;
+  @include type(label);
+}

@@ -3,12 +3,12 @@ import { describe, expect, it, vi } from 'vitest'
 import { Card, IconTile } from '..'
 
 describe('Card', () => {
-  it('is an uncached card surface with a tile, a title and a subtitle', () => {
+  it('is a cached card surface with a tile, a title and a subtitle', () => {
     const { container } = render(<Card icon="queue" title="Queue" subtitle="2 tracks" focused />)
 
     const surface = container.firstElementChild!
     expect(surface).toHaveClass('surface', 'card', 'focused')
-    expect(surface).not.toHaveAttribute('data-glass-panel')
+    expect(surface).toHaveAttribute('data-glass-panel', '')
     expect(surface.querySelector('.tile svg')).toBeInTheDocument()
     expect(screen.getByText('Queue')).toBeInTheDocument()
     expect(screen.getByText('2 tracks')).toBeInTheDocument()

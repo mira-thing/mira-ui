@@ -11,7 +11,7 @@ export interface SurfaceProps extends HTMLAttributes<HTMLElement> {
   focused?: boolean
   /** clips the content to the radius, which the cached glass cannot do (it paints outside) */
   clip?: boolean
-  /** rasterised by the paint cache; panels and bars default to true */
+  /** rasterised by the paint cache; panels, bars and cards default to true */
   cache?: boolean
   /** a hole in the player's background depth shade, for that layout ('' for both) */
   depth?: 'lyrics' | 'art' | ''
@@ -22,7 +22,7 @@ export interface SurfaceProps extends HTMLAttributes<HTMLElement> {
 const CACHED: Record<SurfaceVariant, boolean> = {
   panel: true,
   bar: true,
-  card: false,
+  card: true,
   floating: false,
 }
 
