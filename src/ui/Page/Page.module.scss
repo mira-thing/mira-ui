@@ -12,7 +12,8 @@
 
 .content {
   position: relative;
-  flex: 1 1 auto;
+  // a zero basis makes the height definite on Chrome 69, so children's `height: 100%` resolves
+  flex: 1 1 0;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;

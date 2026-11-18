@@ -5,24 +5,24 @@ import { ThemeProvider } from '@/theme/ThemeProvider'
 import { useUiScale } from '@/uiScale'
 import { PageActiveContext } from './pageActive'
 import { useRouteBack } from './routeBack'
-import type { PageEntry, PageId } from './usePages'
+import type { BaseRoute, PageEntry, PageRoute } from './usePages'
 import styles from './PageShell.module.scss'
 
 // past the 300ms fade, for when transitionend never comes (display off, tab hidden)
-const LEAVE_FALLBACK_MS = 350
+export const LEAVE_FALLBACK_MS = 350
 const FORCED_KEY = -1
 
-export interface PageShellProps<Id extends string = PageId> {
+export interface PageShellProps<R extends BaseRoute = PageRoute> {
   /** the bottom of the stack; stays mounted, hidden, while a page covers it */
-  root: PageEntry<Id>
-  current: PageEntry<Id>
-  /** the entry that last left the top; animated out, then unmounted */
-  previous: PageEntry<Id> | null
+  root: PageEntry<R>
+  current: PageEntry<R>
+  /** the entry that last left the top; animated out, then unmounted. Null swaps without a transition */
+  previous: PageEntry<R> | null
   /** dev: shown in place of the stack, swapped in without a transition */
-  forcedPage?: Id | null
+  forcedPage?: R | null
   /** pops the stack; Back reaches it only after every page's own handler declines */
   onBack?: () => boolean
-  renderPage: (id: Id) => ReactNode
+  renderPage: (entry: PageEntry<R>) => ReactNode
   /** drawn over every page, inside the shell's own container */
   overlays?: ReactNode
   /** what the shell's theme follows; idle without art */
@@ -36,7 +36,7 @@ export interface PageShellProps<Id extends string = PageId> {
  * root, which never unmounts. An entering page mounts inactive and turns active a frame later.
  * Its root is the themed root: the ambient ground and the glass paint cache span every page.
  */
-export function PageShell<Id extends string = PageId>({
+export function PageShell<R extends BaseRoute = PageRoute>({
   root,
   current,
   previous,
@@ -46,16 +46,18 @@ export function PageShell<Id extends string = PageId>({
   overlays,
   theme,
   paintKey = '',
-}: PageShellProps<Id>) {
+}: PageShellProps<R>) {
   const rootRef = useRef<HTMLDivElement>(null)
   const uiScale = useUiScale()
   usePanelPaintCache(rootRef, paintKey, uiScale)
   useRouteBack(() => forcedPage === null && (onBack?.() ?? false))
-  const shown = forcedPage === null ? current : { id: forcedPage, key: FORCED_KEY }
+  const shown: PageEntry<R> = forcedPage === null ? current : { ...forcedPage, key: FORCED_KEY }
   const [enteredKey, setEnteredKey] = useState(shown.key)
   // a shell mounting mid-stack has nothing to animate out
   const [leftKey, setLeftKey] = useState(previous?.key ?? null)
 
+  // a silent change has nothing leaving, so the new top shows at once
+  if (forcedPage === null && previous === null && shown.key !== enteredKey) setEnteredKey(shown.key)
   // a forced page drops whatever was leaving, so un-forcing has nothing stale to animate
   if (forcedPage !== null && previous && previous.key !== leftKey) setLeftKey(previous.key)
 
@@ -105,7 +107,7 @@ export function PageShell<Id extends string = PageId>({
             onTransitionEnd={isLeaving ? onLeft : undefined}
           >
             <PageActiveContext.Provider value={isCurrent}>
-              {renderPage(entry.id)}
+              {renderPage(entry)}
             </PageActiveContext.Provider>
           </div>
         )

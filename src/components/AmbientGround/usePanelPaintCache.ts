@@ -5,26 +5,86 @@ const MARKER = 'data-glass-cached'
 const PAINT = '--glass-paint'
 const FACE = '--glass-face'
 interface PanelPaint {
-  border: Blob
-  face: Blob
+  url: string
+  faceUrl: string
 }
-const paints = new Map<string, Promise<PanelPaint | null>>()
+interface CacheEntry {
+  pending: Promise<PanelPaint | null>
+  paint?: PanelPaint
+  /** panels showing or about to show this paint; only an unused, built paint is evicted */
+  users: number
+}
+// one URL per paint: a fresh URL means a fresh decode, and Chrome 69 draws the panel blank until then
+const cache = new Map<string, CacheEntry>()
+const CACHE_LIMIT = 8
 
-function panelImage(panel: HTMLElement, density: number): Promise<PanelPaint | null> {
-  const computed = getComputedStyle(panel)
-  const style = document.createElement('div').style
-  for (const property of [
-    'width',
-    'height',
-    'border-right',
-    'border-top-color',
-    'border-bottom-color',
-    'border-radius',
-    'box-shadow',
-    '--glass-base',
-  ]) {
-    style.setProperty(property, computed.getPropertyValue(property))
+/** The entry for `key`, moved to the back of the eviction order. */
+function touch(key: string): CacheEntry | undefined {
+  const entry = cache.get(key)
+  if (entry) {
+    cache.delete(key)
+    cache.set(key, entry)
   }
+  return entry
+}
+
+function evict() {
+  for (const [key, entry] of cache) {
+    if (cache.size <= CACHE_LIMIT) return
+    if (entry.users > 0 || !entry.paint) continue
+    cache.delete(key)
+    URL.revokeObjectURL(entry.paint.url)
+    URL.revokeObjectURL(entry.paint.faceUrl)
+  }
+}
+
+/** A built paint for `key`, counted as shown until `release`; undefined if it isn't built. */
+function acquire(key: string): PanelPaint | undefined {
+  const entry = touch(key)
+  if (!entry?.paint) return undefined
+  entry.users++
+  return entry.paint
+}
+
+function release(key: string) {
+  const entry = cache.get(key)
+  if (!entry) return
+  entry.users--
+  evict()
+}
+
+function decodeAhead(url: string) {
+  const image = new Image()
+  image.src = url
+  void image.decode?.().catch(() => {})
+}
+
+const SPEC_PROPERTIES = [
+  'width',
+  'height',
+  'border-right',
+  'border-top-color',
+  'border-bottom-color',
+  'border-radius',
+  'box-shadow',
+  '--glass-base',
+]
+
+interface Installed {
+  panel: HTMLElement
+  spec: PanelSpec
+}
+
+/** The glass a panel paints, at one size and density. */
+interface PanelSpec {
+  key: string
+  style: CSSStyleDeclaration
+  density: number
+}
+
+function specFrom(read: (property: string) => string, density: number): PanelSpec {
+  const style = document.createElement('div').style
+  for (const property of SPEC_PROPERTIES) style.setProperty(property, read(property))
   const key = [
     density,
     style.width,
@@ -36,20 +96,48 @@ function panelImage(panel: HTMLElement, density: number): Promise<PanelPaint | n
     style.boxShadow,
     style.getPropertyValue('--glass-base'),
   ].join(';')
-  const existing = paints.get(key)
-  if (existing) return existing
-  const pending = (async () => {
+  return { key, style, density }
+}
+
+/** Read from a panel that isn't cached yet: once cached, its own shadow and border are gone. */
+function panelSpec(panel: HTMLElement, density: number): PanelSpec {
+  const computed = getComputedStyle(panel)
+  return specFrom((property) => computed.getPropertyValue(property), density)
+}
+
+/** The same glass at the panel's current size. */
+function resizedSpec(spec: PanelSpec, panel: HTMLElement): PanelSpec {
+  const computed = getComputedStyle(panel)
+  return specFrom(
+    (property) =>
+      property === 'width' || property === 'height'
+        ? computed.getPropertyValue(property)
+        : spec.style.getPropertyValue(property),
+    spec.density,
+  )
+}
+
+function panelImage({ key, style, density }: PanelSpec): Promise<PanelPaint | null> {
+  const existing = touch(key)
+  if (existing) return existing.pending
+  const entry: CacheEntry = { users: 0, pending: Promise.resolve(null) }
+  entry.pending = (async () => {
     const border = await buildPanelImage(style, density)
     if (!border) return null
     const face = await buildPanelImage(style, density, true)
-    return face ? { border, face } : null
+    if (!face) return null
+    const paint = { url: URL.createObjectURL(border), faceUrl: URL.createObjectURL(face) }
+    decodeAhead(paint.url)
+    decodeAhead(paint.faceUrl)
+    entry.paint = paint
+    return paint
   })()
-  paints.set(key, pending)
-  if (paints.size > 8) paints.delete(paints.keys().next().value!)
-  void pending.then((blob) => {
-    if (!blob && paints.get(key) === pending) paints.delete(key)
+  cache.set(key, entry)
+  evict()
+  void entry.pending.then((paint) => {
+    if (!paint && cache.get(key) === entry) cache.delete(key)
   })
-  return pending
+  return entry.pending
 }
 
 function buildPanelImage(
@@ -131,46 +219,96 @@ export function usePanelPaintCache(
     let timer = 0
     let frame = 0
     let geometry = ''
-    let installed: { panel: HTMLElement; url: string; faceUrl: string }[] = []
+    let installed: Installed[] = []
+    // built for a panel and awaiting install; held, so building the next paint can't evict it
+    const held: (Installed & { paint: PanelPaint })[] = []
+
+    function install(panel: HTMLElement, spec: PanelSpec, paint: PanelPaint) {
+      show(panel, paint)
+      panel.setAttribute(MARKER, '')
+      installed.push({ panel, spec })
+      sizes?.observe(panel)
+    }
+
+    function show(panel: HTMLElement, { url, faceUrl }: PanelPaint) {
+      panel.style.setProperty(FACE, `url("${faceUrl}")`)
+      panel.style.setProperty(PAINT, `url("${url}")`)
+    }
+
+    function uninstall({ panel, spec }: Installed) {
+      sizes?.unobserve(panel)
+      panel.removeAttribute(MARKER)
+      panel.style.removeProperty(PAINT)
+      panel.style.removeProperty(FACE)
+      release(spec.key)
+    }
+
+    function drop(entry: Installed) {
+      uninstall(entry)
+      installed = installed.filter((e) => e !== entry)
+    }
 
     function clear(keepConnected = false) {
       generation++
       clearTimeout(timer)
       cancelAnimationFrame(frame)
-      installed = installed.filter(({ panel, url, faceUrl }) => {
-        if (keepConnected && host!.contains(panel)) return true
-        panel.removeAttribute(MARKER)
-        panel.style.removeProperty(PAINT)
-        panel.style.removeProperty(FACE)
-        URL.revokeObjectURL(url)
-        URL.revokeObjectURL(faceUrl)
+      for (const { spec } of held.splice(0)) release(spec.key)
+      installed = installed.filter((entry) => {
+        if (keepConnected && host!.contains(entry.panel)) return true
+        uninstall(entry)
         return false
       })
     }
 
     async function prepare(version: number) {
       const density = Math.max(1, window.devicePixelRatio * scale)
-      const ready: { panel: HTMLElement; blob: PanelPaint }[] = []
       for (const panel of host!.querySelectorAll<HTMLElement>('[data-glass-panel]')) {
         if (version !== generation) return
         if (installed.some((entry) => entry.panel === panel)) continue
-        const blob = await panelImage(panel, density)
-        if (blob) ready.push({ panel, blob })
+        const spec = panelSpec(panel, density)
+        const paint = (await panelImage(spec)) && acquire(spec.key)
+        if (!paint) continue
+        if (version !== generation) return release(spec.key)
+        held.push({ panel, spec, paint })
       }
       if (version !== generation) return
       frame = requestAnimationFrame(() => {
-        if (version !== generation) return
-        for (const { panel, blob } of ready) {
-          if (!host!.contains(panel)) continue
-          const url = URL.createObjectURL(blob.border)
-          const faceUrl = URL.createObjectURL(blob.face)
-          panel.style.setProperty(FACE, `url("${faceUrl}")`)
-          panel.style.setProperty(PAINT, `url("${url}")`)
-          panel.setAttribute(MARKER, '')
-          installed.push({ panel, url, faceUrl })
+        for (const { panel, spec, paint } of held.splice(0)) {
+          if (host!.contains(panel)) install(panel, spec, paint)
+          else release(spec.key)
         }
       })
     }
+
+    // a carousel card widens on focus; a stretched paint would distort its corners and shadow
+    const sizes =
+      typeof ResizeObserver === 'function'
+        ? new ResizeObserver((entries) => {
+            let stale = false
+            for (const { target } of entries) {
+              const entry = installed.find((e) => e.panel === target)
+              if (!entry) continue
+              // a panel that left the page is done with, not resized
+              if (!host!.contains(entry.panel)) {
+                drop(entry)
+                continue
+              }
+              const spec = resizedSpec(entry.spec, entry.panel)
+              if (spec.key === entry.spec.key) continue
+              const paint = acquire(spec.key)
+              if (paint) {
+                show(entry.panel, paint)
+                release(entry.spec.key)
+                entry.spec = spec
+              } else {
+                drop(entry)
+                stale = true
+              }
+            }
+            if (stale) refresh(true)
+            else geometry = dimensions()
+          })
+        : null
 
     function refresh(keepConnected = false) {
       clear(keepConnected)
@@ -205,6 +343,7 @@ export function usePanelPaintCache(
     refresh()
     return () => {
       observer.disconnect()
+      sizes?.disconnect()
       window.removeEventListener('resize', resize)
       clear()
     }

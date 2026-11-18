@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import type { PageId } from '@/app/usePages'
+import type { PageRoute } from '@/app/usePages'
 
 export const DEV_SCREENS_ENABLED = import.meta.env.DEV || import.meta.env.VITE_DEV_SCREENS === '1'
 
@@ -32,19 +32,26 @@ export type DevForcedScreen =
   | 'consent'
   | 'update-card'
   | 'ui-kit'
+  | 'playlists'
+  | 'queue'
 
 // dev screens that are a page in the stack, rendered over the mock status
-const FORCED_PAGES: Partial<Record<Exclude<DevForcedScreen, null>, PageId>> = {
-  'ui-kit': 'ui-kit',
+const FORCED_PAGES: Partial<Record<Exclude<DevForcedScreen, null>, PageRoute>> = {
+  'ui-kit': { id: 'ui-kit' },
+  playlists: { id: 'playlists' },
+  queue: { id: 'queue' },
 }
 
-export function forcedPageOf(forced: DevForcedScreen): PageId | null {
+export function forcedPageOf(forced: DevForcedScreen): PageRoute | null {
   return (forced && FORCED_PAGES[forced]) ?? null
 }
 
 export interface DevScreenCtx {
   forced: DevForcedScreen
   setForced: (s: DevForcedScreen) => void
+  /** bumped by the dev menu's Home button; App pops to home on each change */
+  homeRequests?: number
+  goHome?: () => void
 }
 
 export const DevScreenContext = createContext<DevScreenCtx>({

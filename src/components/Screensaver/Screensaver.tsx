@@ -1,7 +1,9 @@
 import { memo, useEffect, useState } from 'react'
+import { useMinuteClock } from '@/hooks/useMinuteClock'
 import { Layer } from '@/input/router'
 import { useKnobScope } from '@/input/useKnobScope'
 import { Marquee } from '@/ui/TrackText'
+import { clockParts, dateLabel } from '@/utils/clock'
 import styles from './Screensaver.module.scss'
 
 // double press of the power button opens this screensaver w clock
@@ -17,21 +19,6 @@ interface Props {
   onPlayPause: () => void
 }
 
-function pad2(n: number): string {
-  return n < 10 ? `0${n}` : String(n)
-}
-
-function displayNow(utcOffsetMin: number | null | undefined): Date {
-  const d = new Date()
-  if (typeof utcOffsetMin !== 'number') return d
-  const utcMs = d.getTime() + d.getTimezoneOffset() * 60_000
-  return new Date(utcMs + utcOffsetMin * 60_000)
-}
-
-// chrome 69 on the device has no locale data, so toLocaleDateString ignores the format options
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
 const POWER_KEY_CODE = 'KeyM'
 const ART_FADE_MS = 900
 
@@ -43,18 +30,7 @@ function ScreensaverImpl({
   onClose,
   onPlayPause,
 }: Props) {
-  const [now, setNow] = useState(() => displayNow(utcOffsetMin))
-
-  useEffect(() => {
-    setNow(displayNow(utcOffsetMin))
-    const id = window.setInterval(() => {
-      setNow((prev) => {
-        const d = displayNow(utcOffsetMin)
-        return d.getMinutes() !== prev.getMinutes() || d.getHours() !== prev.getHours() ? d : prev
-      })
-    }, 1000)
-    return () => window.clearInterval(id)
-  }, [utcOffsetMin])
+  const now = useMinuteClock(utcOffsetMin)
 
   const [shownArt, setShownArt] = useState<string | null>(artUrl ?? null)
   const [prevArt, setPrevArt] = useState<string | null>(null)
@@ -112,10 +88,8 @@ function ScreensaverImpl({
     }
   }, [onClose])
 
-  let hours = now.getHours() % 12
-  if (hours === 0) hours = 12
-  const ampm = now.getHours() < 12 ? 'AM' : 'PM'
-  const date = `${DAYS[now.getDay()]}, ${MONTHS[now.getMonth()]} ${now.getDate()}`
+  const { time, ampm } = clockParts(now)
+  const date = dateLabel(now)
   const playing = Boolean(trackName)
   const thumbUrl = artUrl || shownArt
 
@@ -138,7 +112,7 @@ function ScreensaverImpl({
       <div className={`${styles.content} ${playing ? styles.withPill : ''}`}>
         <div className={styles.date}>{date}</div>
         <div className={styles.clock}>
-          {hours}:{pad2(now.getMinutes())}
+          {time}
           <span className={styles.ampm}>{ampm}</span>
         </div>
       </div>

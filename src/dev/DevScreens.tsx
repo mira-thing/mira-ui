@@ -31,6 +31,7 @@ function writeStored(v: DevForcedScreen) {
 
 export function DevScreenProvider({ children }: { children: ReactNode }) {
   const [forced, setForcedRaw] = useState<DevForcedScreen>(() => readStored())
+  const [homeRequests, setHomeRequests] = useState(0)
 
   // Persist across HMR
   const value = useMemo(
@@ -40,8 +41,10 @@ export function DevScreenProvider({ children }: { children: ReactNode }) {
         writeStored(s)
         setForcedRaw(s)
       },
+      homeRequests,
+      goHome: () => setHomeRequests((n) => n + 1),
     }),
-    [forced],
+    [forced, homeRequests],
   )
 
   if (!DEV_SCREENS_ENABLED) return <>{children}</>
@@ -63,7 +66,7 @@ const SCREENS: ScreenDef[] = [
   { id: 'starting', label: 'Starting up', hint: 'Boot splash w/ caption' },
   { id: 'setting-up', label: 'Setting up', hint: 'First-run indexing w/ progress bar' },
   { id: 'auth', label: 'Auth (QR code)', hint: 'OAuth pairing screen' },
-  { id: 'idle', label: 'Idle (no playback)' },
+  { id: 'idle', label: 'Home (no playback)' },
   { id: 'playing-lyrics', label: 'Playing: lyrics' },
   { id: 'playing-no-lyrics', label: 'Playing: no lyrics' },
   { id: 'playing-no-art', label: 'Playing: no art', hint: 'Idle theme over the player' },
@@ -91,10 +94,12 @@ const SCREENS: ScreenDef[] = [
   { id: 'consent', label: 'Consent card', hint: 'First-boot telemetry choice, right after setup' },
   { id: 'update-card', label: 'Update card', hint: 'New release nag on the idle screen' },
   { id: 'ui-kit', label: 'UI kit', hint: 'Framework primitives' },
+  { id: 'playlists', label: 'Playlists page', hint: 'Placeholder' },
+  { id: 'queue', label: 'Queue page', hint: 'Placeholder' },
 ]
 
 export function DevOverlay() {
-  const { forced, setForced } = useDevScreen()
+  const { forced, setForced, goHome } = useDevScreen()
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
@@ -164,6 +169,19 @@ export function DevOverlay() {
             <span className={styles.rowMark}>{forced === null ? '->' : ''}</span>
             <span className={styles.rowLabel}>Reset (live state)</span>
             <span className={styles.rowHint}>Stop overriding</span>
+          </button>
+
+          <button
+            type="button"
+            className={styles.row}
+            onClick={() => {
+              goHome?.()
+              setOpen(false)
+            }}
+          >
+            <span className={styles.rowMark} />
+            <span className={styles.rowLabel}>Home</span>
+            <span className={styles.rowHint}>Pop the page stack to home</span>
           </button>
 
           <div className={styles.divider} aria-hidden />

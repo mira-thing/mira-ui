@@ -4,6 +4,8 @@
   height: 100%;
   padding: $s-4 0 $s-6;
   overflow: hidden;
+  // horizontal drags are the carousel's; vertical ones still scroll the page
+  touch-action: pan-y;
 }
 
 // the items' offsetParent, so their offsets are in the track's own layout px
@@ -21,6 +23,8 @@
 // no width transition: the track measures the final layout in the same frame
 .item {
   flex: 0 0 auto;
+  // its own layer, so a focus change repaints two cards rather than the whole track
+  will-change: transform;
   width: var(--carousel-item-w);
   height: 100%;
 }

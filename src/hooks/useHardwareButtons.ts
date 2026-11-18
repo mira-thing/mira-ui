@@ -214,7 +214,8 @@ export function useHardwareButtons({
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault()
-        onBack()
+        // a held Back steps once, or Home and the player would trade places at the repeat rate
+        if (!e.repeat) onBack()
       }
     }
     window.addEventListener('keydown', onKeyDown)

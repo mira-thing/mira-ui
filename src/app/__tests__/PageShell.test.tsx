@@ -6,10 +6,11 @@ import { createRouteBack, RouteBackContext, useRouteBack } from '../routeBack'
 import type { PageEntry } from '../usePages'
 
 type StubId = 'home' | 'detail' | 'more'
+type StubRoute = { id: StubId; params?: undefined }
 
-const home: PageEntry<StubId> = { id: 'home', key: 0 }
-const detail: PageEntry<StubId> = { id: 'detail', key: 1 }
-const deeper: PageEntry<StubId> = { id: 'more', key: 2 }
+const home: PageEntry<StubRoute> = { id: 'home', key: 0 }
+const detail: PageEntry<StubRoute> = { id: 'detail', key: 1 }
+const deeper: PageEntry<StubRoute> = { id: 'more', key: 2 }
 
 function Stub({ id }: { id: StubId }) {
   const active = usePageActive()
@@ -20,13 +21,13 @@ function Stub({ id }: { id: StubId }) {
   )
 }
 
-function shell(over: Partial<PageShellProps<StubId>> = {}) {
+function shell(over: Partial<PageShellProps<StubRoute>> = {}) {
   return (
-    <PageShell<StubId>
+    <PageShell<StubRoute>
       root={home}
       current={home}
       previous={null}
-      renderPage={(id) => <Stub id={id} />}
+      renderPage={(entry) => <Stub id={entry.id} />}
       overlays={<div data-testid="overlays" />}
       {...over}
     />
@@ -213,6 +214,15 @@ describe('PageShell', () => {
     expect(layer('home').className).toBe('page')
   })
 
+  it('swaps a silently pushed page in at rest, with nothing leaving', () => {
+    const { rerender } = render(shell())
+    rerender(shell({ current: detail, previous: null }))
+
+    expect(screen.getByTestId('detail')).toHaveAttribute('data-active', 'true')
+    expect(layer('detail').className).toBe('page')
+    expect(layer('home')).toHaveClass('pageCovered')
+  })
+
   it('does not animate out a page that left before the shell mounted', () => {
     render(shell({ current: home, previous: detail }))
 
@@ -221,7 +231,7 @@ describe('PageShell', () => {
   })
 
   it('shows a forced page in place of the stack, over the covered root', () => {
-    render(shell({ current: detail, previous: home, forcedPage: 'more' }))
+    render(shell({ current: detail, previous: home, forcedPage: { id: 'more' } }))
 
     expect(screen.getByTestId('more')).toHaveAttribute('data-active', 'true')
     expect(screen.queryByTestId('detail')).not.toBeInTheDocument()
@@ -233,7 +243,7 @@ describe('PageShell', () => {
     const { rerender } = render(shell())
     rerender(shell({ current: detail, previous: home }))
 
-    rerender(shell({ current: detail, previous: home, forcedPage: 'more' }))
+    rerender(shell({ current: detail, previous: home, forcedPage: { id: 'more' } }))
     expect(mountedPages()).toBe(2)
     expect(layer('more').className).toBe('page')
 
@@ -268,7 +278,7 @@ describe('PageShell', () => {
       const onPop = vi.fn(() => true)
       const { rerender, unmount } = render(
         <RouteBackContext.Provider value={routeBack}>
-          {shell({ onBack: onPop, forcedPage: 'more' })}
+          {shell({ onBack: onPop, forcedPage: { id: 'more' } })}
         </RouteBackContext.Provider>,
       )
       expect(routeBack.run()).toBe(false)
