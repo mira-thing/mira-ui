@@ -182,6 +182,12 @@ function LyricsImpl({ status, onSeek, active = true }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const viewportRef = useRef<HTMLDivElement | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
+  // state too, so the effects that place the list rerun when it remounts with the same lyrics
+  const [listNode, setListNode] = useState<HTMLDivElement | null>(null)
+  const attachList = useCallback((el: HTMLDivElement | null) => {
+    listRef.current = el
+    setListNode(el)
+  }, [])
 
   const lineMetrics = useRef<{ top: number; height: number }[]>([])
   const listHeight = useRef(0)
@@ -249,13 +255,19 @@ function LyricsImpl({ status, onSeek, active = true }: Props) {
     listHeight.current = list.scrollHeight
     // the lyrics column is a 1fr track of a scale-dependent width, so a scale change
     // rewraps the lines and invalidates every cached top/height
-  }, [lyrics, uiScale])
+  }, [lyrics, uiScale, listNode])
 
+  const placedOn = useRef<HTMLDivElement | null>(null)
   useLayoutEffect(() => {
     if (Date.now() - userActiveAt.current < SNAP_BACK_MS) return
+    const from = offset.current
     offset.current = computeAutoTarget()
-    applyOffset()
-  }, [effIdx, lyrics, status.track_id, uiScale])
+    // only a step within the screen rolls; a fresh list or a long jump would scroll every line past
+    const viewport = viewportRef.current?.clientHeight ?? 0
+    const far = Math.abs(offset.current - from) > viewport
+    applyOffset(placedOn.current !== listNode || effIdx < 0 || far)
+    placedOn.current = effIdx < 0 ? null : listNode
+  }, [effIdx, lyrics, status.track_id, uiScale, listNode])
 
   useEffect(() => {
     if (seekHint == null) return
@@ -378,7 +390,10 @@ function LyricsImpl({ status, onSeek, active = true }: Props) {
         onTouchCancel={onTouchEnd}
         onWheel={onWheel}
       >
-        <div className={`${styles.list} ${synced ? styles.synced : styles.unsynced}`} ref={listRef}>
+        <div
+          className={`${styles.list} ${synced ? styles.synced : styles.unsynced}`}
+          ref={attachList}
+        >
           <div className={styles.padTop} aria-hidden />
           {lyrics.lines.map((line, i) => {
             const variant: LineVariant = !synced

@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useState, type CSSProperties } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useArtworkColors, type RGB } from '@/hooks/useColorExtract'
 import { deriveRoles, IDLE_ROLES, type ThemeRoles } from './seed'
 
@@ -19,6 +19,8 @@ export interface ThemeInput {
 }
 
 const NO_PALETTE: RGB[] = []
+// a recolour restyles every node on Chrome 69, so a new track's cover and title paint first
+const RECOLOR_LAG_MS = 300
 export const IDLE_THEME: Theme = { source: 'idle', palette: NO_PALETTE, roles: IDLE_ROLES }
 
 export const ThemeContext = createContext<Theme>(IDLE_THEME)
@@ -29,16 +31,26 @@ export function useTheme(): Theme {
 
 /**
  * The album look while there is art, idle when there is none. The last album palette is
- * held while the DJ talks and while the next cover is still being sampled.
+ * held while the DJ talks and while the next cover is still being sampled. One album gives way
+ * to the next a beat after its cover shows.
  */
 export function useThemeSource({ art, narrating = false }: ThemeInput): Theme {
   const { palette, pending } = useArtworkColors(art || undefined)
   const [held, setHeld] = useState<RGB[] | null>(palette)
   const shown = palette ?? (narrating || pending ? held : null)
   if (shown !== held) setHeld(shown)
+  const [applied, setApplied] = useState(shown)
+  const lagging = !!(shown && applied && shown !== applied)
+  if (shown !== applied && !lagging) setApplied(shown)
+  useEffect(() => {
+    if (!lagging) return
+    const timer = window.setTimeout(() => setApplied(shown), RECOLOR_LAG_MS)
+    return () => window.clearTimeout(timer)
+  }, [lagging, shown])
   return useMemo(
-    () => (shown ? { source: 'album', palette: shown, roles: deriveRoles(shown) } : IDLE_THEME),
-    [shown],
+    () =>
+      applied ? { source: 'album', palette: applied, roles: deriveRoles(applied) } : IDLE_THEME,
+    [applied],
   )
 }
 

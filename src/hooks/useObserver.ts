@@ -2,6 +2,7 @@ import { useEffect, useReducer } from 'react'
 import { fetchObserverStatus, remoteStateToStatus } from '@/api/client'
 import { subscribeConnection, subscribeEvents } from '@/api/eventBus'
 import { isNarrationItem, seenNarrationFrom, type SeenNarration } from '@/hooks/useDJNarration'
+import { queueTrackFields } from '@/hooks/usePrefetch'
 import type { ApiEvent, ObserverStatus, RemoteStateWire, SetupProgress } from '@/api/types'
 
 interface ObserverState {
@@ -52,12 +53,30 @@ function narrationHeard(status: ObserverStatus, lastSongId: string): SeenNarrati
   return seenNarrationFrom(status)
 }
 
+// the daemon announces a skip before resolving its title and cover; the queue we already hold knows them
+function filledFromQueue(status: ObserverStatus, prev: ObserverStatus | null): ObserverStatus {
+  if (!status.active || !prev?.active) return status
+  if (status.track_name && status.track_artist && status.track_image) return status
+  const queued = [...(prev.next_tracks ?? []), ...(prev.prev_tracks ?? [])].find(
+    (t) => t.uri === status.track_uri,
+  )
+  const known = prev.track_uri === status.track_uri ? prev : queued && queueTrackFields(queued)
+  if (!known) return status
+  return {
+    ...status,
+    track_name: status.track_name || known.track_name,
+    track_artist: status.track_artist || known.track_artist,
+    track_album: status.track_album || known.track_album,
+    track_image: status.track_image || known.track_image,
+  }
+}
+
 function reducer(state: ObserverState, action: Action): ObserverState {
   switch (action.type) {
     case 'loading':
       return { ...state, loading: true }
     case 'status': {
-      const incoming = action.status
+      const incoming = filledFromQueue(action.status, state.status)
       const prev = state.status?.setting_up
       const status: ObserverStatus =
         incoming.setting_up === undefined && prev !== undefined

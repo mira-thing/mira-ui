@@ -1,5 +1,5 @@
-import { memo, useEffect, useRef, useState, type ReactNode } from 'react'
-import { loadArtwork } from '@/hooks/useColorExtract'
+import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { isArtworkLoaded, loadArtwork } from '@/hooks/useColorExtract'
 import { Icon } from '@/ui/icons'
 import styles from './Artwork.module.scss'
 
@@ -91,31 +91,41 @@ function Crossfade({
   // the old cover stays up and dimmed
   const [shown, setShown] = useState(src)
   const cleanupRef = useRef(0)
+  const swap = useCallback(
+    (next: string | undefined) => {
+      setShown(next)
+      if (showFront) {
+        setBack(next)
+        setShowFront(false)
+      } else {
+        setFront(next)
+        setShowFront(true)
+      }
+    },
+    [showFront],
+  )
+  // a cover already decoded swaps in this render, so the dim never shows for it
+  if (src && src !== shown && isArtworkLoaded(src)) swap(src)
 
   useEffect(() => {
     if (src === shown) return
     let cancelled = false
     // a failed preload still hands the url to the <img> for a second try
     void loadArtwork(src).then(() => {
-      if (cancelled) return
-      setShown(src)
-      if (showFront) {
-        setBack(src)
-        setShowFront(false)
-      } else {
-        setFront(src)
-        setShowFront(true)
-      }
-      window.clearTimeout(cleanupRef.current)
-      cleanupRef.current = window.setTimeout(() => {
-        if (showFront) setFront(undefined)
-        else setBack(undefined)
-      }, FADE_MS + 60)
+      if (!cancelled) swap(src)
     })
     return () => {
       cancelled = true
     }
-  }, [src, shown, showFront])
+  }, [src, shown, swap])
+
+  useEffect(() => {
+    window.clearTimeout(cleanupRef.current)
+    cleanupRef.current = window.setTimeout(() => {
+      if (showFront) setBack(undefined)
+      else setFront(undefined)
+    }, FADE_MS + 60)
+  }, [showFront])
 
   useEffect(() => () => window.clearTimeout(cleanupRef.current), [])
 

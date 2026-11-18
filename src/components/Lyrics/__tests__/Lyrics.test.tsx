@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { Lyrics } from '../Lyrics'
@@ -216,6 +216,143 @@ describe('lyrics rendered DOM', () => {
 
     expect(screen.getByText(/no lyrics available/i)).toBeInTheDocument()
     expect(screen.queryByText('Stale line from the last song')).toBeNull()
+  })
+})
+
+describe('lyrics scroll', () => {
+  const LINES = Array.from({ length: 20 }, (_, i) => ({
+    startTimeMs: String(i * 5000),
+    words: `Line ${i}`,
+  }))
+  const paused = (position: number) => ({
+    ...TRACK_STATUS,
+    duration: 100_000,
+    position,
+    received_at: Date.now() + 10_000,
+    is_playing: false,
+    is_paused: true,
+  })
+
+  // jsdom lays nothing out; give each line a 50px row so the active one sits below the fold
+  beforeEach(() => {
+    const row = (el: HTMLElement) => Array.from(el.parentElement?.children ?? []).indexOf(el)
+    const props = {
+      offsetTop: { get: (el: HTMLElement) => row(el) * 50 },
+      offsetHeight: { get: () => 50 },
+      clientHeight: { get: () => 200 },
+      scrollHeight: { get: () => 1000 },
+    }
+    const restore = Object.entries(props).map(([name, { get }]) => {
+      const original = Object.getOwnPropertyDescriptor(HTMLElement.prototype, name)
+      Object.defineProperty(HTMLElement.prototype, name, {
+        configurable: true,
+        get() {
+          return get(this)
+        },
+      })
+      return () => {
+        if (original) Object.defineProperty(HTMLElement.prototype, name, original)
+        else delete (HTMLElement.prototype as unknown as Record<string, unknown>)[name]
+      }
+    })
+    return () => restore.forEach((undo) => undo())
+  })
+
+  let stopRecording = () => {}
+  afterEach(() => stopRecording())
+
+  /** Records the list's transforms, returning those it animated to rather than jumped to. */
+  function recordRolls() {
+    const seen: { target: Node; style: string }[] = []
+    const observer = new MutationObserver((records) => {
+      for (const r of records) seen.push({ target: r.target, style: r.oldValue ?? '' })
+    })
+    observer.observe(document.body, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['style'],
+      attributeOldValue: true,
+    })
+    stopRecording = () => observer.disconnect()
+    const transform = (style: string) => /translate\([^)]*\)/.exec(style)?.[0] ?? ''
+    return () => {
+      for (const r of observer.takeRecords())
+        seen.push({ target: r.target, style: r.oldValue ?? '' })
+      observer.disconnect()
+      const list = screen.getByText('Line 0').parentElement!
+      const styles = [
+        ...seen.filter((r) => r.target === list).map((r) => r.style),
+        list.getAttribute('style') ?? '',
+      ]
+      return styles
+        .filter(
+          (style, i) =>
+            i > 0 &&
+            transform(style) !== transform(styles[i - 1]) &&
+            !style.includes('transition: none'),
+        )
+        .map(transform)
+    }
+  }
+
+  it('places lyrics that just arrived without rolling them from the top', async () => {
+    server.use(
+      http.get('*/lyrics/abc', () => HttpResponse.json({ syncType: 'LINE_SYNCED', lines: LINES })),
+    )
+    const rolls = recordRolls()
+    render(<Lyrics status={paused(52_000)} />)
+    await waitFor(() => expect(screen.getByText('Line 10').className).toMatch(/lineActive/))
+
+    expect(screen.getByText('Line 0').parentElement!.style.transform).toMatch(
+      /translate\(0(px)?, -/,
+    )
+    expect(rolls()).toEqual([])
+  })
+
+  it('still rolls to the next line once placed', async () => {
+    server.use(
+      http.get('*/lyrics/abc', () => HttpResponse.json({ syncType: 'LINE_SYNCED', lines: LINES })),
+    )
+    const { rerender } = render(<Lyrics status={paused(52_000)} />)
+    await waitFor(() => expect(screen.getByText('Line 10').className).toMatch(/lineActive/))
+
+    const rolls = recordRolls()
+    rerender(<Lyrics status={paused(57_000)} />)
+    await waitFor(() => expect(screen.getByText('Line 11').className).toMatch(/lineActive/))
+
+    expect(rolls()).toHaveLength(1)
+  })
+  it('jumps rather than rolls to a line more than a screen away', async () => {
+    server.use(
+      http.get('*/lyrics/abc', () => HttpResponse.json({ syncType: 'LINE_SYNCED', lines: LINES })),
+    )
+    const { rerender } = render(<Lyrics status={paused(52_000)} />)
+    await waitFor(() => expect(screen.getByText('Line 10').className).toMatch(/lineActive/))
+
+    const rolls = recordRolls()
+    rerender(<Lyrics status={paused(92_000)} />)
+    await waitFor(() => expect(screen.getByText('Line 18').className).toMatch(/lineActive/))
+
+    expect(rolls()).toEqual([])
+  })
+
+  it('places a list that comes back with the same lyrics', async () => {
+    server.use(
+      http.get('*/lyrics/abc', () => HttpResponse.json({ syncType: 'LINE_SYNCED', lines: LINES })),
+    )
+    const shown = (narrating: boolean) => (
+      <NarrationContext.Provider value={{ narrating, title: '', artist: '' }}>
+        <Lyrics status={paused(52_000)} />
+      </NarrationContext.Provider>
+    )
+    const { rerender } = render(shown(false))
+    await waitFor(() => expect(screen.getByText('Line 10').className).toMatch(/lineActive/))
+
+    rerender(shown(true))
+    rerender(shown(false))
+    expect(screen.getByText('Line 0').parentElement!.style.transform).toMatch(
+      /translate\(0(px)?, -/,
+    )
   })
 })
 

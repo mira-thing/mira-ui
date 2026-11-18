@@ -157,6 +157,31 @@ describe('PageShell', () => {
     expect(layer('home')).toHaveClass('pageInactive')
   })
 
+  it('lets a slide-in page enter opaque, then fade out like any other as it leaves', () => {
+    const { rerender } = render(shell({ slideIn: ['detail'] }))
+    rerender(shell({ current: detail, previous: home, slideIn: ['detail'] }))
+    expect(layer('detail')).toHaveClass('pageInactive', 'pageSlideIn')
+    expect(layer('home')).toHaveClass('pageInactive', 'pageUnderSlideIn')
+    expect(layer('home')).not.toHaveClass('pageSlideIn')
+
+    nextFrame()
+    expect(layer('detail').className).toBe('page')
+    rerender(shell({ current: home, previous: detail, slideIn: ['detail'] }))
+    expect(layer('detail')).toHaveClass('pageInactive')
+    expect(layer('detail')).not.toHaveClass('pageSlideIn')
+    expect(layer('home')).not.toHaveClass('pageUnderSlideIn')
+  })
+
+  it('hides the page a slide-in covers at once, rather than waiting on its fade', () => {
+    const { rerender } = render(shell())
+    rerender(shell({ current: detail, previous: home }))
+    nextFrame()
+
+    rerender(shell({ current: home, previous: detail, slideIn: ['home'] }))
+    expect(layer('home')).toHaveClass('pageInactive', 'pageSlideIn')
+    expect(screen.queryByTestId('detail')).not.toBeInTheDocument()
+  })
+
   it('tells only the current page it is active', () => {
     const { rerender } = render(shell())
     rerender(shell({ current: detail, previous: home }))

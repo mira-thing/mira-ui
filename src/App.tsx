@@ -101,6 +101,9 @@ export default function App() {
   )
 }
 
+// the player's first raster outlasts most of a fade-in, so it slides in already opaque
+const SLIDE_IN_PAGES: readonly PageId[] = ['player']
+
 function AppContent() {
   const auth = useAuth()
   const {
@@ -697,6 +700,7 @@ function AppContent() {
           overlays={globalOverlays}
           theme={{ art: shown.art, narrating: shown.djFallback }}
           paintKey={String(artSizeFor(settings.uiScalePct))}
+          slideIn={SLIDE_IN_PAGES}
         />
       </RouteBackContext.Provider>
     )

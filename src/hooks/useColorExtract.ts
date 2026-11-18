@@ -293,6 +293,11 @@ const pendingArtwork = new Map<string, Promise<void>>()
 const loadedArtwork = new Map<string, HTMLImageElement>()
 const loadingArtwork = new Map<string, Promise<HTMLImageElement | null>>()
 
+/** Whether `loadArtwork(url)` has already settled with a decoded image. */
+export function isArtworkLoaded(url: string): boolean {
+  return loadedArtwork.has(url)
+}
+
 export function loadArtwork(url: string | undefined): Promise<HTMLImageElement | null> {
   if (!url) return Promise.resolve(null)
   const cached = loadedArtwork.get(url)

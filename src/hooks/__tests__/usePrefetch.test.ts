@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
-import { usePrefetch } from '../usePrefetch'
+import { playerCoverUrl, usePrefetch } from '../usePrefetch'
 import { __resetLyricsCache } from '../useLyrics'
 import { loadArtwork, prepareArtwork } from '../useColorExtract'
 import { server } from '../../__tests__/msw-server'
@@ -96,5 +96,49 @@ describe('usePrefetch lyrics', () => {
     await vi.advanceTimersByTimeAsync(100)
 
     expect(asked).toContain('Hazlett')
+  })
+})
+
+describe('usePrefetch art', () => {
+  const thumb = 'https://i.scdn.co/image/ab67616d00004851eabb357935ae4fb4c5ed7668'
+  const cover = 'https://i.scdn.co/image/ab67616d00001e02eabb357935ae4fb4c5ed7668'
+
+  it('loads the next cover at the size the player shows, not the queue thumbnail', () => {
+    const status: ObserverStatusActive = {
+      ...activeStatus,
+      next_tracks: [track({ image_url: thumb })],
+      prev_tracks: [],
+    }
+    renderHook(() => usePrefetch(status))
+    expect(loadArtwork).toHaveBeenCalledWith(cover)
+    expect(loadArtwork).not.toHaveBeenCalledWith(thumb)
+  })
+
+  it('warms each queued cover at the size the player asks for', async () => {
+    const made: { src: string }[] = []
+    const image = vi.spyOn(window, 'Image').mockImplementation(function () {
+      const img = { src: '' }
+      made.push(img)
+      return img as unknown as HTMLImageElement
+    })
+    const status: ObserverStatusActive = {
+      ...activeStatus,
+      next_tracks: [track({ uri: 'spotify:track:warm', track_id: 'warm', image_url: thumb })],
+      prev_tracks: [],
+    }
+    renderHook(() => usePrefetch(status))
+    await vi.advanceTimersByTimeAsync(PAST_DELAY)
+    image.mockRestore()
+    expect(made.map((i) => i.src)).toEqual([cover])
+  })
+
+  it('leaves art that is not a Spotify album cover as it is', () => {
+    expect(playerCoverUrl(cover)).toBe(cover)
+    expect(playerCoverUrl('https://i.scdn.co/image/ab6765630000ba8a1234')).toBe(
+      'https://i.scdn.co/image/ab6765630000ba8a1234',
+    )
+    expect(playerCoverUrl('https://example.com/ab67616d00004851x')).toBe(
+      'https://example.com/ab67616d00004851x',
+    )
   })
 })

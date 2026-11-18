@@ -29,6 +29,8 @@ export interface PageShellProps<Id extends string = PageId> {
   theme?: ThemeInput
   /** re-rasterises the glass panels when it changes; the page id is deliberately not in it */
   paintKey?: string
+  /** pages that slide in fully opaque over a page that hides at once; they still fade out as they leave */
+  slideIn?: readonly Id[]
 }
 
 /**
@@ -46,6 +48,7 @@ export function PageShell<Id extends string = PageId>({
   overlays,
   theme,
   paintKey = '',
+  slideIn = [],
 }: PageShellProps<Id>) {
   const rootRef = useRef<HTMLDivElement>(null)
   const uiScale = useUiScale()
@@ -60,6 +63,9 @@ export function PageShell<Id extends string = PageId>({
   if (forcedPage !== null && previous && previous.key !== leftKey) setLeftKey(previous.key)
 
   const entering = forcedPage === null && shown.key !== enteredKey
+  const slidesIn = entering && slideIn.includes(shown.id)
+  // the page a slide-in covers hides at once, so it has no fade to wait out
+  if (slidesIn && previous && previous.key !== leftKey) setLeftKey(previous.key)
   const leaving = forcedPage === null && previous && previous.key !== leftKey ? previous : null
   const leavingKey = leaving?.key ?? null
 
@@ -99,6 +105,8 @@ export function PageShell<Id extends string = PageId>({
               styles.page,
               inactive ? styles.pageInactive : '',
               covered ? styles.pageCovered : '',
+              isCurrent && slidesIn ? styles.pageSlideIn : '',
+              !isCurrent && slidesIn ? styles.pageUnderSlideIn : '',
             ]
               .filter(Boolean)
               .join(' ')}
