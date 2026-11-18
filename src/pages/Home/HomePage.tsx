@@ -21,6 +21,8 @@ export interface HomePageProps {
   /** the device playing, when one is */
   deviceName: string | null
   deviceCount: number
+  /** what the Queue card says is up next */
+  queueSummary: string
   btDeviceName: string | null
   /** resumes playback on the last device */
   onResume: () => void
@@ -36,7 +38,15 @@ function subtitleFor({ nowPlaying, connected, deviceName }: HomePageProps): stri
 
 /** The root of the page stack: a carousel into everything else, under the player while it plays. */
 export function HomePage(props: HomePageProps) {
-  const { nowPlaying, deviceName, deviceCount, btDeviceName, onResume, utcOffsetMin } = props
+  const {
+    nowPlaying,
+    deviceName,
+    deviceCount,
+    queueSummary,
+    btDeviceName,
+    onResume,
+    utcOffsetMin,
+  } = props
   const nav = useNavigation()
   const overlays = useOverlayState()
 
@@ -51,9 +61,10 @@ export function HomePage(props: HomePageProps) {
             : null,
         deviceName,
         deviceCount,
+        queueSummary,
         btDeviceName,
       }),
-    [title, artist, art, djFallback, deviceName, deviceCount, btDeviceName],
+    [title, artist, art, djFallback, deviceName, deviceCount, queueSummary, btDeviceName],
   )
   const keys = useMemo(() => cards.map(homeCardKey), [cards])
 

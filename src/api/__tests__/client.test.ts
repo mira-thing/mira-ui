@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { http, HttpResponse } from 'msw'
-import { fetchObserverStatus, remoteStateToStatus } from '../client'
+import { addToQueue, fetchObserverStatus, remoteStateToStatus } from '../client'
 import type { ObserverStatusActive, ObserverStatusInactive, RemoteStateWire } from '../types'
 import { server } from '../../__tests__/msw-server'
 
@@ -284,5 +284,28 @@ describe('fetchObserverStatus', () => {
     const promise = fetchObserverStatus(ac.signal)
     ac.abort()
     return expect(promise).rejects.toThrow()
+  })
+})
+
+describe('addToQueue', () => {
+  it('posts the uri as JSON', async () => {
+    let body: unknown
+    let type: string | null = null
+    server.use(
+      http.post('*/player/add_to_queue', async ({ request }) => {
+        type = request.headers.get('content-type')
+        body = await request.json()
+        return HttpResponse.json({})
+      }),
+    )
+
+    await addToQueue('spotify:track:abc')
+    expect(type).toBe('application/json')
+    expect(body).toEqual({ uri: 'spotify:track:abc' })
+  })
+
+  it('throws with the status on a non-OK response', async () => {
+    server.use(http.post('*/player/add_to_queue', () => new HttpResponse(null, { status: 400 })))
+    await expect(addToQueue('')).rejects.toThrow('player/add_to_queue 400')
   })
 })

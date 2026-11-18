@@ -35,6 +35,7 @@ function setup(over: Partial<HomePageProps> = {}, { busy = false } = {}) {
       connected
       deviceName={null}
       deviceCount={0}
+      queueSummary="Nothing queued"
       btDeviceName={null}
       onResume={onResume}
       utcOffsetMin={null}
@@ -52,6 +53,7 @@ describe('homeCards', () => {
     nowPlaying: null,
     deviceName: null,
     deviceCount: 0,
+    queueSummary: 'Nothing queued',
     btDeviceName: null,
   }
 
@@ -74,6 +76,11 @@ describe('homeCards', () => {
     expect(devices({ deviceName: 'Pixel' })).toBe('Pixel')
     expect(devices({ deviceCount: 2 })).toBe('2 available')
     expect(devices({})).toBe('Open Spotify on your phone')
+  })
+
+  it('shows the queue summary it is given', () => {
+    const queue = homeCards({ ...input, queueSummary: '3 up next' }).find((c) => c.key === 'queue')
+    expect(queue?.subtitle).toBe('3 up next')
   })
 })
 

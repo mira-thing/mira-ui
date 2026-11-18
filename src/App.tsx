@@ -51,6 +51,7 @@ import { OfflinePage } from '@/pages/Offline/OfflinePage'
 import { PlayerPage } from '@/pages/Player/PlayerPage'
 import { PlaylistsPage } from '@/pages/Playlists/PlaylistsPage'
 import { QueuePage } from '@/pages/Queue/QueuePage'
+import { upNextSummary } from '@/pages/Queue/upNext'
 import { UiKitPage } from '@/pages/UiKit/UiKitPage'
 import { artSizeFor } from '@/pages/Player/playerLayout'
 import { usePlayerControls } from '@/hooks/usePlayerControls'
@@ -61,11 +62,12 @@ import { useSponsorGate } from '@/hooks/useSponsorGate'
 import { useUpdateNotice } from '@/hooks/useUpdateNotice'
 import { useUtcOffset } from '@/hooks/useUtcOffset'
 import { resumeLastDevice } from '@/api/client'
-import type { ObserverStatus, ObserverStatusActive } from '@/api/types'
+import type { ObserverStatus, ObserverStatusActive, QueueTrack } from '@/api/types'
 import { initSettings, useSettings } from '@/settings'
 import styles from './App.module.scss'
 
 const IDLE_STATUS: ObserverStatus = { active: false, message: 'no session' }
+const NO_TRACKS: readonly QueueTrack[] = []
 // dev screens that draw the page stack with nothing over it
 const SHOWS_HOME = new Set<DevForcedScreen>([
   'idle',
@@ -700,9 +702,11 @@ function AppContent() {
       forced === 'reconnect-banner' ? 'offline' : reconnecting ? dropReason : null
 
     // the theme follows what the player presents, so the DJ keeps the album's colours
-    const presented = playerStatus ? presentTrack(scene.status ?? playerStatus, narration) : null
+    const presentedStatus = playerStatus ? (scene.status ?? playerStatus) : null
+    const presented = presentedStatus ? presentTrack(presentedStatus, narration) : null
     const shown = playing ? presented : null
     const theme = playerLeft ? null : presented
+    const upNext = playing ? (presentedStatus?.next_tracks ?? NO_TRACKS) : NO_TRACKS
 
     const renderPage = (entry: PageEntry) => {
       switch (entry.id) {
@@ -713,6 +717,7 @@ function AppContent() {
               connected={connected}
               deviceName={playing ? (playerStatus?.device_name ?? null) : null}
               deviceCount={connectDevices.length}
+              queueSummary={upNextSummary(upNext)}
               btDeviceName={btConnectedDevice?.name ?? null}
               onResume={resumeLast}
               utcOffsetMin={utcOffsetMin}
@@ -737,7 +742,7 @@ function AppContent() {
         case 'playlists':
           return <PlaylistsPage />
         case 'queue':
-          return <QueuePage />
+          return <QueuePage nowPlaying={shown} upNext={upNext} />
         case 'ui-kit':
           return DEV_SCREENS_ENABLED ? <UiKitPage /> : null
       }

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import App from '../App'
 import { DevScreenContext, type DevForcedScreen } from '@/dev/devContext'
@@ -262,6 +262,42 @@ describe('App', () => {
       await waitFor(() => expect(currentPage(container)).toContainElement(homeHeading()))
       expect(screen.getByText('Nothing playing')).toBeInTheDocument()
       await waitFor(() => expect(playerView(container)).not.toBeInTheDocument())
+    })
+
+    it('opens the queue from home, follows it live, and backs out to home', async () => {
+      const queued = (n: number) => ({
+        uri: `spotify:track:q${n}`,
+        track_id: `q${n}`,
+        name: `Queued ${n}`,
+        artist: `Artist ${n}`,
+        album: '',
+        image_url: '',
+      })
+      const { container } = await renderIdle()
+      pushEvent('observer_track_changed', { ...baseWire, NextTracks: [queued(1), queued(2)] })
+      await waitFor(() => expect(currentPage(container)).toContainElement(playerView(container)))
+      hw.back()
+      await waitFor(() => expect(currentPage(container)).toContainElement(homeHeading()))
+
+      fireEvent.click(screen.getByRole('option', { name: /Queue.*2 up next/ }))
+      const queue = await screen.findByRole('heading', { name: 'Queue' })
+      await waitFor(() => expect(currentPage(container)).toContainElement(queue))
+      expect(screen.getByRole('region', { name: 'Now playing' })).toHaveTextContent('Song')
+      expect(screen.getByRole('option', { name: /Queued 2/ })).toBeInTheDocument()
+
+      pushEvent('observer_state_changed', {
+        ...baseWire,
+        TrackName: 'Queued 1',
+        NextTracks: [queued(2), queued(3)],
+      })
+      await waitFor(() =>
+        expect(screen.getByRole('region', { name: 'Now playing' })).toHaveTextContent('Queued 1'),
+      )
+      const rows = within(currentPage(container)!).getAllByRole('option')
+      expect(rows.map((r) => r.textContent)).toEqual(['Queued 2Artist 2', 'Queued 3Artist 3'])
+
+      hw.back()
+      await waitFor(() => expect(currentPage(container)).toContainElement(homeHeading()))
     })
 
     it('opens the devices sheet from its card', async () => {
