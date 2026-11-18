@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { useControls } from '../useControls'
+import { playerHandlers } from '../../__tests__/fixtures/library'
 import { server } from '../../__tests__/msw-server'
 
 describe('useControls endpoint dispatch', () => {
@@ -152,5 +153,24 @@ describe('useControls endpoint dispatch', () => {
 
     await expect(result.current.play()).rejects.toThrow('/player/resume: 500')
     await expect(result.current.pause()).rejects.toThrow()
+  })
+})
+
+describe('useControls playContext', () => {
+  it('sends skip_to_uri and shuffle only when given', async () => {
+    const requests = { play: [] as unknown[], queue: [] as unknown[] }
+    server.use(...playerHandlers(requests))
+    const { result } = renderHook(() => useControls())
+    await result.current.playContext('spotify:playlist:a')
+    await result.current.playContext('spotify:playlist:a', {
+      skipToUri: 'spotify:track:t',
+      shuffle: false,
+    })
+    await result.current.playContext('spotify:playlist:a', { shuffle: true })
+    expect(requests.play).toEqual([
+      { uri: 'spotify:playlist:a' },
+      { uri: 'spotify:playlist:a', skip_to_uri: 'spotify:track:t', shuffle: false },
+      { uri: 'spotify:playlist:a', shuffle: true },
+    ])
   })
 })

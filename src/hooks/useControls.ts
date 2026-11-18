@@ -14,6 +14,13 @@ async function call(method: string, path: string, body?: unknown): Promise<void>
 
 export type RepeatState = 'off' | 'context' | 'track'
 
+export interface PlayContextOptions {
+  /** the track in the context to start on */
+  skipToUri?: string
+  /** omitted keeps the device's current shuffle */
+  shuffle?: boolean
+}
+
 export function useControls() {
   const play = useCallback(() => call('POST', '/player/resume'), [])
   const pause = useCallback(() => call('POST', '/player/pause'), [])
@@ -26,7 +33,15 @@ export function useControls() {
   )
   const togglePlayPause = useCallback(() => call('POST', '/player/playpause'), [])
   // play a playlist/album/liked on the active device
-  const playContext = useCallback((uri: string) => call('POST', '/player/play', { uri }), [])
+  const playContext = useCallback(
+    (uri: string, opts: PlayContextOptions = {}) =>
+      call('POST', '/player/play', {
+        uri,
+        ...(opts.skipToUri ? { skip_to_uri: opts.skipToUri } : {}),
+        ...(opts.shuffle !== undefined ? { shuffle: opts.shuffle } : {}),
+      }),
+    [],
+  )
   const setVolume = useCallback(
     (volume: number, relative = false) =>
       call('POST', '/player/volume', { volume: Math.round(volume), relative }),

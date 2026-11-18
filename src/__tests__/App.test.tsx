@@ -1,11 +1,21 @@
 import { describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
+import { useState } from 'react'
 import App from '../App'
 import { DevScreenContext, type DevForcedScreen } from '@/dev/devContext'
 import { server } from './msw-server'
 import { activeStatus, baseWire } from './fixtures/observer'
 import { hw } from './hardware'
+import {
+  libraryHandlers,
+  makePlaylists,
+  makeTracks,
+  playerHandlers,
+  type LibraryRequests,
+  type PlayerRequests,
+} from './fixtures/library'
+import { clearLibraryCache } from '@/pages/Playlists/libraryCache'
 
 const busState = vi.hoisted(() => ({
   listeners: [] as Array<(evt: { type: string; data: unknown }) => void>,
@@ -40,6 +50,7 @@ const playerView = (container: HTMLElement) => container.querySelector<HTMLEleme
 
 function quietPlayerApis() {
   server.use(
+    ...libraryHandlers(makePlaylists(3)),
     http.get('*/connect/devices', () => HttpResponse.json([])),
     http.get('*/player/saved', () => HttpResponse.json({ saved: false })),
     http.get('*/lyrics/*', () => HttpResponse.json({ lines: [] })),
@@ -300,6 +311,66 @@ describe('App', () => {
       await waitFor(() => expect(currentPage(container)).toContainElement(homeHeading()))
     })
 
+    describe('into the playlists', () => {
+      const playlists = makePlaylists(4)
+      const mix = playlists[2]
+      let library: LibraryRequests
+      let player: PlayerRequests
+
+      async function openPlaylists() {
+        clearLibraryCache()
+        library = { playlists: [], playlist: [] }
+        player = { play: [], queue: [] }
+        const view = await renderIdle()
+        server.use(
+          ...libraryHandlers(playlists, { [mix.uri]: makeTracks(3) }, library),
+          ...playerHandlers(player),
+        )
+        fireEvent.click(screen.getByRole('option', { name: /Playlists/ }))
+        await waitFor(() => expect(currentPage(view.container)).toHaveTextContent('Playlist 2'))
+        return view
+      }
+
+      it('comes back from a playlist to the row it opened, without fetching again', async () => {
+        const { container } = await openPlaylists()
+        fireEvent.click(screen.getByRole('option', { name: /Playlist 2/ }))
+        const heading = await screen.findByRole('heading', { name: 'Playlist 2' })
+        await waitFor(() => expect(currentPage(container)).toContainElement(heading))
+        await waitFor(() => expect(currentPage(container)).toHaveTextContent('Track 0'))
+
+        hw.back()
+        await waitFor(() =>
+          expect(currentPage(container)).toContainElement(
+            screen.getByRole('heading', { name: 'Playlists' }),
+          ),
+        )
+        expect(screen.getByRole('option', { name: /Playlist 2/, selected: true })).toBeVisible()
+        expect(library.playlists).toHaveLength(1)
+      })
+
+      it('plays from a track and shows the player over the playlist', async () => {
+        const { container } = await openPlaylists()
+        pushEvent('observer_track_changed', baseWire)
+        await waitFor(() => expect(screen.getAllByText('Song').length).toBeGreaterThan(0))
+
+        fireEvent.click(screen.getByRole('option', { name: /Playlist 2/ }))
+        await waitFor(() => expect(currentPage(container)).toHaveTextContent('Track 1'))
+        fireEvent.click(screen.getByRole('option', { name: /Track 1/ }).querySelector('button')!)
+        fireEvent.click(screen.getByRole('button', { name: 'Play from here' }))
+
+        await waitFor(() =>
+          expect(player.play).toEqual([{ uri: mix.uri, skip_to_uri: 'spotify:track:t1' }]),
+        )
+        await waitFor(() => expect(currentPage(container)).toContainElement(playerView(container)))
+        hw.back()
+        await waitFor(() =>
+          expect(currentPage(container)).toContainElement(
+            screen.getByRole('heading', { name: 'Playlist 2' }),
+          ),
+        )
+      })
+    })
+
     it('opens the devices sheet from its card', async () => {
       await renderIdle()
 
@@ -359,6 +430,36 @@ describe('App', () => {
 
       expect((await screen.findAllByText('DJ X')).length).toBeGreaterThan(0)
       expect(screen.queryByText('Reka')).not.toBeInTheDocument()
+    })
+
+    it('opens a playlist from a forced playlists page, and Back returns to its row', async () => {
+      clearLibraryCache()
+      server.use(
+        ...libraryHandlers(makePlaylists(4), { [makePlaylists(3)[2].uri]: makeTracks(2) }),
+        http.get('*/connect/devices', () => HttpResponse.json([])),
+        http.get('*/player/saved', () => HttpResponse.json({ saved: false })),
+        http.get('*/lyrics/*', () => HttpResponse.json({ lines: [] })),
+      )
+      function Harness() {
+        const [forced, setForced] = useState<DevForcedScreen>('playlists')
+        return (
+          <DevScreenContext.Provider value={{ forced, setForced }}>
+            <App />
+          </DevScreenContext.Provider>
+        )
+      }
+      const { container } = render(<Harness />)
+      fireEvent.click(await screen.findByRole('option', { name: /Playlist 2/ }))
+      const heading = await screen.findByRole('heading', { name: 'Playlist 2' })
+      await waitFor(() => expect(currentPage(container)).toContainElement(heading))
+
+      hw.back()
+      await waitFor(() =>
+        expect(currentPage(container)).toContainElement(
+          screen.getByRole('heading', { name: 'Playlists' }),
+        ),
+      )
+      expect(screen.getByRole('option', { name: /Playlist 2/, selected: true })).toBeVisible()
     })
 
     it('renders a forced ui-kit as a page in the shell, over the covered home', async () => {

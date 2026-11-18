@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { Artwork } from '../Artwork'
 import { loadArtwork } from '@/hooks/useColorExtract'
 
@@ -76,5 +76,65 @@ describe('Artwork', () => {
     const { container, rerender } = render(<Artwork src="https://x/a.jpg" />)
     await act(async () => rerender(<Artwork src="https://x/b.jpg" />))
     expect(container.querySelectorAll('img')).toHaveLength(2)
+  })
+
+  describe('a host that sends no CORS headers', () => {
+    const img = (c: HTMLElement) => c.querySelector('img')
+
+    it('loads with CORS and leaves the image alone when that works', () => {
+      const { container } = render(<Artwork src="https://x/ok.jpg" crossfade={false} />)
+      fireEvent.load(img(container)!)
+      expect(img(container)).toHaveAttribute('crossorigin', 'anonymous')
+      expect(img(container)).toBeVisible()
+    })
+
+    it('retries the same src once without crossOrigin', () => {
+      const { container } = render(
+        <Artwork src="https://x/retry.jpg" crossfade={false} fallback="playlist" />,
+      )
+      const first = img(container)!
+      fireEvent.error(first)
+      const retry = img(container)!
+      expect(retry).not.toBe(first)
+      expect(retry).toHaveAttribute('src', 'https://x/retry.jpg')
+      expect(retry).not.toHaveAttribute('crossorigin')
+      expect(screen.queryByRole('img', { name: 'Playlist' })).toBeNull()
+    })
+
+    it('shows the fallback when the retry fails too', () => {
+      const { container } = render(
+        <Artwork src="https://x/gone.jpg" crossfade={false} fallback="playlist" />,
+      )
+      fireEvent.error(img(container)!)
+      fireEvent.error(img(container)!)
+      expect(img(container)).toBeNull()
+      expect(screen.getByRole('img', { name: 'Playlist' })).toBeInTheDocument()
+    })
+
+    it('starts over with CORS for the next src', () => {
+      const { container, rerender } = render(
+        <Artwork src="https://x/first.jpg" crossfade={false} />,
+      )
+      fireEvent.error(img(container)!)
+      fireEvent.error(img(container)!)
+      rerender(<Artwork src="https://x/next.jpg" crossfade={false} />)
+      expect(img(container)).toHaveAttribute('crossorigin', 'anonymous')
+    })
+
+    it('starts a remounted row on the plain load once its src needed one', () => {
+      const first = render(<Artwork src="https://x/remount.jpg" crossfade={false} />)
+      fireEvent.error(img(first.container)!)
+      first.unmount()
+      const again = render(<Artwork src="https://x/remount.jpg" crossfade={false} />)
+      expect(img(again.container)).not.toHaveAttribute('crossorigin')
+    })
+
+    it('retries inside the crossfade layers as well', async () => {
+      const { container } = render(<Artwork src="https://x/fade.jpg" fallback="dj" />)
+      fireEvent.error(img(container)!)
+      expect(img(container)).not.toHaveAttribute('crossorigin')
+      fireEvent.error(img(container)!)
+      expect(screen.getAllByRole('img', { name: 'DJ' }).length).toBeGreaterThan(0)
+    })
   })
 })

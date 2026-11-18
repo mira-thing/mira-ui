@@ -49,6 +49,7 @@ import { BootPage } from '@/pages/Boot/BootPage'
 import { HomePage } from '@/pages/Home/HomePage'
 import { OfflinePage } from '@/pages/Offline/OfflinePage'
 import { PlayerPage } from '@/pages/Player/PlayerPage'
+import { PlaylistPage } from '@/pages/Playlist/PlaylistPage'
 import { PlaylistsPage } from '@/pages/Playlists/PlaylistsPage'
 import { QueuePage } from '@/pages/Queue/QueuePage'
 import { upNextSummary } from '@/pages/Queue/upNext'
@@ -440,9 +441,29 @@ function AppContent() {
     resetPages()
   }, [homeRequests, forced, setForced, resetPages])
 
+  // dev: a forced page isn't in the stack, so leaving it forward first puts it there
+  const forcedFocusKey = useRef<string | undefined>(undefined)
+  const { setFocusKey } = pages
   const navigation = useMemo<Navigation>(
-    () => ({ push: pushPage, pop: pages.pop, reset: pages.reset }),
-    [pushPage, pages.pop, pages.reset],
+    () => ({
+      push: (route) => {
+        if (forcedPage !== null) {
+          setForced('playing-lyrics')
+          resetPages()
+          pushPage(forcedPage, { silent: true })
+          if (forcedFocusKey.current !== undefined) setFocusKey(forcedFocusKey.current)
+          forcedFocusKey.current = undefined
+        }
+        pushPage(route)
+      },
+      pop: pages.pop,
+      reset: resetPages,
+      setFocusKey: (key) => {
+        if (forcedPage !== null) forcedFocusKey.current = key
+        else setFocusKey(key)
+      },
+    }),
+    [forcedPage, setForced, resetPages, pushPage, pages.pop, setFocusKey],
   )
 
   // ambient screensaver background
@@ -740,7 +761,16 @@ function AppContent() {
             />
           ) : null
         case 'playlists':
-          return <PlaylistsPage />
+          return <PlaylistsPage restoreKey={entry.focusKey} />
+        case 'playlist':
+          return (
+            <PlaylistPage
+              uri={entry.params.uri}
+              name={entry.params.name}
+              restoreKey={entry.focusKey}
+              deviceActive={statusActive}
+            />
+          )
         case 'queue':
           return <QueuePage nowPlaying={shown} upNext={upNext} />
         case 'ui-kit':

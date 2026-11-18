@@ -9,6 +9,7 @@ const apiProxy = {
   '/observer': API_TARGET,
   '/connect': API_TARGET,
   '/lyrics': API_TARGET,
+  '/library': API_TARGET,
   '/player': API_TARGET,
   '/web-api': API_TARGET,
   '/token': API_TARGET,

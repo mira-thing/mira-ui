@@ -18,7 +18,12 @@ vi.mock('@/input/useKnobNav', async (importOriginal) => {
 const track = { title: 'Song', artist: 'Artist', art: '', djFallback: false }
 
 function setup(over: Partial<HomePageProps> = {}, { busy = false } = {}) {
-  const nav: Navigation = { push: vi.fn(), pop: vi.fn(() => true), reset: vi.fn() }
+  const nav: Navigation = {
+    push: vi.fn(),
+    pop: vi.fn(() => true),
+    reset: vi.fn(),
+    setFocusKey: vi.fn(),
+  }
   const overlays = { open: vi.fn(), busy } as unknown as Overlays
   const onResume = vi.fn()
   const wrapper = ({ children }: { children: ReactNode }) =>

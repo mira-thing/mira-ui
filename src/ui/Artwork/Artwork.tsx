@@ -45,18 +45,33 @@ function fallbackNode(fallback: ArtworkFallback, size: number): ReactNode {
   }
 }
 
-function ArtImage({ src, alt }: { src: string; alt: string }) {
+type LoadMode = 'cors' | 'plain' | 'failed'
+
+// list rows remount as they scroll, so a src that needed the plain load starts there next time
+const PLAIN_MAX = 500
+const plainSrcs = new Set<string>()
+
+// CORS first to share loadArtwork's cached copy; display alone needs no ACAO, so retry without it
+function ArtImage({ src, alt, empty }: { src: string; alt: string; empty: ReactNode }) {
+  const [mode, setMode] = useState<LoadMode>(() => (plainSrcs.has(src) ? 'plain' : 'cors'))
+  if (mode === 'failed') return empty
+  const fail = () => {
+    if (mode === 'plain') return setMode('failed')
+    if (plainSrcs.size >= PLAIN_MAX) plainSrcs.clear()
+    plainSrcs.add(src)
+    setMode('plain')
+  }
   return (
     <img
+      // remounted so the retry is a clean load on a new element
+      key={mode}
       src={src}
       alt={alt}
       decoding="async"
-      crossOrigin="anonymous"
+      crossOrigin={mode === 'cors' ? 'anonymous' : undefined}
       referrerPolicy="no-referrer"
       draggable={false}
-      onError={(e) => {
-        e.currentTarget.style.visibility = 'hidden'
-      }}
+      onError={fail}
     />
   )
 }
@@ -72,7 +87,9 @@ interface FrameProps {
 function SingleLayer({ src, alt, size, className, empty }: FrameProps) {
   return (
     <div className={className} style={{ width: size, height: size }}>
-      <div className={styles.layer}>{src ? <ArtImage key={src} src={src} alt={alt} /> : empty}</div>
+      <div className={styles.layer}>
+        {src ? <ArtImage key={src} src={src} alt={alt} empty={empty} /> : empty}
+      </div>
     </div>
   )
 }
@@ -132,13 +149,13 @@ function Crossfade({
         className={`${styles.layer} ${showFront ? styles.show : styles.hide}`}
         aria-hidden={!showFront}
       >
-        {front ? <ArtImage key={front} src={front} alt={alt} /> : empty}
+        {front ? <ArtImage key={front} src={front} alt={alt} empty={empty} /> : empty}
       </div>
       <div
         className={`${styles.layer} ${!showFront ? styles.show : styles.hide}`}
         aria-hidden={showFront}
       >
-        {back ? <ArtImage key={back} src={back} alt={alt} /> : empty}
+        {back ? <ArtImage key={back} src={back} alt={alt} empty={empty} /> : empty}
       </div>
     </div>
   )

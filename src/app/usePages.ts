@@ -5,6 +5,8 @@ export interface PageParams {
   home: undefined
   player: undefined
   playlists: undefined
+  /** `name` lets the header draw before the playlist loads */
+  playlist: { uri: string; name: string }
   queue: undefined
   'ui-kit': undefined
 }

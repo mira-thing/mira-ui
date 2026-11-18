@@ -8,6 +8,8 @@ export interface Navigation {
   pop: () => boolean
   /** back to the root */
   reset: () => void
+  /** saves the current page's focus, handed back to it as `restoreKey` when it is uncovered */
+  setFocusKey: (focusKey: string) => void
 }
 
 export const NavigationContext = createContext<Navigation | null>(null)
