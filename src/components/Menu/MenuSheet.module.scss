@@ -14,8 +14,9 @@ $accent-fallback: 205, 210, 220;
 
 .sheet {
   position: absolute;
-  left: $pad-x;
-  right: $pad-x;
+  // clear of the knob, which overhangs the screen's edge
+  left: calc(#{$pad-x} + 5%);
+  right: calc(#{$pad-x} + 5%);
   bottom: $s-3;
   max-height: calc(100% - #{$s-7});
   overflow-y: auto;
